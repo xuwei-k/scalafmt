@@ -1,0 +1,13 @@
+80 columns                                                                     |
+<<< ONLY uppercase long
+1l
+>>>
+1L
+<<< ONLY lowercase float
+1F
+>>>
+1f
+<<< ONLY lowercase decimal
+1D
+>>>
+1d
