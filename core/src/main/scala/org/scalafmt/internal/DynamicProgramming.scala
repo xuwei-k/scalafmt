@@ -11,9 +11,9 @@ object L {
   def stack(ls: L*) = StackBlock(ls)
   def line(ls: Seq[L]*) = LineBlock(ls.flatten)
 
-  case class TextBlock(str: String)    extends L
+  case class TextBlock(str: String) extends L
   case class IndentBlock(n: Int, l: L) extends L
-  case class ChoiceBlock(ls: Seq[L])   extends L
+  case class ChoiceBlock(ls: Seq[L]) extends L
 
   class CompositeFormatter(val fs: Seq[L], val sep: String) extends L
 

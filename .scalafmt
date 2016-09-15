@@ -1,2 +1,2 @@
 --maxColumn 80
---alignTokens %;Infix,%%;Infix,extends;.*
+--alignTokens %;Infix,%%;Infix
