@@ -1,13 +1,15 @@
 package org.scalafmt
 
-import org.scalafmt.FormatEvent.CreateFormatOps
-import org.scalafmt.internal.BestFirstSearch
-import org.scalafmt.internal.FormatOps
-import org.scalafmt.internal.FormatWriter
-import scala.util.control.NonFatal
 import scala.meta.Input.stringToInput
+import scala.meta.Tree
+import scala.util.control.NonFatal
 
 import org.scalafmt.Error.Incomplete
+import org.scalafmt.FormatEvent.CreateFormatOps
+import org.scalafmt.internal.BestFirstSearch
+import org.scalafmt.internal.DynamicProgramming
+import org.scalafmt.internal.FormatOps
+import org.scalafmt.internal.FormatWriter
 
 object Scalafmt {
 
@@ -31,18 +33,23 @@ object Scalafmt {
       if (code.matches("\\s*")) FormatResult.Success("\n")
       else {
         val tree = new scala.meta.XtensionParseInputLike(code)
-          .parse(stringToInput, runner.parser, runner.dialect)
-          .get
-        val formatOps = new FormatOps(tree, style, runner)
-        runner.eventCallback(CreateFormatOps(formatOps))
-        val formatWriter = new FormatWriter(formatOps)
-        val search = new BestFirstSearch(formatOps, range, formatWriter)
-        val partial = search.getBestPath
-        val formattedString = formatWriter.mkString(partial.splits)
-        if (partial.reachedEOF) {
-          FormatResult.Success(formattedString)
+            .parse(stringToInput, runner.parser, runner.dialect)
+            .get
+        if (runner.neo) {
+          val search = new DynamicProgramming(tree)
+          search.format
         } else {
-          throw Incomplete(formattedString)
+          val formatOps = new FormatOps(tree, style, runner)
+          runner.eventCallback(CreateFormatOps(formatOps))
+          val formatWriter = new FormatWriter(formatOps)
+          val search = new BestFirstSearch(formatOps, range, formatWriter)
+          val partial = search.getBestPath
+          val formattedString = formatWriter.mkString(partial.splits)
+          if (partial.reachedEOF) {
+            FormatResult.Success(formattedString)
+          } else {
+            throw Incomplete(formattedString)
+          }
         }
       }
     } catch {

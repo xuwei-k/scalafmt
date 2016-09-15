@@ -23,7 +23,8 @@ case class ScalafmtRunner(debug: Boolean,
                           parser: Parse[_ <: Tree],
                           optimizer: ScalafmtOptimizer,
                           maxStateVisits: Int,
-                          dialect: Dialect) {
+                          dialect: Dialect,
+                          neo: Boolean = false) {
 
   def withParser(newParser: Parse[_ <: Tree]): ScalafmtRunner =
     this.copy(parser = newParser)
