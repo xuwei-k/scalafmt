@@ -128,6 +128,7 @@ lazy val core = project
     libraryDependencies ++= Seq(
       "com.lihaoyi"   %% "sourcecode" % "0.1.1",
       "org.scalameta" %% "scalameta"  % Deps.scalameta,
+      "com.chuusai"   %% "shapeless"  % "2.3.2",
       // Test dependencies
       "org.scalariform"                %% "scalariform"    % Deps.scalariform,
       "org.scala-lang"                 % "scala-reflect"   % scalaVersion.value % "test",

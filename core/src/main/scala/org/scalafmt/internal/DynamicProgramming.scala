@@ -40,10 +40,10 @@ class LB(f: Tree => L) {
     var first = true
     ts.foreach { t =>
       if (first) {
-        b += L.TextBlock("extends")
+        b += L.TextBlock(" extends ")
         first = false
       } else {
-        b += L.TextBlock("with")
+        b += L.TextBlock(" with ")
       }
       b += f(t)
     }
@@ -51,9 +51,13 @@ class LB(f: Tree => L) {
   }
 
   def args(ts: Seq[Term.Arg]) = {
+    var first = true
     ts.foreach { t =>
+      if (!first) {
+        b += L.TextBlock(", ")
+      }
       b += f(t)
-      b += L.TextBlock(",")
+      first = false
     }
     this
   }
@@ -91,20 +95,21 @@ class DynamicProgramming(tree: Tree) {
         L.StackBlock(t.stats.map(loop))
       case t: Template =>
         logger.elem(log(t))
-        L.stack(
-          L.LineBlock(lb.add(t.early).parents(t.parents).add("{").result()),
-          L.IndentBlock(
-            2,
-            L.stack(lb.add(t.stats.getOrElse(Seq.empty)).result(): _*)),
-          L.TextBlock("}")
-        )
+        val lines: Seq[L] =
+          Seq(
+            L.LineBlock(lb.add(t.early).parents(t.parents).add(" {").result())
+          ) ++ t.stats
+            .getOrElse(Seq.empty)
+            .map(x => L.IndentBlock(2, loop(x))) ++
+            Seq(L.TextBlock("}"))
+        L.StackBlock(lines)
       case t: Defn.Val =>
         L.LineBlock(
-          lb.add(t.mods).add("val").add(t.pats).add("=").add(t.rhs).result()
+          lb.add(t.mods).add("val ").add(t.pats).add(" = ").add(t.rhs).result()
         )
       case t: Defn.Object =>
         L.LineBlock(
-          lb.add(t.mods).add("object").add(t.name).add(t.templ).result()
+          lb.add(t.mods).add("object ").add(t.name).add(t.templ).result()
         )
       case t: Term.Name =>
         L.TextBlock(t.value)
@@ -134,18 +139,16 @@ class DynamicProgramming(tree: Tree) {
       case LineBlock(ls) =>
         ls.foreach { f =>
           iter(f)
-          sb.append(" ")
         }
       case StackBlock(ls) =>
         ls.foreach { f =>
           iter(f)
-          sb.append("\n" + (" " * indent))
+          sb.append("\n")
         }
       case ChoiceBlock(ls) =>
         iter(ls.head)
       case IndentBlock(n, x) =>
-        indent += n
-        iter(x)
+        iter(LineBlock(Seq(TextBlock(" " * n), x)))
       case WrapBlock(ls) =>
     }
     iter(problem)
