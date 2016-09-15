@@ -11,12 +11,17 @@ object L {
   def stack(ls: L*) = StackBlock(ls)
   def line(ls: Seq[L]*) = LineBlock(ls.flatten)
 
-  case class TextBlock(str: String) extends L
-  case class LineBlock(ls: Seq[L]) extends L
-  case class StackBlock(ls: Seq[L]) extends L
-  case class ChoiceBlock(ls: Seq[L]) extends L
-  case class WrapBlock(ls: Seq[L]) extends L
+  case class TextBlock(str: String)    extends L
   case class IndentBlock(n: Int, l: L) extends L
+  case class ChoiceBlock(ls: Seq[L])   extends L
+
+  class CompositeFormatter(val fs: Seq[L], val sep: String) extends L
+
+  case class LineBlock(ls: Seq[L], override val sep: String = " ")
+      extends CompositeFormatter(ls, sep)
+  case class StackBlock(ls: Seq[L]) extends CompositeFormatter(ls, "\n")
+  case class WrapBlock(ls: Seq[L], override val sep: String = " ")
+      extends CompositeFormatter(ls, sep)
 }
 
 class LB(f: Tree => L) {
@@ -136,22 +141,36 @@ class DynamicProgramming(tree: Tree) {
     def iter(l: L): Unit = l match {
       case TextBlock(x) =>
         sb.append(x)
-      case LineBlock(ls) =>
+      case LineBlock(ls, sep) =>
         ls.foreach { f =>
           iter(f)
         }
-      case StackBlock(ls) =>
-        ls.foreach { f =>
-          iter(f)
-          sb.append("\n")
-        }
-      case ChoiceBlock(ls) =>
-        iter(ls.head)
       case IndentBlock(n, x) =>
         iter(LineBlock(Seq(TextBlock(" " * n), x)))
-      case WrapBlock(ls) =>
+      case comp: L.CompositeFormatter =>
+        comp.fs.foreach { f =>
+          iter(f)
+          sb.append(comp.sep)
+        }
     }
     iter(problem)
     sb.toString()
   }
 }
+
+//sealed abstract class Formatter
+//object Formatter {
+//  class CompositeFormatter(fs: Seq[Formatter], sep: String) extends Formatter
+//  case class Vertical(fs: Seq[Formatter], sep: String)
+//      extends CompositeFormatter(fs, sep)
+//}
+//
+//trait FormatterApi {
+//  def -(other: Formatter): Formatter
+//  def -(other: Seq[Formatter]): Formatter
+//
+//  def |(other: Formatter): Formatter
+//  def |(other: Seq[Formatter]): Formatter
+//
+//  def or(other: Formatter): Formatter
+//}
