@@ -3,45 +3,56 @@ package org.scalafmt.internal
 import scala.meta.Tree
 import scala.meta._
 
+
 import org.scalafmt.FormatResult
 
 sealed abstract class L
 object L {
+
+  trait LDef {
+    def ls: Seq[L]
+  }
 
   def stack(ls: L*) = StackBlock(ls)
   def line(ls: Seq[L]*) = LineBlock(ls.flatten)
 
   case class TextBlock(str: String) extends L
   case class IndentBlock(n: Int, l: L) extends L
+
+  object IndentBlock {
+    def apply(n: Int, ls: Seq[L]): Seq[IndentBlock] = ls.map(IndentBlock(n, _))
+  }
   case class ChoiceBlock(ls: Seq[L]) extends L
 
   class CompositeFormatter(val fs: Seq[L], val sep: String) extends L
 
   case class LineBlock(ls: Seq[L], override val sep: String = " ")
-      extends CompositeFormatter(ls, sep)
+      extends CompositeFormatter(ls, sep) {
+    def +(other: L*) = LineBlock(ls ++ other)
+  }
   case class StackBlock(ls: Seq[L]) extends CompositeFormatter(ls, "\n")
   case class WrapBlock(ls: Seq[L], override val sep: String = " ")
       extends CompositeFormatter(ls, sep)
 }
 
-class LB(f: Tree => L) {
+class BlockBuilder(f: Tree => L) {
   private val b = Seq.newBuilder[L]
 
-  def add(ls: Seq[Tree]): LB = {
+  def add(ls: Seq[Tree]): BlockBuilder = {
     b ++= ls.map(f)
     this
   }
-  def add(l: Tree): LB = {
+  def add(l: Tree): BlockBuilder = {
     b += f(l)
     this
   }
 
-  def add(l: L): LB = {
+  def add(l: L): BlockBuilder = {
     b += l
     this
   }
 
-  def parents(ts: Seq[Ctor.Call]): LB = {
+  def parents(ts: Seq[Ctor.Call]): BlockBuilder = {
     var first = true
     ts.foreach { t =>
       if (first) {
@@ -72,11 +83,11 @@ class LB(f: Tree => L) {
     this
   }
 
-  def add(l: String): LB = {
+  def add(l: String): BlockBuilder = {
     b += L.TextBlock(l)
     this
   }
-  def add(l: L, ls: L*): LB = {
+  def add(l: L, ls: L*): BlockBuilder = {
     b += l
     b ++= ls
     this
@@ -85,7 +96,11 @@ class LB(f: Tree => L) {
 }
 
 class DynamicProgramming(tree: Tree) {
-  def lb = new LB(loop)
+  import L.{StackBlock => SB}
+  import L.{LineBlock => LB}
+  import L.{TextBlock => TB}
+  import L.{IndentBlock => IB}
+  def lb = new BlockBuilder(loop)
 
   def format: FormatResult = {
     FormatResult.Success(solve(loop(tree)))
@@ -93,21 +108,26 @@ class DynamicProgramming(tree: Tree) {
 
   import org.scalafmt.util.LoggerOps._
 
+  implicit def seq2l(ls: Seq[L]): L = LB(ls)
+  implicit def trees2layout(tree: Seq[Tree]): Seq[L] = tree.map(loop)
+  implicit def str2tb(str: String): L = TB(str)
+  implicit def tree2layout(tree: Tree): L = loop(tree)
+
   def loop(tree: Tree): L = {
     logger.elem(tree.getClass)
     tree match {
       case t: Source =>
-        L.StackBlock(t.stats.map(loop))
+        SB(t.stats)
       case t: Template =>
         logger.elem(log(t))
-        val lines: Seq[L] =
+//        val lines: Seq[L] =
+        L.StackBlock(
           Seq(
-            L.LineBlock(lb.add(t.early).parents(t.parents).add(" {").result())
-          ) ++ t.stats
-            .getOrElse(Seq.empty)
-            .map(x => L.IndentBlock(2, loop(x))) ++
-            Seq(L.TextBlock("}"))
-        L.StackBlock(lines)
+            LB(t.early ++ t.parents) + " {" +
+            IB(2, t.stats.getOrElse(Nil)) +
+            TB("}")
+          )
+        )
       case t: Defn.Val =>
         L.LineBlock(
           lb.add(t.mods).add("val ").add(t.pats).add(" = ").add(t.rhs).result()
