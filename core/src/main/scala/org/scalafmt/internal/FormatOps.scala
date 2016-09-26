@@ -145,7 +145,7 @@ class FormatOps(val tree: Tree,
     * Context: https://github.com/olafurpg/scalafmt/issues/108
     */
   def isJsNative(jsToken: Token): Boolean = {
-    initStyle.noNewlinesBeforeJsNative && jsToken.syntax == "js" &&
+    initStyle.neverBeforeJsNative && jsToken.syntax == "js" &&
     owners(jsToken).parent.exists(
       _.show[Structure].trim == """Term.Select(Term.Name("js"), Term.Name("native"))""")
   }

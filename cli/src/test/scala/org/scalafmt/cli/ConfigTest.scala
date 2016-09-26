@@ -37,15 +37,14 @@ class ConfigTest extends FunSuite {
     val config =
       """
         |style = intellij
-        |allowNewlineBeforeColonInMassiveReturnTypes = true
-        |alwaysNewlineBeforeLambdaParameters = true
         |assumeStandardLibraryStripMargin = true
         |binPackImportSelectors = true
-        |configStyleArguments = true
         |danglingParentheses = true
-        |keepSelectChainLineBreaks = true
+        |optIn: {
+        |  configStyleArguments = true
+        |  breakChainOnFirstMethodDot = true
+        |}
         |maxColumn = 4000
-        |noNewlinesBeforeJsNative = true
         |poorMansTrailingCommasInConfigStyle = true
         |unindentTopLevelOperators = true
         |docstrings = JavaDoc
@@ -76,6 +75,11 @@ class ConfigTest extends FunSuite {
         |  openParenDefnSite = true
         |  mixedOwners = true
         |}
+        |newlines: {
+        |  alwaysBeforeCurlyBraceLambdaParams = true
+        |  neverBeforeJsNative = true
+        |  sometimesBeforeColonInMethodReturnType = true
+        |}
         |indentOperator: {
         |  "include" = inc
         |  exclude = exclude
@@ -91,7 +95,7 @@ class ConfigTest extends FunSuite {
         assert(obtained.binPack.callSite == true)
         assert(obtained.binPack.defnSite == true)
         assert(obtained.configStyleArguments == true)
-        assert(obtained.noNewlinesBeforeJsNative == true)
+        assert(obtained.neverBeforeJsNative == true)
         assert(obtained.danglingParentheses == true)
         assert(obtained.align.openParenCallSite == true)
         assert(obtained.align.openParenDefnSite == true)
@@ -101,15 +105,15 @@ class ConfigTest extends FunSuite {
         assert(obtained.binPackImportSelectors == true)
         assert(obtained.spaces.inImportCurlyBraces == true)
         assert(obtained.poorMansTrailingCommasInConfigStyle == true)
-        assert(obtained.allowNewlineBeforeColonInMassiveReturnTypes == true)
+        assert(obtained.sometimesBeforeColonInMethodReturnType == true)
         assert(obtained.binPackParentConstructors == true)
         assert(obtained.spaces.afterTripleEquals == true)
         assert(obtained.unindentTopLevelOperators == true)
         assert(obtained.align.arrowEnumeratorGenerator == true)
         assert(obtained.align.ifWhileOpenParen == true)
         assert(obtained.spaces.beforeContextBoundColon == true)
-        assert(obtained.keepSelectChainLineBreaks == true)
-        assert(obtained.alwaysNewlineBeforeLambdaParameters == true)
+        assert(obtained.breakChainOnFirstMethodDot == true)
+        assert(obtained.alwaysBeforeCurlyBraceLambdaParams == true)
         assert(
           obtained.align.tokens ==
             Set(

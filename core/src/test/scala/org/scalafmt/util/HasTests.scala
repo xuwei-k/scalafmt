@@ -117,12 +117,16 @@ trait HasTests extends FunSuiteLike with FormatAssertions {
       case "default100" => ScalafmtStyle.unitTest80.copy(maxColumn = 100)
       case "scalajs" => ScalafmtStyle.scalaJs
       case "dangling" =>
-        ScalafmtStyle.unitTest80.copy(maxColumn = 40,
-                                      align = unitTest80.align.copy(
-                                        openParenCallSite = false
-                                      ),
-                                      danglingParentheses = true,
-                                      configStyleArguments = false)
+        ScalafmtStyle.unitTest80.copy(
+          maxColumn = 40,
+          align = unitTest80.align.copy(
+            openParenCallSite = false
+          ),
+          danglingParentheses = true,
+          optIn = unitTest80.optIn.copy(
+            configStyleArguments = false
+          )
+        )
       case "noAlign" =>
         ScalafmtStyle.unitTest80.copy(
           maxColumn = 40,
@@ -176,9 +180,16 @@ trait HasTests extends FunSuiteLike with FormatAssertions {
       case "import" =>
         ScalafmtStyle.unitTest80.copy(binPackImportSelectors = false)
       case "keepLineBreaks" =>
-        ScalafmtStyle.unitTest80.copy(keepSelectChainLineBreaks = true)
+        ScalafmtStyle.unitTest80.copy(
+          optIn = unitTest80.optIn.copy(
+            breakChainOnFirstMethodDot = true
+          ))
       case "newlineBeforeLambdaParams" =>
-        ScalafmtStyle.default.copy(alwaysNewlineBeforeLambdaParameters = true)
+        ScalafmtStyle.default.copy(
+          newlines = default.newlines.copy(
+            alwaysBeforeCurlyBraceLambdaParams = true
+          )
+        )
       case x if Rewrite.name2rewrite.contains(x) =>
         ScalafmtStyle.default.copy(
           rewrite = default.rewrite.copy(rules = Seq(Rewrite.name2rewrite(x)))

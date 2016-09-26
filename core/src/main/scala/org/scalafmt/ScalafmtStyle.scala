@@ -34,7 +34,7 @@ import sourcecode.Text
   * @param binPackDotChains If true, will fit as many arguments on each line,
   *                         only breaking at dots. If false, a either all selects
   *                         go on the same line or will have one line each.
-  * @param noNewlinesBeforeJsNative If true, a newline will never be placed in
+  * @param neverBeforeJsNative If true, a newline will never be placed in
   *                                 front of js.native.
   * @param danglingParentheses If true
   *                            AND @binPackArguments is true
@@ -62,7 +62,7 @@ import sourcecode.Text
   *                                   call site.
   * @param continuationIndentDefnSite Indent width for line continuation at
   *                                   definition/declaration site.
-  * @param allowNewlineBeforeColonInMassiveReturnTypes If true, scalafmt
+  * @param sometimesBeforeColonInMethodReturnType If true, scalafmt
   *                                                    may choose to put a newline
   *                                                    before colon : at defs.
   * @param binPackParentConstructors Parent constructors are C and D in
@@ -138,7 +138,7 @@ import sourcecode.Text
   *                                        , b
   *                                        , c
   *                                      )
-  * @param keepSelectChainLineBreaks If true, keep line breaks for chained method calls
+  * @param breakChainOnFirstMethodDot If true, keep line breaks for chained method calls
   *                                  If false, format line breaks for chained method calls
   *                                   For example
   *                                   example(foo)
@@ -146,7 +146,7 @@ import sourcecode.Text
   *                                   will be kept as it is if this is true, while if false
   *                                   it will be formatted as
   *                                   example(foo).methodCall(bar)
-  * @param alwaysNewlineBeforeLambdaParameters If true, puts a newline after the open brace
+  * @param alwaysBeforeCurlyBraceLambdaParams If true, puts a newline after the open brace
   *                                      and the parameters list of an anonymous function.
   *                                      For example
   *                                      something.map {
@@ -162,34 +162,39 @@ import sourcecode.Text
   */
 @ConfigReader
 case class ScalafmtStyle(
-    // Note: default style is right below
+    // Note: default style is in Settings.scala
     maxColumn: Int,
     docstrings: Docstrings,
-    assumeStandardLibraryStripMargin: Boolean,
-    configStyleArguments: Boolean,
-    noNewlinesBeforeJsNative: Boolean,
-    danglingParentheses: Boolean,
+    optIn: OptIn,
     binPack: BinPack,
     continuationIndent: ContinuationIndent,
     align: Align,
-    binPackImportSelectors: Boolean,
     spaces: Spaces,
-    poorMansTrailingCommasInConfigStyle: Boolean,
-    allowNewlineBeforeColonInMassiveReturnTypes: Boolean,
-    unindentTopLevelOperators: Boolean,
-    indentOperator: IndentOperator,
-    rewriteTokens: Map[String, String],
-    keepSelectChainLineBreaks: Boolean,
-    alwaysNewlineBeforeLambdaParameters: Boolean,
     lineEndings: LineEndings,
-    bestEffortInDeeplyNestedCode: Boolean,
-    rewrite: RewriteSettings
+    rewriteTokens: Map[String, String],
+    rewrite: RewriteSettings,
+    indentOperator: IndentOperator,
+    newlines: Newlines,
+    // Settings which belong to no group
+    binPackImportSelectors: Boolean, // TODO(olafur) bundle into `importSelectors: {singleLine, binPack, default}`
+    unindentTopLevelOperators: Boolean,
+    assumeStandardLibraryStripMargin: Boolean,
+    danglingParentheses: Boolean,
+    poorMansTrailingCommasInConfigStyle: Boolean,
+    bestEffortInDeeplyNestedCode: Boolean
 ) {
 
+  def neverBeforeJsNative: Boolean = newlines.neverBeforeJsNative
+  def sometimesBeforeColonInMethodReturnType: Boolean =
+    newlines.sometimesBeforeColonInMethodReturnType
+  def alwaysBeforeCurlyBraceLambdaParams: Boolean =
+    newlines.alwaysBeforeCurlyBraceLambdaParams
+
+  def configStyleArguments: Boolean = optIn.configStyleArguments
+  def breakChainOnFirstMethodDot: Boolean = optIn.breakChainOnFirstMethodDot
   def reformatDocstrings: Boolean = docstrings != Docstrings.preserve
   def scalaDocs: Boolean = docstrings == Docstrings.ScalaDoc
   def binPackParentConstructors: Boolean = binPack.parentConstructors
-
 
   implicit val contIndentReader: Reader[ContinuationIndent] =
     continuationIndent.reader
@@ -200,6 +205,8 @@ case class ScalafmtStyle(
   implicit val spacesReader: Reader[Spaces] = spaces.reader
   implicit val docstringsReader: Reader[Docstrings] = Docstrings.reader
   implicit val rewriteReader: Reader[RewriteSettings] = rewrite.reader
+  implicit val optInReader: Reader[OptIn] = optIn.reader
+  implicit val newlinesReader: Reader[Newlines] = newlines.reader
 
   lazy val alignMap: Map[String, Regex] =
     align.tokens.map(x => x.code -> x.owner.r).toMap
@@ -208,5 +215,17 @@ case class ScalafmtStyle(
     continuationIndent.defnSite
   )
 }
+@ConfigReader
+case class Newlines(
+    neverBeforeJsNative: Boolean,
+    sometimesBeforeColonInMethodReturnType: Boolean,
+    alwaysBeforeCurlyBraceLambdaParams: Boolean
+)
+
+@ConfigReader
+case class OptIn(
+    configStyleArguments: Boolean,
+    breakChainOnFirstMethodDot: Boolean
+)
 
 object ScalafmtStyle extends Settings

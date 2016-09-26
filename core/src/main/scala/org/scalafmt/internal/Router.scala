@@ -181,7 +181,7 @@ class Router(formatOps: FormatOps) {
           Split(
             Space,
             0,
-            ignoreIf = style.alwaysNewlineBeforeLambdaParameters || !startsLambda)
+            ignoreIf = style.alwaysBeforeCurlyBraceLambdaParams || !startsLambda)
             .withOptimalToken(lambdaArrow)
             .withIndent(lambdaIndent, close, Right)
             .withPolicy(lambdaPolicy),
@@ -617,7 +617,7 @@ class Router(formatOps: FormatOps) {
 
       // Closing def site ): ReturnType
       case FormatToken(_, colon @ Colon(), _)
-          if style.allowNewlineBeforeColonInMassiveReturnTypes &&
+          if style.sometimesBeforeColonInMethodReturnType &&
             defDefReturnType(leftOwner).isDefined =>
         val expire = lastToken(defDefReturnType(rightOwner).get)
         val penalizeNewlines =
@@ -831,7 +831,7 @@ class Router(formatOps: FormatOps) {
         Seq(
           Split(NoSplit,
                 0,
-                ignoreIf = style.keepSelectChainLineBreaks && newlines > 0)
+                ignoreIf = style.breakChainOnFirstMethodDot && newlines > 0)
             .withPolicy(noSplitPolicy),
           Split(Newline.copy(acceptNoSplit = true), 2 + nestedPenalty)
             .withPolicy(newlinePolicy)

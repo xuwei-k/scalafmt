@@ -27,7 +27,10 @@ trait Settings {
       defnSite = false,
       parentConstructors = false
     ),
-    configStyleArguments = true,
+    optIn = OptIn(
+      configStyleArguments = true,
+      breakChainOnFirstMethodDot = false
+    ),
     danglingParentheses = false,
     align = Align(
       openParenCallSite = true,
@@ -37,7 +40,11 @@ trait Settings {
       arrowEnumeratorGenerator = false,
       ifWhileOpenParen = true
     ),
-    noNewlinesBeforeJsNative = false,
+    newlines = Newlines(
+      neverBeforeJsNative = false,
+      sometimesBeforeColonInMethodReturnType = true,
+      alwaysBeforeCurlyBraceLambdaParams = false
+    ),
     continuationIndent = ContinuationIndent(
       callSite = 2,
       defnSite = 4
@@ -49,15 +56,12 @@ trait Settings {
       inImportCurlyBraces = false
     ),
     poorMansTrailingCommasInConfigStyle = false,
-    allowNewlineBeforeColonInMassiveReturnTypes = true,
     unindentTopLevelOperators = false,
     indentOperator = IndentOperator(
       include = indentOperatorsIncludeDefault,
       exclude = indentOperatorsExcludeDefault
     ),
     rewriteTokens = Map.empty[String, String],
-    keepSelectChainLineBreaks = false,
-    alwaysNewlineBeforeLambdaParameters = false,
     lineEndings = LineEndings.preserve,
     bestEffortInDeeplyNestedCode = false,
     rewrite = RewriteSettings()
@@ -66,7 +70,9 @@ trait Settings {
   val intellij = default.copy(
     continuationIndent = ContinuationIndent(2, 2),
     align = default.align.copy(openParenCallSite = false),
-    configStyleArguments = false,
+    optIn = default.optIn.copy(
+      configStyleArguments = false
+    ),
     danglingParentheses = true
   )
 
@@ -87,7 +93,6 @@ trait Settings {
     * https://github.com/scala-js/scala-js/blob/master/CODINGSTYLE.md
     */
   val scalaJs = default.copy(
-    noNewlinesBeforeJsNative = true,
     binPack = BinPack(
       defnSite = true,
       callSite = true,
@@ -95,7 +100,10 @@ trait Settings {
     ),
     continuationIndent = ContinuationIndent(4, 4),
     binPackImportSelectors = true,
-    allowNewlineBeforeColonInMassiveReturnTypes = false,
+    newlines = default.newlines.copy(
+      neverBeforeJsNative = true,
+      sometimesBeforeColonInMethodReturnType = false
+    ),
     docstrings = Docstrings.JavaDoc,
     align = default.align.copy(
       arrowEnumeratorGenerator = false,
