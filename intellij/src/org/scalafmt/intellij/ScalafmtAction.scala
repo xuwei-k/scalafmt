@@ -22,7 +22,7 @@ import com.intellij.openapi.ui.popup.JBPopupFactory
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.openapi.wm.WindowManager
 import com.intellij.ui.awt.RelativePoint
-import org.scalafmt.FormatResult
+import org.scalafmt.Formatted
 import org.scalafmt.Scalafmt
 import org.scalafmt.cli.Cli.Config
 import org.scalafmt.cli.StyleCache
@@ -60,13 +60,13 @@ class ScalafmtAction extends AnAction {
         style = style,
         runner = runner
       ) match {
-        case FormatResult.Failure(e: ParseException) =>
+        case Formatted.Failure(e: ParseException) =>
           displayMessage(event,
                          "Parse error: " + e.getMessage,
                          MessageType.ERROR)
-        case FormatResult.Failure(e) =>
+        case Formatted.Failure(e) =>
           displayMessage(event, e.getMessage.take(100), MessageType.ERROR)
-        case FormatResult.Success(formatted) =>
+        case Formatted.Success(formatted) =>
           if (source != formatted) {
             ApplicationManager.getApplication.runWriteAction(new Runnable {
               override def run(): Unit = {

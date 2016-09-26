@@ -2,14 +2,13 @@ package org.scalafmt.util
 
 import java.io.File
 
-import org.scalafmt.AlignToken
 import org.scalafmt.Debug
 import org.scalafmt.Error.UnknownStyle
-import org.scalafmt.FormatEvent.CompleteFormat
-import org.scalafmt.FormatEvent.CreateFormatOps
-import org.scalafmt.FormatEvent.Enqueue
-import org.scalafmt.FormatEvent.Explored
-import org.scalafmt.FormatEvent.VisitToken
+import org.scalafmt.config.FormatEvent.CompleteFormat
+import org.scalafmt.config.FormatEvent.CreateFormatOps
+import org.scalafmt.config.FormatEvent.Enqueue
+import org.scalafmt.config.FormatEvent.Explored
+import org.scalafmt.config.FormatEvent.VisitToken
 import org.scalafmt.Scalafmt
 import org.scalafmt.internal.FormatOps
 import org.scalafmt.internal.FormatWriter
@@ -20,6 +19,7 @@ import scala.meta.Tree
 import scala.meta.parsers.Parse
 import scala.meta.parsers.ParseException
 
+import org.scalafmt.config.AlignToken
 import org.scalafmt.config.ScalafmtRunner
 import org.scalafmt.config._
 import org.scalafmt.rewrite.Rewrite

@@ -5,7 +5,6 @@ import scala.meta.dialects.Scala211
 import scala.meta.parsers.Parse
 
 import metaconfig.Reader
-import org.scalafmt.FormatEvent
 
 trait ScalafmtRunnerT {
 

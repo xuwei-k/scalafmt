@@ -2,7 +2,6 @@ package org.scalafmt.config
 
 import metaconfig.ConfigReader
 import metaconfig.Reader
-import org.scalafmt.AlignToken
 
 @ConfigReader
 case class Align(

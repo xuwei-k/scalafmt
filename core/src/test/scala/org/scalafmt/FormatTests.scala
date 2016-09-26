@@ -5,10 +5,10 @@ import scala.language.postfixOps
 import scala.meta.internal.semantic.Symbol.Global
 
 import org.scalafmt.Error.SearchStateExploded
-import org.scalafmt.FormatEvent.CompleteFormat
-import org.scalafmt.FormatEvent.Enqueue
-import org.scalafmt.FormatEvent.Explored
-import org.scalafmt.FormatEvent.VisitToken
+import org.scalafmt.config.FormatEvent.CompleteFormat
+import org.scalafmt.config.FormatEvent.Enqueue
+import org.scalafmt.config.FormatEvent.Explored
+import org.scalafmt.config.FormatEvent.VisitToken
 import org.scalafmt.stats.TestStats
 import org.scalafmt.util.DiffAssertions
 import org.scalafmt.util.DiffTest
@@ -61,8 +61,8 @@ class FormatTests
   def run(t: DiffTest, parse: Parse[_ <: Tree]): Unit = {
     val runner = scalafmtRunner.copy(parser = parse)
     val obtained = Scalafmt.format(t.original, t.style, runner) match {
-      case FormatResult.Failure(e: Incomplete) => e.formattedCode
-      case FormatResult.Failure(e: SearchStateExploded) =>
+      case Formatted.Failure(e: Incomplete) => e.formattedCode
+      case Formatted.Failure(e: SearchStateExploded) =>
         logger.elem(e)
         e.partialOutput
       case x => x.get

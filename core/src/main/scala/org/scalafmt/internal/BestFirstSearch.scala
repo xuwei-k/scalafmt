@@ -3,16 +3,16 @@ package org.scalafmt.internal
 import scala.meta.Defn
 
 import org.scalafmt.Error.SearchStateExploded
-import org.scalafmt.FormatResult
+import org.scalafmt.Formatted
 import org.scalafmt.internal.ExpiresOn.Right
 import org.scalafmt.internal.ExpiresOn.Left
 import org.scalafmt.internal.Length.StateColumn
 import org.scalafmt.internal.Length.Num
 import org.scalafmt.Error.CantFormatFile
-import org.scalafmt.FormatEvent.CompleteFormat
-import org.scalafmt.FormatEvent.Enqueue
-import org.scalafmt.FormatEvent.Explored
-import org.scalafmt.FormatEvent.VisitToken
+import org.scalafmt.config.FormatEvent.CompleteFormat
+import org.scalafmt.config.FormatEvent.Enqueue
+import org.scalafmt.config.FormatEvent.Explored
+import org.scalafmt.config.FormatEvent.VisitToken
 import org.scalafmt.util.LoggerOps
 import org.scalafmt.util.TokenOps
 import org.scalafmt.util.TreeOps

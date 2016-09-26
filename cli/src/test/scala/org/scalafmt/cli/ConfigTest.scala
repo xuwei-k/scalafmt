@@ -4,7 +4,7 @@ import com.typesafe.config.Config
 import com.typesafe.config.ConfigFactory
 import com.typesafe.config.ConfigValue
 import org.scalafmt
-import org.scalafmt.AlignToken
+import org.scalafmt.config.AlignToken
 import org.scalafmt.config.IndentOperator
 import org.scalafmt.config.ScalafmtStyle
 import org.scalafmt.config.hocon.Hocon2Class

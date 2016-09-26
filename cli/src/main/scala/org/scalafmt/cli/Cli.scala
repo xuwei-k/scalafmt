@@ -10,11 +10,11 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
 import org.scalafmt
-import org.scalafmt.AlignToken
 import org.scalafmt.Error.MisformattedFile
-import org.scalafmt.FormatResult
+import org.scalafmt.Formatted
 import org.scalafmt.Scalafmt
 import org.scalafmt.Versions
+import org.scalafmt.config.AlignToken
 import org.scalafmt.config.ContinuationIndent
 import org.scalafmt.config.IndentOperator
 import org.scalafmt.config.ScalafmtOptimizer
@@ -225,7 +225,7 @@ object Cli {
                         style = config.style,
                         range = config.range,
                         runner = runner) match {
-          case FormatResult.Success(formatted) =>
+          case Formatted.Success(formatted) =>
             inputMethod match {
               case FileContents(filename, _) if config.inPlace =>
                 val elapsed = TimeUnit.MILLISECONDS

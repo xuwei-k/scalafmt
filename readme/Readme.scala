@@ -7,9 +7,9 @@ import java.text.SimpleDateFormat
 import java.util.Date
 
 import com.twitter.util.Eval
-import org.scalafmt.AlignToken
 import org.scalafmt.Scalafmt
 import org.scalafmt.cli.Cli
+import org.scalafmt.config.AlignToken
 import org.scalafmt.config.Config
 import org.scalafmt.config.ScalafmtRunner
 import org.scalafmt.config.ScalafmtStyle

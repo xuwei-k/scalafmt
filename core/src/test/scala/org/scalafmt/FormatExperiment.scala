@@ -63,7 +63,7 @@ trait FormatExperiment extends ScalaProjectsExperiment with FormatAssertions {
     if (!ScalacParser.checkParseFails(code)) {
       val startTime = System.nanoTime()
       Scalafmt.format(code, ScalafmtStyle.default) match {
-        case FormatResult.Success(formatted) =>
+        case Formatted.Success(formatted) =>
           val elapsed = System.nanoTime() - startTime
           assertFormatPreservesAst[Source](code, formatted)
           val formattedSecondTime = Scalafmt

@@ -7,7 +7,6 @@ import scala.meta.parsers.Parse
 
 import metaconfig.ConfigReader
 import metaconfig.Reader
-import org.scalafmt.FormatEvent
 
 /**
   * A FormatRunner configures how formatting should behave.

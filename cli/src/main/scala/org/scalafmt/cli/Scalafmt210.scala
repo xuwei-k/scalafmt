@@ -5,7 +5,7 @@ import java.io.File
 import org.scalafmt.Error.SearchStateExploded
 import org.scalafmt.util.LoggerOps._
 import org.scalafmt.Error.InvalidScalafmtConfiguration
-import org.scalafmt.FormatResult
+import org.scalafmt.Formatted
 import org.scalafmt.Scalafmt
 import org.scalafmt.config.ScalafmtRunner
 import org.scalafmt.config.ScalafmtStyle
@@ -37,10 +37,10 @@ class Scalafmt210 {
       if (filename.endsWith(".sbt")) ScalafmtRunner.sbt
       else ScalafmtRunner.default
     Scalafmt.format(code, style = scalafmtStyle, runner = runner) match {
-      case FormatResult.Success(formattedCode) => formattedCode
+      case Formatted.Success(formattedCode) => formattedCode
       case error =>
         error match {
-          case FormatResult.Failure(e) =>
+          case Formatted.Failure(e) =>
             logger.warn(
               s"Failed to format file $relativePath. Cause: ${e.getMessage}.")
           case _ =>
