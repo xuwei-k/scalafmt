@@ -1,14 +1,14 @@
 package org.scalafmt
 
-import org.scalafmt.util.DiffAssertions
-import org.scalafmt.util.DiffTest
-import org.scalafmt.util.HasTests
-import org.scalatest.FunSuite
 import scala.meta.Tree
 import scala.meta.parsers.Parse
 
 import org.scalafmt.config.ContinuationIndent
 import org.scalafmt.config.ScalafmtStyle
+import org.scalafmt.util.DiffAssertions
+import org.scalafmt.util.DiffTest
+import org.scalafmt.util.HasTests
+import org.scalatest.FunSuite
 
 class ContinuationIndentTests
     extends FunSuite

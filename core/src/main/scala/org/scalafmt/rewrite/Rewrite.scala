@@ -4,9 +4,6 @@ import scala.meta._
 
 import org.scalafmt.config.ReaderUtil
 import org.scalafmt.config.ScalafmtStyle
-import org.scalafmt.internal.FormatToken
-import org.scalafmt.util.LoggerOps._
-import org.scalafmt.util.StyleMap
 import org.scalafmt.util.TokenTraverser
 
 case class RewriteCtx(

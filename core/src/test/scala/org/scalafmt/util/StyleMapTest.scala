@@ -1,12 +1,11 @@
 package org.scalafmt.util
 
-import org.scalatest.FunSuite
 import scala.meta._
 
-import LoggerOps._
 import org.scalafmt.config.ScalafmtRunner
 import org.scalafmt.config.ScalafmtStyle
 import org.scalafmt.internal.FormatOps
+import org.scalatest.FunSuite
 
 class StyleMapTest extends FunSuite {
   test("basic") {

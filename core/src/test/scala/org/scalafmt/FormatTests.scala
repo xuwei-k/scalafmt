@@ -2,13 +2,15 @@ package org.scalafmt
 
 import scala.language.postfixOps
 
+import scala.concurrent.Await
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
+import scala.meta.Tree
 import scala.meta.internal.semantic.Symbol.Global
+import scala.meta.parsers.Parse
 
+import org.scalafmt.Error.Incomplete
 import org.scalafmt.Error.SearchStateExploded
-import org.scalafmt.config.FormatEvent.CompleteFormat
-import org.scalafmt.config.FormatEvent.Enqueue
-import org.scalafmt.config.FormatEvent.Explored
-import org.scalafmt.config.FormatEvent.VisitToken
 import org.scalafmt.stats.TestStats
 import org.scalafmt.util.DiffAssertions
 import org.scalafmt.util.DiffTest
@@ -17,20 +19,11 @@ import org.scalafmt.util.FormatAssertions
 import org.scalafmt.util.HasTests
 import org.scalafmt.util.LoggerOps
 import org.scalafmt.util.Report
-import org.scalafmt.util.Result
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.ConfigMap
 import org.scalatest.FunSuite
 import org.scalatest.concurrent.Timeouts
 import org.scalatest.time.SpanSugar._
-import scala.collection.mutable
-import scala.concurrent.Await
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
-import scala.meta.Tree
-import scala.meta.parsers.Parse
-
-import org.scalafmt.Error.Incomplete
 
 // TODO(olafur) property test: same solution without optimization or timeout.
 

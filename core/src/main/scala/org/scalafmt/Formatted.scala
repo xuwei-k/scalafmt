@@ -1,8 +1,5 @@
 package org.scalafmt
 
-import org.scalafmt.Error.CantFormatFile
-import org.scalafmt.internal.Split
-
 sealed abstract class Formatted {
   def get: String = this match {
     case Formatted.Success(code) => code

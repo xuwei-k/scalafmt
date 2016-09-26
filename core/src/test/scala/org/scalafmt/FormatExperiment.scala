@@ -1,10 +1,10 @@
 package org.scalafmt
 
+import scala.collection.JavaConversions._
+import scala.meta._
 import scala.util.Random
 import scala.util.Try
 import scalariform.formatter.ScalaFormatter
-import scalariform.formatter.preferences.FormattingPreferences
-import scalariform.formatter.preferences.IndentSpaces
 
 import java.nio.file.Files
 import java.nio.file.Paths
@@ -13,6 +13,7 @@ import java.util.concurrent.atomic.AtomicInteger
 
 import org.scalafmt.Error.IdempotencyViolated
 import org.scalafmt.Error.MegaTestFailed
+import org.scalafmt.config.ScalafmtStyle
 import org.scalafmt.util.ExperimentResult
 import org.scalafmt.util.ExperimentResult.ParseErr
 import org.scalafmt.util.ExperimentResult.SearchStateExploded
@@ -21,19 +22,11 @@ import org.scalafmt.util.ExperimentResult.Success
 import org.scalafmt.util.ExperimentResult.Timeout
 import org.scalafmt.util.ExperimentResult.UnknownFailure
 import org.scalafmt.util.FormatAssertions
-import org.scalafmt.util.LoggerOps
 import org.scalafmt.util.ScalaFile
 import org.scalafmt.util.ScalaProjectsExperiment
 import org.scalafmt.util.ScalacParser
-import org.scalatest.FunSuite
-import scala.collection.JavaConversions._
-import scala.meta._
-
-import org.scalafmt.config.ScalafmtStyle
-import org.scalatest.exceptions.TestFailedException
 
 trait FormatExperiment extends ScalaProjectsExperiment with FormatAssertions {
-  import LoggerOps._
   override val verbose = false
 
   val okRepos = Set(

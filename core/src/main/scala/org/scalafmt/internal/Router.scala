@@ -2,13 +2,26 @@ package org.scalafmt.internal
 
 import scala.language.implicitConversions
 
+import scala.collection.mutable
+import scala.meta.Case
+import scala.meta.Defn
+import scala.meta.Enumerator
+import scala.meta.Import
 import scala.meta.Mod
+import scala.meta.Name
+import scala.meta.Pat
+import scala.meta.Pkg
+import scala.meta.Template
+import scala.meta.Term
+import scala.meta.Tree
+import scala.meta.Type
+import scala.meta.tokens.Token
 
-import org.scalafmt.internal.ExpiresOn.Right
-import org.scalafmt.internal.ExpiresOn.Left
-import org.scalafmt.internal.Length.StateColumn
-import org.scalafmt.internal.Length.Num
 import org.scalafmt.Error.UnexpectedTree
+import org.scalafmt.internal.ExpiresOn.Left
+import org.scalafmt.internal.ExpiresOn.Right
+import org.scalafmt.internal.Length.Num
+import org.scalafmt.internal.Length.StateColumn
 import org.scalafmt.internal.Policy.NoPolicy
 import org.scalafmt.util.Delim
 import org.scalafmt.util.InfixApplication
@@ -19,19 +32,6 @@ import org.scalafmt.util.Modifier
 import org.scalafmt.util.TokenOps
 import org.scalafmt.util.TreeOps
 import org.scalafmt.util.Trivia
-import scala.collection.mutable
-import scala.meta.Tree
-import scala.meta.Case
-import scala.meta.Defn
-import scala.meta.Enumerator
-import scala.meta.Import
-import scala.meta.Name
-import scala.meta.Pat
-import scala.meta.Pkg
-import scala.meta.Template
-import scala.meta.Term
-import scala.meta.Type
-import scala.meta.tokens.Token
 
 // Too many to import individually.
 import scala.meta.tokens.Token._
@@ -51,11 +51,11 @@ object Constants {
   * Assigns splits to format tokens.
   */
 class Router(formatOps: FormatOps) {
+  import Constants._
   import LoggerOps._
   import TokenOps._
   import TreeOps._
   import formatOps._
-  import Constants._
 
   private def getSplits(formatToken: FormatToken): Seq[Split] = {
     val style = styleMap.at(formatToken)

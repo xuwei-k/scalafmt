@@ -1,35 +1,32 @@
 package org.scalafmt.internal
 
-import scala.meta.Import
-import scala.meta.Pat
-import scala.meta.dialects.Scala211
-import scala.meta.tokens.Tokens
-
-import org.scalafmt.internal.ExpiresOn.Left
-import org.scalafmt.internal.Policy.NoPolicy
-import org.scalafmt.Error.CaseMissingArrow
-import org.scalafmt.internal.Length.Num
-import org.scalafmt.util.LoggerOps
-import org.scalafmt.util.TokenOps
-import org.scalafmt.util.TreeOps
-import org.scalafmt.util.Delim
-import org.scalafmt.util.Whitespace
 import scala.annotation.tailrec
 import scala.collection.mutable
-import scala.meta.Tree
 import scala.meta.Case
 import scala.meta.Defn
+import scala.meta.Import
+import scala.meta.Pat
 import scala.meta.Pkg
 import scala.meta.Template
 import scala.meta.Term
+import scala.meta.Tree
 import scala.meta.Type
+import scala.meta.dialects.Scala211
 import scala.meta.prettyprinters.Structure
 import scala.meta.tokens.Token
 import scala.meta.tokens.Token._
+import scala.meta.tokens.Tokens
 
+import org.scalafmt.Error.CaseMissingArrow
 import org.scalafmt.config.ScalafmtRunner
 import org.scalafmt.config.ScalafmtStyle
+import org.scalafmt.internal.ExpiresOn.Left
+import org.scalafmt.internal.Length.Num
+import org.scalafmt.internal.Policy.NoPolicy
 import org.scalafmt.util.StyleMap
+import org.scalafmt.util.TokenOps
+import org.scalafmt.util.TreeOps
+import org.scalafmt.util.Whitespace
 
 /**
   * Helper functions for generating splits/policies for a given tree.
@@ -37,7 +34,6 @@ import org.scalafmt.util.StyleMap
 class FormatOps(val tree: Tree,
                 val initStyle: ScalafmtStyle,
                 val runner: ScalafmtRunner) {
-  import LoggerOps._
   import TokenOps._
   import TreeOps._
 

@@ -1,23 +1,19 @@
 package org.scalafmt.internal
 
+import scala.collection.mutable
 import scala.meta.Defn
+import scala.meta.tokens.Token
 
 import org.scalafmt.Error.SearchStateExploded
-import org.scalafmt.Formatted
-import org.scalafmt.internal.ExpiresOn.Right
-import org.scalafmt.internal.ExpiresOn.Left
-import org.scalafmt.internal.Length.StateColumn
-import org.scalafmt.internal.Length.Num
-import org.scalafmt.Error.CantFormatFile
 import org.scalafmt.config.FormatEvent.CompleteFormat
 import org.scalafmt.config.FormatEvent.Enqueue
 import org.scalafmt.config.FormatEvent.Explored
 import org.scalafmt.config.FormatEvent.VisitToken
+import org.scalafmt.internal.ExpiresOn.Right
+import org.scalafmt.internal.Length.Num
 import org.scalafmt.util.LoggerOps
 import org.scalafmt.util.TokenOps
 import org.scalafmt.util.TreeOps
-import scala.collection.mutable
-import scala.meta.tokens.Token
 
 /**
   * Implements best first search to find optimal formatting.
@@ -25,8 +21,9 @@ import scala.meta.tokens.Token
 class BestFirstSearch(val formatOps: FormatOps,
                       range: Set[Range],
                       formatWriter: FormatWriter) {
-  import LoggerOps._
   import Token._
+
+  import LoggerOps._
   import TokenOps._
   import TreeOps._
   import formatOps._
