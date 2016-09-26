@@ -48,7 +48,7 @@ def foo(
   )
 
   def run(t: DiffTest, parse: Parse[_ <: Tree]): Unit = {
-    val runner = scalafmtRunner.withParser(parse)
+    val runner = scalafmtRunner.copy(parser = parse)
     val formatted = Scalafmt.format(t.original, style, runner).get
     saveResult(t, formatted, t.only)
     assertNoDiff(formatted, t.expected)

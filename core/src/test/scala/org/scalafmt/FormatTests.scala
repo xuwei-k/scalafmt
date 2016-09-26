@@ -59,7 +59,7 @@ class FormatTests
     .foreach(runTest(run))
 
   def run(t: DiffTest, parse: Parse[_ <: Tree]): Unit = {
-    val runner = scalafmtRunner.withParser(parse)
+    val runner = scalafmtRunner.copy(parser = parse)
     val obtained = Scalafmt.format(t.original, t.style, runner) match {
       case FormatResult.Failure(e: Incomplete) => e.formattedCode
       case FormatResult.Failure(e: SearchStateExploded) =>

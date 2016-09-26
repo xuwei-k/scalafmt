@@ -202,7 +202,7 @@ class BestFirstSearch(val formatOps: FormatOps,
             Q.enqueue(nextState)
           }
         } else if (escapeInPathologicalCases &&
-                   visits(splitToken) > MaxVisitsPerToken) {
+                   visits(splitToken) > maxVisitsPerToken) {
           Q.dequeueAll
           best.clear()
           visits.clear()
@@ -211,7 +211,7 @@ class BestFirstSearch(val formatOps: FormatOps,
             throw SearchStateExploded(deepestYet,
                                       formatWriter.mkString(deepestYet.splits),
                                       tokens(deepestYet.splits.length).left)
-          } else if (pathologicalEscapes >= MaxEscapes) {
+          } else if (pathologicalEscapes >= maxEscapes) {
             Q.enqueue(untilNextStatement(curr, Integer.MAX_VALUE))
           } else {
             // We are stuck, but try to continue with one cheap/fast and
@@ -245,7 +245,7 @@ class BestFirstSearch(val formatOps: FormatOps,
             split.optimalAt match {
               case Some(OptimalToken(token, killOnFail))
                   if acceptOptimalAtHints && optimalNotFound &&
-                    actualSplit.length > 1 && depth < MaxDepth &&
+                    actualSplit.length > 1 && depth < maxDepth &&
                     nextState.splits.last.cost == 0 =>
                 val nextNextState =
                   shortestPath(nextState, token, depth + 1, maxCost = 0)

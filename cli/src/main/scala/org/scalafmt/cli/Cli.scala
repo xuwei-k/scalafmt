@@ -14,11 +14,11 @@ import org.scalafmt.AlignToken
 import org.scalafmt.Error.MisformattedFile
 import org.scalafmt.FormatResult
 import org.scalafmt.Scalafmt
-import org.scalafmt.ScalafmtOptimizer
 import org.scalafmt.ScalafmtRunner
 import org.scalafmt.Versions
 import org.scalafmt.config.ContinuationIndent
 import org.scalafmt.config.IndentOperator
+import org.scalafmt.config.ScalafmtOptimizer
 import org.scalafmt.config.ScalafmtStyle
 import org.scalafmt.macros.Macros
 import org.scalafmt.rewrite.Rewrite
