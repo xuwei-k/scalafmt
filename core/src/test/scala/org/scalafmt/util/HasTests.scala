@@ -10,7 +10,6 @@ import org.scalafmt.FormatEvent.CreateFormatOps
 import org.scalafmt.FormatEvent.Enqueue
 import org.scalafmt.FormatEvent.Explored
 import org.scalafmt.FormatEvent.VisitToken
-import org.scalafmt.ScalafmtRunner
 import org.scalafmt.Scalafmt
 import org.scalafmt.internal.FormatOps
 import org.scalafmt.internal.FormatWriter
@@ -21,6 +20,7 @@ import scala.meta.Tree
 import scala.meta.parsers.Parse
 import scala.meta.parsers.ParseException
 
+import org.scalafmt.config.ScalafmtRunner
 import org.scalafmt.config._
 import org.scalafmt.rewrite.Rewrite
 

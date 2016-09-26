@@ -7,7 +7,7 @@ import org.scalafmt.util.LoggerOps._
 import org.scalafmt.Error.InvalidScalafmtConfiguration
 import org.scalafmt.FormatResult
 import org.scalafmt.Scalafmt
-import org.scalafmt.ScalafmtRunner
+import org.scalafmt.config.ScalafmtRunner
 import org.scalafmt.config.ScalafmtStyle
 
 /**

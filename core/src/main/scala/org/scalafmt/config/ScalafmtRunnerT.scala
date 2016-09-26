@@ -6,7 +6,6 @@ import scala.meta.parsers.Parse
 
 import metaconfig.Reader
 import org.scalafmt.FormatEvent
-import org.scalafmt.ScalafmtRunner
 
 trait ScalafmtRunnerT {
 

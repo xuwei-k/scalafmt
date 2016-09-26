@@ -8,7 +8,6 @@ import scala.meta.tokens.Tokens
 import org.scalafmt.internal.ExpiresOn.Left
 import org.scalafmt.internal.Policy.NoPolicy
 import org.scalafmt.Error.CaseMissingArrow
-import org.scalafmt.ScalafmtRunner
 import org.scalafmt.internal.Length.Num
 import org.scalafmt.util.LoggerOps
 import org.scalafmt.util.TokenOps
@@ -28,6 +27,7 @@ import scala.meta.prettyprinters.Structure
 import scala.meta.tokens.Token
 import scala.meta.tokens.Token._
 
+import org.scalafmt.config.ScalafmtRunner
 import org.scalafmt.config.ScalafmtStyle
 import org.scalafmt.util.StyleMap
 

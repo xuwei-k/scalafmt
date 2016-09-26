@@ -9,6 +9,7 @@ import org.scalafmt.Error.Incomplete
 import org.scalafmt.FormatEvent.CreateFormatOps
 import org.scalafmt.config.LineEndings.preserve
 import org.scalafmt.config.LineEndings.windows
+import org.scalafmt.config.ScalafmtRunner
 import org.scalafmt.config.ScalafmtStyle
 import org.scalafmt.internal.BestFirstSearch
 import org.scalafmt.internal.FormatOps

@@ -24,9 +24,9 @@ import com.intellij.openapi.wm.WindowManager
 import com.intellij.ui.awt.RelativePoint
 import org.scalafmt.FormatResult
 import org.scalafmt.Scalafmt
-import org.scalafmt.ScalafmtRunner
 import org.scalafmt.cli.Cli.Config
 import org.scalafmt.cli.StyleCache
+import org.scalafmt.config.ScalafmtRunner
 import org.scalafmt.config.ScalafmtStyle
 import org.scalafmt.util.FileOps
 import org.scalafmt.util.LoggerOps

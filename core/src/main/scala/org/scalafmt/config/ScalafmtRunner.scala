@@ -1,4 +1,4 @@
-package org.scalafmt
+package org.scalafmt.config
 
 import scala.meta.Dialect
 import scala.meta.Tree
@@ -7,15 +7,7 @@ import scala.meta.parsers.Parse
 
 import metaconfig.ConfigReader
 import metaconfig.Reader
-import org.scalafmt.FormatEvent.CompleteFormat
-import org.scalafmt.FormatEvent.Enqueue
-import org.scalafmt.FormatEvent.Explored
-import org.scalafmt.FormatEvent.VisitToken
-import org.scalafmt.config.MetaParser
-import org.scalafmt.config.ScalafmtOptimizer
-import org.scalafmt.config.ScalafmtRunnerT
-import org.scalafmt.rewrite.Rewrite
-import org.scalafmt.util.LoggerOps
+import org.scalafmt.FormatEvent
 
 /**
   * A FormatRunner configures how formatting should behave.
