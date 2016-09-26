@@ -2,7 +2,7 @@ package org.scalafmt.util
 
 import org.scalafmt.FormatResult
 import org.scalafmt.Scalafmt
-import org.scalafmt.ScalafmtStyle
+import org.scalafmt.config.ScalafmtStyle
 import org.scalatest.FunSuite
 
 class ErrorTest extends FunSuite with DiffAssertions {

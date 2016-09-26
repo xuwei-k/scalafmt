@@ -1,26 +1,8 @@
-package org.scalafmt
+package org.scalafmt.config
 
 import scala.reflect.ClassTag
 
 import metaconfig.Reader
-import org.scalafmt.util.logger
-
-sealed abstract class Docstrings
-object Docstrings {
-  val reader = ReaderUtil.oneOf[Docstrings](JavaDoc, ScalaDoc, preserve)
-  case object JavaDoc extends Docstrings
-  case object ScalaDoc extends Docstrings
-  case object preserve extends Docstrings
-}
-
-sealed abstract class LineEndings
-
-object LineEndings {
-  val reader = ReaderUtil.oneOf[LineEndings](unix, windows, preserve)
-  case object unix extends LineEndings
-  case object windows extends LineEndings
-  case object preserve extends LineEndings
-}
 
 object ReaderUtil {
   // Poor mans coproduct reader
@@ -40,4 +22,3 @@ object ReaderUtil {
     }
   }
 }
-

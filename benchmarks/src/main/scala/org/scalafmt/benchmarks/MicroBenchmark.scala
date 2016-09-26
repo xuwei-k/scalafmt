@@ -20,9 +20,9 @@ import scalariform.formatter.ScalaFormatter
 import scalariform.formatter.preferences.FormattingPreferences
 import scalariform.formatter.preferences.IndentSpaces
 
-import org.scalafmt.ScalafmtStyle
 import org.scalafmt.config.RedundantBracesSettings
 import org.scalafmt.config.RewriteSettings
+import org.scalafmt.config.ScalafmtStyle
 import org.scalafmt.rewrite.RedundantBraces
 import org.scalafmt.rewrite.SortImports
 

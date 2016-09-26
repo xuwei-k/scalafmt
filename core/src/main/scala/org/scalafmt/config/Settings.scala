@@ -1,17 +1,12 @@
-package org.scalafmt
+package org.scalafmt.config
 
-import scala.util.matching.Regex
-import scala.collection.immutable.Set
 import scala.collection.immutable.Seq
+import scala.collection.immutable.Set
 
-import metaconfig.ConfigReader
 import metaconfig.Reader
 import metaconfig.String2AnyMap
-import org.scalafmt.config.Newlines
-import org.scalafmt.config.OptIn
-import org.scalafmt.rewrite.Rewrite
+import org.scalafmt.AlignToken
 import org.scalafmt.util.LoggerOps
-import org.scalafmt.config.RewriteSettings
 
 trait Settings {
 

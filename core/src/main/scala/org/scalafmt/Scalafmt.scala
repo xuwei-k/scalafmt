@@ -7,8 +7,9 @@ import scala.util.control.NonFatal
 
 import org.scalafmt.Error.Incomplete
 import org.scalafmt.FormatEvent.CreateFormatOps
-import org.scalafmt.LineEndings.preserve
-import org.scalafmt.LineEndings.windows
+import org.scalafmt.config.LineEndings.preserve
+import org.scalafmt.config.LineEndings.windows
+import org.scalafmt.config.ScalafmtStyle
 import org.scalafmt.internal.BestFirstSearch
 import org.scalafmt.internal.FormatOps
 import org.scalafmt.internal.FormatWriter

@@ -5,7 +5,7 @@ import scala.meta._
 
 import LoggerOps._
 import org.scalafmt.ScalafmtRunner
-import org.scalafmt.ScalafmtStyle
+import org.scalafmt.config.ScalafmtStyle
 import org.scalafmt.internal.FormatOps
 
 class StyleMapTest extends FunSuite {

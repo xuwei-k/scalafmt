@@ -12,7 +12,6 @@ import org.scalafmt.FormatEvent.Explored
 import org.scalafmt.FormatEvent.VisitToken
 import org.scalafmt.ScalafmtRunner
 import org.scalafmt.Scalafmt
-import org.scalafmt.ScalafmtStyle
 import org.scalafmt.internal.FormatOps
 import org.scalafmt.internal.FormatWriter
 import org.scalafmt.internal.State
@@ -22,9 +21,7 @@ import scala.meta.Tree
 import scala.meta.parsers.Parse
 import scala.meta.parsers.ParseException
 
-import org.scalafmt.BinPack
-import org.scalafmt.IndentOperator
-import org.scalafmt.config.Config
+import org.scalafmt.config._
 import org.scalafmt.rewrite.Rewrite
 
 trait HasTests extends FunSuiteLike with FormatAssertions {

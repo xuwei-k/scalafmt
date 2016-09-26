@@ -17,7 +17,6 @@ import org.openjdk.jmh.annotations.Warmup
 import org.scalafmt.Scalafmt
 import org.scalafmt.ScalafmtOptimizer
 import org.scalafmt.ScalafmtRunner
-import org.scalafmt.ScalafmtStyle
 import org.scalafmt.util.ScalaFile
 import org.scalafmt.util.FileOps
 import scala.meta.Source
@@ -26,6 +25,7 @@ import scalariform.formatter.preferences.FormattingPreferences
 import scalariform.formatter.preferences.IndentSpaces
 
 import org.scalafmt.config.RewriteSettings
+import org.scalafmt.config.ScalafmtStyle
 import org.scalafmt.rewrite.RedundantBraces
 import org.scalafmt.rewrite.SortImports
 

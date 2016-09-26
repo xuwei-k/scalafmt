@@ -1,7 +1,6 @@
 package org.scalafmt.config
 
 import metaconfig.Result
-import org.scalafmt.ScalafmtStyle
 import org.scalafmt.config.hocon.Hocon2Class
 
 object Config {

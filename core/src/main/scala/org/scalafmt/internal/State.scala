@@ -4,11 +4,12 @@ import org.scalafmt.internal.ExpiresOn.Right
 import org.scalafmt.internal.ExpiresOn.Left
 import org.scalafmt.internal.Length.StateColumn
 import org.scalafmt.internal.Length.Num
-import org.scalafmt.ScalafmtStyle
 import org.scalafmt.util.LoggerOps
 import org.scalafmt.util.TokenOps
 import scala.meta.tokens.Token
 import scala.meta.tokens.Token.Comment
+
+import org.scalafmt.config.ScalafmtStyle
 
 /**
   * A partial formatting solution up to splits.length number of tokens.

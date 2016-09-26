@@ -8,7 +8,7 @@ import org.scalafmt.Error.InvalidScalafmtConfiguration
 import org.scalafmt.FormatResult
 import org.scalafmt.Scalafmt
 import org.scalafmt.ScalafmtRunner
-import org.scalafmt.ScalafmtStyle
+import org.scalafmt.config.ScalafmtStyle
 
 /**
   * Classload ScalaFmt210 to run ScalaFmt from Scala 2.10, for example sbt

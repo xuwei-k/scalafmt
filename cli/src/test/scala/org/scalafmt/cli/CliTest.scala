@@ -3,9 +3,9 @@ package org.scalafmt.cli
 import java.io.File
 import java.nio.file.Files
 
-import org.scalafmt.LineEndings._
+import org.scalafmt.config.LineEndings._
 import org.scalafmt.Error.MisformattedFile
-import org.scalafmt.ScalafmtStyle
+import org.scalafmt.config.ScalafmtStyle
 import org.scalafmt.rewrite.SortImports
 import org.scalafmt.util.DiffAssertions
 import org.scalafmt.util.FileOps

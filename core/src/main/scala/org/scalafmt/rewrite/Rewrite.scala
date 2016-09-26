@@ -2,8 +2,8 @@ package org.scalafmt.rewrite
 
 import scala.meta._
 
-import org.scalafmt.ReaderUtil
-import org.scalafmt.ScalafmtStyle
+import org.scalafmt.config.ReaderUtil
+import org.scalafmt.config.ScalafmtStyle
 import org.scalafmt.internal.FormatToken
 import org.scalafmt.util.LoggerOps._
 import org.scalafmt.util.StyleMap

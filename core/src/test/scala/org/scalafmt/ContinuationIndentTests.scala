@@ -7,6 +7,9 @@ import org.scalatest.FunSuite
 import scala.meta.Tree
 import scala.meta.parsers.Parse
 
+import org.scalafmt.config.ContinuationIndent
+import org.scalafmt.config.ScalafmtStyle
+
 class ContinuationIndentTests
     extends FunSuite
     with HasTests

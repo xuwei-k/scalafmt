@@ -1,5 +1,7 @@
 package org.scalafmt
 
+import org.scalafmt.config.Docstrings
+import org.scalafmt.config.ScalafmtStyle
 import org.scalafmt.util.DiffAssertions
 import org.scalatest.FunSuite
 

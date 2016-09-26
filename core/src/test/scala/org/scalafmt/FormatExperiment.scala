@@ -29,6 +29,7 @@ import org.scalatest.FunSuite
 import scala.collection.JavaConversions._
 import scala.meta._
 
+import org.scalafmt.config.ScalafmtStyle
 import org.scalatest.exceptions.TestFailedException
 
 trait FormatExperiment extends ScalaProjectsExperiment with FormatAssertions {

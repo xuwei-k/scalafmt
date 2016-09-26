@@ -1,5 +1,6 @@
 package org.scalafmt
 
+import org.scalafmt.config.ScalafmtStyle
 import org.scalafmt.util.DiffTest
 import org.scalafmt.util.FileOps
 import org.scalafmt.util.HasTests

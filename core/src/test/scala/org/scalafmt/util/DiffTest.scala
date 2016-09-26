@@ -1,6 +1,6 @@
 package org.scalafmt.util
 
-import org.scalafmt.ScalafmtStyle
+import org.scalafmt.config.ScalafmtStyle
 
 case class DiffTest(spec: String,
                     name: String,

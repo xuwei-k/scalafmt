@@ -1,16 +1,10 @@
-package org.scalafmt
+package org.scalafmt.config
 
 import scala.util.matching.Regex
 
 import metaconfig.ConfigReader
 import metaconfig.Reader
-import org.scalafmt.config.Newlines
-import org.scalafmt.config.OptIn
-import org.scalafmt.config.RewriteSettings
-import org.scalafmt.rewrite.Rewrite
-import org.scalafmt.util.LoggerOps
 import org.scalafmt.util.ValidationOps
-import sourcecode.Text
 
 /** Configuration options for scalafmt.
   *

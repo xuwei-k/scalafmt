@@ -4,8 +4,8 @@ import scala.meta.tokens.Token
 import scala.meta.tokens.Token.Comment
 import scala.meta.tokens.Tokens
 
-import org.scalafmt.ScalafmtStyle
 import org.scalafmt.config.Config
+import org.scalafmt.config.ScalafmtStyle
 import org.scalafmt.internal.FormatToken
 
 class StyleMap(tokens: Array[FormatToken], init: ScalafmtStyle) {

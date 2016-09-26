@@ -10,9 +10,9 @@ import com.twitter.util.Eval
 import org.scalafmt.AlignToken
 import org.scalafmt.Scalafmt
 import org.scalafmt.ScalafmtRunner
-import org.scalafmt.ScalafmtStyle
 import org.scalafmt.cli.Cli
 import org.scalafmt.config.Config
+import org.scalafmt.config.ScalafmtStyle
 import org.scalafmt.macros.Macros
 import org.scalafmt.rewrite.SortImports
 import org.scalafmt.rewrite.RedundantBraces

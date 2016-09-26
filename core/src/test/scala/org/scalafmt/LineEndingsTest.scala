@@ -1,6 +1,7 @@
 package org.scalafmt
 
-import org.scalafmt.LineEndings._
+import org.scalafmt.config.LineEndings._
+import org.scalafmt.config.ScalafmtStyle
 import org.scalafmt.util.DiffAssertions
 import org.scalatest.FunSuite
 
