@@ -478,16 +478,16 @@ class FormatOps(val tree: Tree,
     leftOwner match {
       case _: Pat => Num(0) // Indentation already provided by case.
       case x if isDefnSite(x) && !x.isInstanceOf[Type.Apply] =>
-        if (style.binPackParameters && !isConfigStyle) Num(0)
-        else Num(style.continuationIndentDefnSite)
-      case _ => Num(style.continuationIndentCallSite)
+        if (style.binPack.defnSite && !isConfigStyle) Num(0)
+        else Num(style.continuationIndent.defnSite)
+      case _ => Num(style.continuationIndent.callSite)
     }
   }
 
   def isBinPack(owner: Tree): Boolean = {
     val style = styleAt(owner)
-    (style.binPackArguments && isCallSite(owner)) ||
-    (style.binPackParameters && isDefnSite(owner))
+    (style.binPack.callSite && isCallSite(owner)) ||
+    (style.binPack.defnSite && isDefnSite(owner))
   }
 
   def isSingleIdentifierAnnotation(tok: FormatToken): Boolean = {

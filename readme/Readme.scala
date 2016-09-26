@@ -9,10 +9,13 @@ import java.util.Date
 import com.twitter.util.Eval
 import org.scalafmt.AlignToken
 import org.scalafmt.Scalafmt
+import org.scalafmt.ScalafmtRunner
 import org.scalafmt.ScalafmtStyle
 import org.scalafmt.cli.Cli
 import org.scalafmt.config.Config
 import org.scalafmt.macros.Macros
+import org.scalafmt.rewrite.SortImports
+import org.scalafmt.rewrite.RedundantBraces
 
 object hl extends scalatex.site.Highlighter
 
@@ -74,8 +77,13 @@ object Readme {
     pairs(List(left, right).map(x => half(hl.scala(x))): _*)
 
   def demo(code: String) = {
-    import org.scalafmt._
     val formatted = Scalafmt.format(code, ScalafmtStyle.default40).get
+    sideBySide(code, formatted)
+  }
+
+  def demoStyle(style: ScalafmtStyle)(code: String) = {
+    val formatted =
+      Scalafmt.format(code, style, runner = ScalafmtRunner.sbt).get
     sideBySide(code, formatted)
   }
 
@@ -96,6 +104,18 @@ object Readme {
 
   val stripMarginStyle =
     ScalafmtStyle.default.copy(assumeStandardLibraryStripMargin = true)
+
+  val rewriteBraces =
+    ScalafmtStyle.default.copy(
+      rewrite = ScalafmtStyle.default.rewrite.copy(
+        rules = Seq(RedundantBraces)
+      ))
+
+  val rewriteImports =
+    ScalafmtStyle.default.copy(
+      rewrite = ScalafmtStyle.default.rewrite.copy(
+        rules = Seq(SortImports)
+      ))
 
   def fmt(style: ScalafmtStyle)(code: String): TypedTag[String] =
     example(code, style)

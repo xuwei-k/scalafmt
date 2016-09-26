@@ -14,7 +14,7 @@ import sourcecode.Text
   *
   * @param maxColumn Column limit, any formatting exceeding this field is
   *                  penalized heavily.
-  * @param reformatDocstrings If true, reformats docstrings according to @scalaDocs.
+  * @param docstrings If true, reformats docstrings according to @scalaDocs.
   * @param scalaDocs Only used if @reformatDocstrings is true. If true,
   *                  reformats docstrings to use scaladoc style docstring,
   *                  otherwise use javadoc style.
@@ -189,11 +189,8 @@ case class ScalafmtStyle(
   def reformatDocstrings: Boolean = docstrings != Docstrings.preserve
   def scalaDocs: Boolean = docstrings == Docstrings.ScalaDoc
   def binPackParentConstructors: Boolean = binPack.parentConstructors
-  def binPackArguments: Boolean = binPack.callSite
-  def binPackParameters: Boolean = binPack.defnSite
 
-  def continuationIndentCallSite: Int = continuationIndent.callSite
-  def continuationIndentDefnSite: Int = continuationIndent.defnSite
+
   implicit val contIndentReader: Reader[ContinuationIndent] =
     continuationIndent.reader
   implicit val indentReader: Reader[IndentOperator] = indentOperator.reader
@@ -207,8 +204,8 @@ case class ScalafmtStyle(
   lazy val alignMap: Map[String, Regex] =
     align.tokens.map(x => x.code -> x.owner.r).toMap
   ValidationOps.assertNonNegative(
-    continuationIndentCallSite,
-    continuationIndentDefnSite
+    continuationIndent.callSite,
+    continuationIndent.defnSite
   )
 }
 

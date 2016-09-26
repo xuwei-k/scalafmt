@@ -129,7 +129,7 @@
         }
     @li
       The default @code{--alignByArrowEnumeratorGenerator} is now false
-      instead of true. Refer to @sect.ref{--alignByArrowEnumeratorGenerator}.
+      instead of true. Refer to @sect.ref{align.arrowEnumeratorGenerator}.
     @li
       Function literals in argument lists can now be single line.
       See @issue(323).

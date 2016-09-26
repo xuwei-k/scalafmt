@@ -193,7 +193,7 @@ class Router(formatOps: FormatOps) {
       // Term.Function
       case FormatToken(open @ LeftParen(), _, _)
           // Argument list for anonymous function
-          if !style.binPackParameters && (leftOwner match {
+          if !style.binPack.defnSite && (leftOwner match {
             case _: Term.Function | _: Type.Function => true
             case _ => false
           }) =>
@@ -395,12 +395,12 @@ class Router(formatOps: FormatOps) {
             .withIndent(extraIndent, right, Right)
         )
       case FormatToken(open @ (LeftParen() | LeftBracket()), right, between)
-          if style.binPackParameters && isDefnSite(leftOwner) ||
+          if style.binPack.defnSite && isDefnSite(leftOwner) ||
             // TODO(olafur) generalize Term.Function
             leftOwner.isInstanceOf[Term.Function] =>
         val close = matchingParentheses(hash(open))
         val isBracket = open.is[LeftBracket]
-        val indent = Num(style.continuationIndentDefnSite)
+        val indent = Num(style.continuationIndent.defnSite)
         if (isTuple(leftOwner)) {
           Seq(
             Split(NoSplit, 0).withPolicy(
@@ -445,7 +445,7 @@ class Router(formatOps: FormatOps) {
           )
         }
       case FormatToken(LeftParen() | LeftBracket(), _, _)
-          if style.binPackArguments && isCallSite(leftOwner) =>
+          if style.binPack.callSite && isCallSite(leftOwner) =>
         val open = formatToken.left
         val close = matchingParentheses(hash(open))
         val indent = getApplyIndent(leftOwner)
@@ -460,7 +460,7 @@ class Router(formatOps: FormatOps) {
             insideBlock(formatToken, close, x => x.isInstanceOf[LeftBrace])
         val excludeRanges = exclude.map(parensRange)
         val unindent =
-          UnindentAtExclude(exclude, Num(-style.continuationIndentCallSite))
+          UnindentAtExclude(exclude, Num(-style.continuationIndent.callSite))
         val unindentPolicy =
           if (args.length == 1) Policy(unindent, close.end)
           else NoPolicy
@@ -482,8 +482,8 @@ class Router(formatOps: FormatOps) {
       case FormatToken(LeftParen(), RightParen(), _) => Seq(Split(NoSplit, 0))
       case tok @ FormatToken(LeftParen() | LeftBracket(), right, between)
           if !isSuperfluousParenthesis(formatToken.left, leftOwner) &&
-            (!style.binPackArguments && isCallSite(leftOwner)) ||
-            (!style.binPackParameters && isDefnSite(leftOwner)) =>
+            (!style.binPack.callSite && isCallSite(leftOwner)) ||
+            (!style.binPack.defnSite && isDefnSite(leftOwner)) =>
         val open = tok.left
         val close = matchingParentheses(hash(open))
         val (lhs, args) = getApplyArgs(formatToken, leftOwner)
@@ -758,9 +758,9 @@ class Router(formatOps: FormatOps) {
         val expire = rhs.tokens.last
 
         val penalty = leftOwner match {
-          case l: Term.Arg.Named if style.binPackArguments =>
+          case l: Term.Arg.Named if style.binPack.callSite =>
             Constants.BinPackAssignmentPenalty
-          case l: Term.Param if style.binPackParameters =>
+          case l: Term.Param if style.binPack.defnSite =>
             Constants.BinPackAssignmentPenalty
           case _ => 0
         }
@@ -933,7 +933,7 @@ class Router(formatOps: FormatOps) {
         val penalizeNewlines = penalizeNewlineByNesting(open, close)
         val indent: Length =
           if (style.align.ifWhileOpenParen) StateColumn
-          else style.continuationIndentCallSite
+          else style.continuationIndent.callSite
         Seq(
           Split(NoSplit, 0)
             .withIndent(indent, close, Left)
@@ -1036,7 +1036,7 @@ class Router(formatOps: FormatOps) {
         Seq(
           Split(Newline, 0, ignoreIf = !isConfig)
             .withPolicy(breakOnClose)
-            .withIndent(style.continuationIndentCallSite, close, Right),
+            .withIndent(style.continuationIndent.callSite, close, Right),
           Split(NoSplit, 0, ignoreIf = isConfig)
             .withIndent(indent, close, Left)
             .withPolicy(penalizeAllNewlines(close, 1))
