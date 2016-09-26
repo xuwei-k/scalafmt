@@ -1,7 +1,6 @@
 package org.scalafmt.cli
 
 import scala.meta.Dialect
-import scala.util.Try
 import scala.util.control.NonFatal
 
 import java.io.File
@@ -14,14 +13,9 @@ import org.scalafmt.Error.MisformattedFile
 import org.scalafmt.Formatted
 import org.scalafmt.Scalafmt
 import org.scalafmt.Versions
-import org.scalafmt.config.AlignToken
-import org.scalafmt.config.ContinuationIndent
-import org.scalafmt.config.IndentOperator
-import org.scalafmt.config.ScalafmtOptimizer
 import org.scalafmt.config.ScalafmtRunner
 import org.scalafmt.config.ScalafmtStyle
 import org.scalafmt.macros.Macros
-import org.scalafmt.rewrite.Rewrite
 import org.scalafmt.util.FileOps
 import org.scalafmt.util.LoggerOps
 import scopt.OptionParser

@@ -2,13 +2,12 @@ package org.scalafmt.cli
 
 import java.io.File
 
-import org.scalafmt.Error.SearchStateExploded
-import org.scalafmt.util.LoggerOps._
 import org.scalafmt.Error.InvalidScalafmtConfiguration
 import org.scalafmt.Formatted
 import org.scalafmt.Scalafmt
 import org.scalafmt.config.ScalafmtRunner
 import org.scalafmt.config.ScalafmtStyle
+import org.scalafmt.util.LoggerOps._
 
 /**
   * Classload ScalaFmt210 to run ScalaFmt from Scala 2.10, for example sbt

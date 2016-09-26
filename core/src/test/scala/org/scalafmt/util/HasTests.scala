@@ -11,20 +11,23 @@ import org.scalafmt.Debug
 import org.scalafmt.Error.UnknownStyle
 import org.scalafmt.Scalafmt
 import org.scalafmt.config.AlignToken
+import org.scalafmt.config.BinPack
+import org.scalafmt.config.Config
 import org.scalafmt.config.FormatEvent.CompleteFormat
 import org.scalafmt.config.FormatEvent.CreateFormatOps
 import org.scalafmt.config.FormatEvent.Enqueue
 import org.scalafmt.config.FormatEvent.Explored
 import org.scalafmt.config.FormatEvent.VisitToken
+import org.scalafmt.config.IndentOperator
 import org.scalafmt.config.ScalafmtRunner
-import org.scalafmt.config._
+import org.scalafmt.config.ScalafmtStyle
 import org.scalafmt.internal.FormatWriter
 import org.scalafmt.rewrite.Rewrite
 import org.scalatest.FunSuiteLike
 
 trait HasTests extends FunSuiteLike with FormatAssertions {
   import LoggerOps._
-  import ScalafmtStyle._
+  import org.scalafmt.config.ScalafmtStyle._
   val scalafmtRunner = ScalafmtRunner.default.copy(
     debug = true,
     maxStateVisits = 150000,

@@ -4,7 +4,6 @@ import scala.collection.mutable
 
 import java.io.File
 
-import org.scalafmt.cli.Cli.Config
 import org.scalafmt.config
 import org.scalafmt.config.ScalafmtStyle
 import org.scalafmt.util.FileOps
