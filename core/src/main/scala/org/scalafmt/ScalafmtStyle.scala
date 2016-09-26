@@ -4,6 +4,8 @@ import scala.util.matching.Regex
 
 import metaconfig.ConfigReader
 import metaconfig.Reader
+import org.scalafmt.config.Newlines
+import org.scalafmt.config.OptIn
 import org.scalafmt.config.RewriteSettings
 import org.scalafmt.rewrite.Rewrite
 import org.scalafmt.util.LoggerOps
@@ -176,7 +178,7 @@ case class ScalafmtStyle(
     indentOperator: IndentOperator,
     newlines: Newlines,
     // Settings which belong to no group
-    binPackImportSelectors: Boolean, // TODO(olafur) bundle into `importSelectors: {singleLine, binPack, default}`
+    binPackImportSelectors: Boolean, // TODO(olafur) bundle into `importSelectors: oneOf(singleLine, binPack, default)`
     unindentTopLevelOperators: Boolean,
     assumeStandardLibraryStripMargin: Boolean,
     danglingParentheses: Boolean,
@@ -184,6 +186,7 @@ case class ScalafmtStyle(
     bestEffortInDeeplyNestedCode: Boolean
 ) {
 
+  // TODO(olafur): Remove these when I have time.
   def neverBeforeJsNative: Boolean = newlines.neverBeforeJsNative
   def sometimesBeforeColonInMethodReturnType: Boolean =
     newlines.sometimesBeforeColonInMethodReturnType
@@ -215,17 +218,5 @@ case class ScalafmtStyle(
     continuationIndent.defnSite
   )
 }
-@ConfigReader
-case class Newlines(
-    neverBeforeJsNative: Boolean,
-    sometimesBeforeColonInMethodReturnType: Boolean,
-    alwaysBeforeCurlyBraceLambdaParams: Boolean
-)
-
-@ConfigReader
-case class OptIn(
-    configStyleArguments: Boolean,
-    breakChainOnFirstMethodDot: Boolean
-)
 
 object ScalafmtStyle extends Settings
