@@ -59,7 +59,7 @@ span.hljs-tag, span.hljs-symbol{
 }
     </style><title>Scalafmt - code formatter for Scala</title><script src="scripts.js"></script></head><body><div>
 
-<div style="margin: 0px;color: #333;text-align: center;padding: 2.5em 2em 0;border-bottom: 1px solid #eee;display: block;" id="Scalafmt-codeformatterforScala" class=" scalatex-site-Styles-hoverContainer scalatex-site-Styles-headerTag"><h1 style="margin: 0.2em 0;font-size: 3em;font-weight: 300;">Scalafmt - code formatter for Scala<a class=" scalatex-site-Styles-headerLink" href="#Scalafmt-codeformatterforScala" style="position: absolute;right: 0px;"><i class="fa fa-link"></i></a></h1><br /><h2 style="font-weight: 300;color: #ccc;padding: 0px;margin-top: 0px;">0.3.2</h2></div><div class=" scalatex-site-Styles-content">
+<div style="margin: 0px;color: #333;text-align: center;padding: 2.5em 2em 0;border-bottom: 1px solid #eee;display: block;" id="Scalafmt-codeformatterforScala" class=" scalatex-site-Styles-hoverContainer scalatex-site-Styles-headerTag"><h1 style="margin: 0.2em 0;font-size: 3em;font-weight: 300;">Scalafmt - code formatter for Scala<a class=" scalatex-site-Styles-headerLink" href="#Scalafmt-codeformatterforScala" style="position: absolute;right: 0px;"><i class="fa fa-link"></i></a></h1><br /><h2 style="font-weight: 300;color: #ccc;padding: 0px;margin-top: 0px;">0.4.0</h2></div><div class=" scalatex-site-Styles-content">
 
   
 <div>
@@ -154,7 +154,7 @@ span.hljs-tag, span.hljs-symbol{
       <a href="#Configuration">Configuration</a>.
 </p>
   <h1 id="SBT" style="display: block;" class=" scalatex-site-Styles-hoverContainer scalatex-site-Styles-headerTag"><a class=" scalatex-site-Styles-headerLink" href="#SBT" style="position: absolute;right: 0px;"><i class="fa fa-link"></i></a>SBT</h1>
-    <pre><code class="scala scalatex-site-Styles-highlightMe">addSbtPlugin(&quot;com.geirsson&quot; % &quot;sbt-scalafmt&quot; % &quot;0.3.2&quot;)
+    <pre><code class="scala scalatex-site-Styles-highlightMe">addSbtPlugin(&quot;com.geirsson&quot; % &quot;sbt-scalafmt&quot; % &quot;0.4.0&quot;)
 </code></pre>
     <ul>
       <li>
@@ -221,22 +221,21 @@ span.hljs-tag, span.hljs-symbol{
 </code></pre>
     <h2 id="Homebrew/MacOSX" style="display: block;" class=" scalatex-site-Styles-hoverContainer scalatex-site-Styles-headerTag"><a class=" scalatex-site-Styles-headerLink" href="#Homebrew/MacOSX" style="position: absolute;right: 0px;"><i class="fa fa-link"></i></a>Homebrew/Mac OSX</h2>
       <pre><code class="scala scalatex-site-Styles-highlightMe">brew install olafurpg/scalafmt/scalafmt
-scalafmt --version // should be 0.3.2
+scalafmt --version // should be 0.4.0
 </code></pre>
     <h2 id="Linux/Windows/..." style="display: block;" class=" scalatex-site-Styles-hoverContainer scalatex-site-Styles-headerTag"><a class=" scalatex-site-Styles-headerLink" href="#Linux/Windows/..." style="position: absolute;right: 0px;"><i class="fa fa-link"></i></a>Linux/Windows/...</h2>
 
       Help wanted!
 
-    <h2 id="Usageexamples" style="display: block;" class=" scalatex-site-Styles-hoverContainer scalatex-site-Styles-headerTag"><a class=" scalatex-site-Styles-headerLink" href="#Usageexamples" style="position: absolute;right: 0px;"><i class="fa fa-link"></i></a>Usage examples</h2>
+    <h2 id="--help" style="display: block;" class=" scalatex-site-Styles-hoverContainer scalatex-site-Styles-headerTag"><a class=" scalatex-site-Styles-headerLink" href="#--help" style="position: absolute;right: 0px;"><i class="fa fa-link"></i></a>--help</h2>
 
-      Please refer to the <code>--help</code> page.
       <b>NOTE</b>. This help page is generated from the <code>master</code> branch and
       may include flags that have not been published yet.
       <code class="scala scalatex-site-Styles-highlightMe" style="display: inline;padding: 0px;margin: 0px;"></code>
 
-      <pre><code class="scala scalatex-site-Styles-highlightMe">build commit: 892298eb38
-build time: Sat Sep 17 19:48:12 UTC 2016
-scalafmt 0.3.2-SNAPSHOT
+      <pre><code class="scala scalatex-site-Styles-highlightMe">build commit: a4a2cadf7c
+build time: Tue Sep 27 17:36:06 CEST 2016
+scalafmt 0.4.0
 Usage: scalafmt [options]
 
   -f &lt;value&gt; | --files &lt;value&gt;
@@ -245,6 +244,8 @@ Usage: scalafmt [options]
         can be directory, in which case all *.scala files are ignored when formatting.
   -c &lt;value&gt; | --config &lt;value&gt;
         read style flags, see &quot;Style configuration option&quot;, from this config file. The file can contain comments starting with //
+  --migrate2hocon &lt;value&gt;
+        migrate .scalafmt CLI style configuration to hocon style configuration in .scalafmt.conf
   -i | --in-place
         write output to file, does nothing if file is not specified
   --test
@@ -253,105 +254,14 @@ Usage: scalafmt [options]
         print out debug information
   --statement
         parse the input as a statement instead of compilation unit
-  --bestEffortInDeeplyNestedCode
-        (experimental) If set, scalafmt will make a best-effort to format deeply nested code instead of failing with SearchStateExplodedException.
   -v | --version
         print version 
   --build-info
         prints build information
   -h | --help
         prints this usage text
-
-Style configuration options:
-  -s &lt;value&gt; | --style &lt;value&gt;
-        base style, must be one of: Set(Scala.js, IntelliJ, default, defaultWithAlign)
-  --maxColumn &lt;value&gt;
-        See ScalafmtStyle scaladoc.
-  --continuationIndentCallSite &lt;value&gt;
-        See ScalafmtStyle scaladoc.
-  --continuationIndentDefnSite &lt;value&gt;
-        See ScalafmtStyle scaladoc.
   --formatSbtFiles &lt;value&gt;
         If true, formats .sbt files as well.
-  --reformatComments &lt;value&gt;
-        See ScalafmtStyle scaladoc.
-  --scalaDocs
-        See ScalafmtStyle scaladoc.
-  --javaDocs
-        Sets scalaDocs to false. See ScalafmtStyle scaladoc.
-  --assumeStandardLibraryStripMargin &lt;value&gt;
-        See ScalafmtStyle scaladoc.
-  --alignByOpenParenCallSite &lt;value&gt;
-        See ScalafmtStyle scaladoc.
-  --alignByOpenParenDefnSite &lt;value&gt;
-        See ScalafmtStyle scaladoc.
-  --alignByArrowEnumeratorGenerator &lt;value&gt;
-        See ScalafmtStyle scaladoc.
-  --binPackParentConstructors &lt;value&gt;
-        See ScalafmtStyle scaladoc.
-  --spacesInImportCurlyBraces &lt;value&gt;
-        See ScalafmtStyle scaladoc.
-  --danglingParentheses &lt;value&gt;
-        See ScalafmtConfig scaladoc. --alignByOpenParenCallSite false is recommended.
-  --spaceAfterTripleEquals &lt;value&gt;
-        See ScalafmtConfig scaladoc.
-  --allowNewlineBeforeColonInMassiveReturnTypes &lt;value&gt;
-        See ScalafmtStyle scaladoc.
-  --unindentTopLevelOperators &lt;value&gt;
-        See ScalafmtConfig scaladoc.
-  --binPackImportSelectors &lt;value&gt;
-        See ScalafmtConfig scaladoc.
-  --indentOperatorsIncludeFilter &lt;value&gt;
-        See ScalafmtConfig scaladoc.
-  --indentOperatorsExcludeFilter &lt;value&gt;
-        See ScalafmtConfig scaladoc.
-  --indentOperators &lt;value&gt;
-        See ScalafmtConfig scaladoc.
-  --rewriteTokens &lt;value&gt;
-        (experimental) Same syntax as alignTokens. For example,
-
-        --rewriteTokens ⇒;=&gt;,←;&lt;-
-
-        will rewrite unicode arrows to their ascii equivalents.
-  --alignMixedOwners &lt;value&gt;
-        See ScalafmtConfig scaladoc.
-  --keepSelectChainLineBreaks &lt;value&gt;
-        See ScalafmtConfig scaladoc.
-  --alwaysNewlineBeforeLambdaParameters &lt;value&gt;
-        See ScalafmtConfig scaladoc.
-  --alignTokens &lt;value&gt;
-        (experimental). Comma separated sequence of tokens to align by. Each
-        token is a ; separated pair of strings where the first string
-        is the string literal value of the token to align by and the
-        second string is a regular expression matching the class
-        name of the scala.meta.Tree that &quot;owns&quot; that token.
-
-        Examples:
-
-        1. =&gt; in pattern matching
-        =&gt;;Case
-
-        2. Align by -&gt; tuples.
-        -&gt;;Term.ApplyInfix
-
-        NOTE. the closest owner of -&gt; is actually Term.Name,
-        but in case Term.Name we match against the parent of Term.Name.
-
-        3. Assignment of def var/val/def
-        =;Defn.(Va(l|r)|Def)
-
-        4. Comment owned by whatever tree
-        //;.*
-
-        To use all default alignment rules, use --style defaultWithAlign.
-        To pick your favirite alignment rules, set --alignTokens &lt;value&gt; to:
-        =&gt;;Case,=;Defn.(Va(l|r)|Def),-&gt;;Term.ApplyInfix,//;.*
-
-        It's best to play around with scala.meta in a console to
-        understand which regexp you should use for the owner.
-
-  --spaceBeforeContextBoundColon &lt;value&gt;
-        See ScalafmtConfig scaladoc.
 
 Examples:
 
@@ -366,12 +276,12 @@ scalafmt -f Code.scala
 scalafmt -i -f Code1.scala,Code2.scala
 
 // format with predefined custom style
-scalafmt --style defaultWithAlign -f Code.scala
+scalafmt --config &quot;style=defaultWithAlign&quot; -f Code.scala
 
 // read style options from a configuration file
-$ cat .scalafmt
---maxColumn 120
---javaDocs # This is a comment.
+$ cat .scalafmt.conf
+maxColumn = 120
+docstrings = JavaDoc
 $ scalafmt --config .scalafmt -i -f Code.scala
 
 // format all files in current directory, write new contents to each file.
@@ -400,7 +310,7 @@ let g:formatters_scala = ['scalafmt']
 
   <h1 id="Standalonelibrary" style="display: block;" class=" scalatex-site-Styles-hoverContainer scalatex-site-Styles-headerTag"><a class=" scalatex-site-Styles-headerLink" href="#Standalonelibrary" style="position: absolute;right: 0px;"><i class="fa fa-link"></i></a>Standalone library</h1>
     Add to your dependencies
-    <pre><code class="scala scalatex-site-Styles-highlightMe">libraryDependencies += &quot;com.geirsson&quot; %% &quot;scalafmt&quot; % &quot;0.3.2&quot;</code></pre>
+    <pre><code class="scala scalatex-site-Styles-highlightMe">libraryDependencies += &quot;com.geirsson&quot; %% &quot;scalafmt&quot; % &quot;0.4.0&quot;</code></pre>
     <p>
       Use the API like this
 </p>
@@ -432,39 +342,36 @@ res0: java.lang.String =
 <div style="margin: 0px;color: #333;text-align: center;padding: 2.5em 2em 0;border-bottom: 1px solid #eee;display: block;" id="Configuration" class=" scalatex-site-Styles-hoverContainer scalatex-site-Styles-headerTag"><h1 style="margin: 0.2em 0;font-size: 3em;font-weight: 300;">Configuration<a class=" scalatex-site-Styles-headerLink" href="#Configuration" style="position: absolute;right: 0px;"><i class="fa fa-link"></i></a></h1><br /></div>
 
   <p>
-    Configuration for scalafmt is a bit unorthodox, it is managed with a
-    plain text file <code>.scalafmt</code> where options are defined as CLI flags.
-    I recommend you create the <code>.scalafmt</code> in in the root directory
-    of your project.
+    Configuration for scalafmt is defined in a
+    plain text file <code>.scalafmt.conf</code> using
+    <a href="https://github.com/typesafehub/config">HOCON</a> syntax.
+    To reuse your configuration with IntelliJ,
+    <code>.scalafmt.conf</code> must be placed in the root directory of your project.
 </p>
   <p>
-    Here is an example <code>.scalafmt</code>.
+    Here is an example <code>.scalafmt.conf</code>.
 
-    <pre><code class="scala scalatex-site-Styles-highlightMe"># Example .scalafmt, comments are supported.
---style defaultWithAlign # For pretty alignment.
---maxColumn 100          # For my wide 30&quot; display.
+    <pre><code class="scala scalatex-site-Styles-highlightMe">style = defaultWithAlign # For pretty alignment.
+maxColumn = 100          # For my wide 30&quot; display.
 </code></pre></p>
   <p>
-    A note of warning. I personally use the default style which means that the
+    A note of warning. I personally use the default style, which means that the
     default style is by far the most tested and supported style.
-    Most of the configuration flags are quite benign, while some of them do change
-    the output quite a bit (esp. Scala.js).
+    Most of the configuration flags are quite innocent, while some of them work
+    very differently (esp. Scala.js).
     It is very difficult to guarantee that all configurations options play nicely
     together so I recommend you try not to go too crazy on this part.
 </p>
   <p>
     The following sections describe the most common configuration options.
-    Scalafmt does support a wider range of <b>experimental</b> flags
-    which you can see in <a href="#Usageexamples">Usage examples</a>.
-    However, use the experimental flags at your own risk.
 </p>
   <p>
     <b>NOTE</b>. If you are using scalafmt as a <a href="#Standalonelibrary">Standalone library</a>, you can
-    pass in a <code>ScalafmtStyle</code> instance, which is set to <code>ScalafmtStyle.default</code>
+    pass in a <code>ScalafmtConfig</code> instance, which is set to <code>ScalafmtStyle.default</code>
     by default.
 
 </p>
-  <h1 id="--style" style="display: block;" class=" scalatex-site-Styles-hoverContainer scalatex-site-Styles-headerTag"><a class=" scalatex-site-Styles-headerLink" href="#--style" style="position: absolute;right: 0px;"><i class="fa fa-link"></i></a>--style</h1>
+  <h1 id="style" style="display: block;" class=" scalatex-site-Styles-hoverContainer scalatex-site-Styles-headerTag"><a class=" scalatex-site-Styles-headerLink" href="#style" style="position: absolute;right: 0px;"><i class="fa fa-link"></i></a>style</h1>
     Option 1: <b>default</b>
     <pre><code class="scala scalatex-site-Styles-highlightMe">// Column 40                           |
 // non bin packed parent constructors
@@ -531,9 +438,9 @@ object IntelliJStyle
 
   function(argument1, argument2)
 
-  // --continuationIndent 2 for call + defn site
-  // --alignByOpenParenCallSite false
-  // --danglingParentheses true
+  // continuationIndent = 2  # for call + defn site
+  // align.openParenCallSite = false
+  // danglingParentheses = true
   function(
     argument1,
     argument2,
@@ -541,14 +448,14 @@ object IntelliJStyle
     argument4
   )
 
-  // --alignByOpenParenCallSite true
+  // openParenCallSite = true
   def foobar(argument1: Type1,
              argument2: Type2): Int =
     argument1 + argument2
 
 }
 </code></pre>
-  <h1 id="--maxColumn" style="display: block;" class=" scalatex-site-Styles-hoverContainer scalatex-site-Styles-headerTag"><a class=" scalatex-site-Styles-headerLink" href="#--maxColumn" style="position: absolute;right: 0px;"><i class="fa fa-link"></i></a>--maxColumn</h1>
+  <h1 id="maxColumn" style="display: block;" class=" scalatex-site-Styles-hoverContainer scalatex-site-Styles-headerTag"><a class=" scalatex-site-Styles-headerLink" href="#maxColumn" style="position: absolute;right: 0px;"><i class="fa fa-link"></i></a>maxColumn</h1>
     Default: <b>80</b>
 
     <ul>
@@ -561,7 +468,7 @@ object IntelliJStyle
       <li>
         Consider refactoring your code before of choosing a value above 100.
 </li></ul>
-  <h1 id="--continuationIndentCallSite" style="display: block;" class=" scalatex-site-Styles-hoverContainer scalatex-site-Styles-headerTag"><a class=" scalatex-site-Styles-headerLink" href="#--continuationIndentCallSite" style="position: absolute;right: 0px;"><i class="fa fa-link"></i></a>--continuationIndentCallSite</h1>
+  <h1 id="continuationIndent.callSite" style="display: block;" class=" scalatex-site-Styles-hoverContainer scalatex-site-Styles-headerTag"><a class=" scalatex-site-Styles-headerLink" href="#continuationIndent.callSite" style="position: absolute;right: 0px;"><i class="fa fa-link"></i></a>continuationIndent.callSite</h1>
     Default: <b>2</b>
 
     <p>
@@ -570,16 +477,16 @@ object IntelliJStyle
   argument1 // indented by 2
 )
 </code></pre></p>
-  <h1 id="--continuationIndentDefnSite" style="display: block;" class=" scalatex-site-Styles-hoverContainer scalatex-site-Styles-headerTag"><a class=" scalatex-site-Styles-headerLink" href="#--continuationIndentDefnSite" style="position: absolute;right: 0px;"><i class="fa fa-link"></i></a>--continuationIndentDefnSite</h1>
+  <h1 id="continuationIndent.defnSite" style="display: block;" class=" scalatex-site-Styles-hoverContainer scalatex-site-Styles-headerTag"><a class=" scalatex-site-Styles-headerLink" href="#continuationIndent.defnSite" style="position: absolute;right: 0px;"><i class="fa fa-link"></i></a>continuationIndent.defnSite</h1>
     Default: <b>4</b>
 
     <p>
-      Same as <code>--continuationIndentCallSite</code> except for definition site.
+      Same as <code>continuationIndent.callSite</code> except for definition site.
       Example:
       <pre><code class="scala scalatex-site-Styles-highlightMe">def function(
     argument1: Type1): ReturnType // Indented by 4
 </code></pre></p>
-  <h1 id="--alignTokens" style="display: block;" class=" scalatex-site-Styles-hoverContainer scalatex-site-Styles-headerTag"><a class=" scalatex-site-Styles-headerLink" href="#--alignTokens" style="position: absolute;right: 0px;"><i class="fa fa-link"></i></a>--alignTokens</h1>
+  <h1 id="align.tokens" style="display: block;" class=" scalatex-site-Styles-hoverContainer scalatex-site-Styles-headerTag"><a class=" scalatex-site-Styles-headerLink" href="#align.tokens" style="position: absolute;right: 0px;"><i class="fa fa-link"></i></a>align.tokens</h1>
     Default: <b>off</b>
 
     <p>
@@ -609,9 +516,7 @@ object TokenAlignment {
     &quot;com.lihaoyi&quot;    %% &quot;sourcecode&quot;    % &quot;0.1.1&quot;
   )
 }
-</code></pre>
-       If you need more customization, refer to <a href="#Usageexamples">Usage examples</a>.
-</p>
+</code></pre></p>
   <h1 id="//format:off" style="display: block;" class=" scalatex-site-Styles-hoverContainer scalatex-site-Styles-headerTag"><a class=" scalatex-site-Styles-headerLink" href="#//format:off" style="position: absolute;right: 0px;"><i class="fa fa-link"></i></a>// format: off</h1>
     Disable formatting for specific regions of code by wrapping them in
     <code>// format: OFF</code> blocks:
@@ -640,7 +545,7 @@ object TokenAlignment {
         indentation level. It's best to enable formatting at the same level as
         when it was disabled.
 </li></ul>
-  <h1 id="--assumeStandardLibraryStripMargin" style="display: block;" class=" scalatex-site-Styles-hoverContainer scalatex-site-Styles-headerTag"><a class=" scalatex-site-Styles-headerLink" href="#--assumeStandardLibraryStripMargin" style="position: absolute;right: 0px;"><i class="fa fa-link"></i></a>--assumeStandardLibraryStripMargin</h1>
+  <h1 id="assumeStandardLibraryStripMargin" style="display: block;" class=" scalatex-site-Styles-hoverContainer scalatex-site-Styles-headerTag"><a class=" scalatex-site-Styles-headerLink" href="#assumeStandardLibraryStripMargin" style="position: absolute;right: 0px;"><i class="fa fa-link"></i></a>assumeStandardLibraryStripMargin</h1>
     Default: <b>false</b>
 
     <p>
@@ -666,19 +571,19 @@ object StripMargin {
 
       <b>NOTE</b>. May cause non-idempotent formatting in rare cases, see <a href="https://github.com/olafurpg/scalafmt/issues/192">#192</a>.
 </p>
-  <h1 id="--javaDocsvs.--scalaDocs" style="display: block;" class=" scalatex-site-Styles-hoverContainer scalatex-site-Styles-headerTag"><a class=" scalatex-site-Styles-headerLink" href="#--javaDocsvs.--scalaDocs" style="position: absolute;right: 0px;"><i class="fa fa-link"></i></a>--javaDocs vs. --scalaDocs</h1>
-    Default: --scalaDocs
+  <h1 id="docstrings" style="display: block;" class=" scalatex-site-Styles-hoverContainer scalatex-site-Styles-headerTag"><a class=" scalatex-site-Styles-headerLink" href="#docstrings" style="position: absolute;right: 0px;"><i class="fa fa-link"></i></a>docstrings</h1>
+    Default: <b>ScalaDoc</b>
 
-    <pre><code class="scala scalatex-site-Styles-highlightMe">// --scalaDocs
+    <pre><code class="scala scalatex-site-Styles-highlightMe">// ScalaDoc
 /** Align by second asterisk.
   *
   */
-// --javaDocs
+// JavaDoc
 /** Align by first asterisk.
  *
  */
 </code></pre>
-  <h1 id="--allowNewlineBeforeColonInMassiveReturnTypes" style="display: block;" class=" scalatex-site-Styles-hoverContainer scalatex-site-Styles-headerTag"><a class=" scalatex-site-Styles-headerLink" href="#--allowNewlineBeforeColonInMassiveReturnTypes" style="position: absolute;right: 0px;"><i class="fa fa-link"></i></a>--allowNewlineBeforeColonInMassiveReturnTypes</h1>
+  <h1 id="newlines.sometimesBeforeColonInMethodReturnType" style="display: block;" class=" scalatex-site-Styles-hoverContainer scalatex-site-Styles-headerTag"><a class=" scalatex-site-Styles-headerLink" href="#newlines.sometimesBeforeColonInMethodReturnType" style="position: absolute;right: 0px;"><i class="fa fa-link"></i></a>newlines.sometimesBeforeColonInMethodReturnType</h1>
     Default: true
 
     <pre><code class="scala scalatex-site-Styles-highlightMe">// Column limit                                                     |
@@ -689,7 +594,7 @@ implicit def validatedInstances[E](implicit E: Semigroup[E])
 implicit def validatedInstances[E](implicit E: Semigroup[E]): Traverse[
     Validated[E, ?]] with ApplicativeError[Validated[E, ?], E] = 2
 </code></pre>
-  <h1 id="--alignByArrowEnumeratorGenerator" style="display: block;" class=" scalatex-site-Styles-hoverContainer scalatex-site-Styles-headerTag"><a class=" scalatex-site-Styles-headerLink" href="#--alignByArrowEnumeratorGenerator" style="position: absolute;right: 0px;"><i class="fa fa-link"></i></a>--alignByArrowEnumeratorGenerator</h1>
+  <h1 id="align.arrowEnumeratorGenerator" style="display: block;" class=" scalatex-site-Styles-hoverContainer scalatex-site-Styles-headerTag"><a class=" scalatex-site-Styles-headerLink" href="#align.arrowEnumeratorGenerator" style="position: absolute;right: 0px;"><i class="fa fa-link"></i></a>align.arrowEnumeratorGenerator</h1>
     Default: false
 
     <pre><code class="scala scalatex-site-Styles-highlightMe">// false
@@ -706,7 +611,7 @@ for {
       }
 } yield x
 </code></pre>
-  <h1 id="--binPackParentConstructors" style="display: block;" class=" scalatex-site-Styles-hoverContainer scalatex-site-Styles-headerTag"><a class=" scalatex-site-Styles-headerLink" href="#--binPackParentConstructors" style="position: absolute;right: 0px;"><i class="fa fa-link"></i></a>--binPackParentConstructors</h1>
+  <h1 id="binPackParentConstructors" style="display: block;" class=" scalatex-site-Styles-hoverContainer scalatex-site-Styles-headerTag"><a class=" scalatex-site-Styles-headerLink" href="#binPackParentConstructors" style="position: absolute;right: 0px;"><i class="fa fa-link"></i></a>binPackParentConstructors</h1>
     Default: false
 
     <pre><code class="scala scalatex-site-Styles-highlightMe">// column limit                        |
@@ -725,7 +630,7 @@ object DefaultStyle
     with ThirdParent {
   // body ...
 }</code></pre>
-  <h1 id="--alignByOpenParenCallSite" style="display: block;" class=" scalatex-site-Styles-hoverContainer scalatex-site-Styles-headerTag"><a class=" scalatex-site-Styles-headerLink" href="#--alignByOpenParenCallSite" style="position: absolute;right: 0px;"><i class="fa fa-link"></i></a>--alignByOpenParenCallSite</h1>
+  <h1 id="align.openParenCallSite" style="display: block;" class=" scalatex-site-Styles-hoverContainer scalatex-site-Styles-headerTag"><a class=" scalatex-site-Styles-headerLink" href="#align.openParenCallSite" style="position: absolute;right: 0px;"><i class="fa fa-link"></i></a>align.openParenCallSite</h1>
     Default: true
 
     <pre><code class="scala scalatex-site-Styles-highlightMe">// Column limit |
@@ -748,6 +653,46 @@ function(
 function(
   argument1,
   argument2)</code></pre>
+  <h1 id="lineEndings" style="display: block;" class=" scalatex-site-Styles-hoverContainer scalatex-site-Styles-headerTag"><a class=" scalatex-site-Styles-headerLink" href="#lineEndings" style="position: absolute;right: 0px;"><i class="fa fa-link"></i></a>lineEndings</h1>
+    Default: <b>unix</b>
+
+    <ul>
+      <li>
+        <code>preserve</code> output will include endings included in original file (windows if there was at least one windows
+        line ending, unix if there was zero occurrences of windows line endings)</li>
+      <li>
+        <code>unix</code> output will include only unix line endings</li>
+      <li>
+        <code>windows</code> output will include only windows line endings</li></ul>
+  <h1 id="rewrite.rules" style="display: block;" class=" scalatex-site-Styles-hoverContainer scalatex-site-Styles-headerTag"><a class=" scalatex-site-Styles-headerLink" href="#rewrite.rules" style="position: absolute;right: 0px;"><i class="fa fa-link"></i></a>rewrite.rules</h1>
+    Default: <b>[]</b>
+
+    <p>
+      <b>NEW</b>. Semantically preserving rewrites. To enable a
+      rewrite rule, add it to the config like this <b>rewrite.rules = [SortImports]</b>.
+</p>
+    <h2 id="RedundantBraces" style="display: block;" class=" scalatex-site-Styles-hoverContainer scalatex-site-Styles-headerTag"><a class=" scalatex-site-Styles-headerLink" href="#RedundantBraces" style="position: absolute;right: 0px;"><i class="fa fa-link"></i></a>RedundantBraces</h2>
+      <div><div style="width: 50%;float: left;"><pre><code class="scala scalatex-site-Styles-highlightMe">object RedundantBraces {
+  def foo = {
+    List(1, 2, 3).sum
+  }
+}</code></pre></div><div style="width: 50%;float: left;"><pre><code class="scala scalatex-site-Styles-highlightMe">object RedundantBraces {
+  def foo =
+    List(1, 2, 3).sum
+}
+</code></pre></div><div style="clear: both;"></div></div>
+      Options with default values:
+      <ul>
+        <li>
+          <code>rewrite.redundantBraces.maxLines</code> = 100</li>
+        <li>
+          <code>rewrite.redundantBraces.includeUnitMethods</code> = true
+</li></ul>
+    <h2 id="SortImports" style="display: block;" class=" scalatex-site-Styles-hoverContainer scalatex-site-Styles-headerTag"><a class=" scalatex-site-Styles-headerLink" href="#SortImports" style="position: absolute;right: 0px;"><i class="fa fa-link"></i></a>SortImports</h2>
+      <p>
+        The imports are sorted by the groups: symbols, lower-case, upper-case.</p>
+      <div><div style="width: 50%;float: left;"><pre><code class="scala scalatex-site-Styles-highlightMe">import foo.{Zilch, bar, Random, sand}</code></pre></div><div style="width: 50%;float: left;"><pre><code class="scala scalatex-site-Styles-highlightMe">import foo.{bar, sand, Random, Zilch}
+</code></pre></div><div style="clear: both;"></div></div>
 
   
 
@@ -881,7 +826,7 @@ object PatternMatching {
 
      <ul>
        <li>
-         Scalariform does not have a <code>--maxColumn</code> setting, which
+         Scalariform does not have a <code>maxColumn</code> setting, which
          I personally like and is present in many popular coding styles.</li>
        <li>
          Scalariform preserves most line breaking decisions, leaving it up to
@@ -913,18 +858,15 @@ object PatternMatching {
        thousands of different formatting solutions.
 </p>
      <p>
-       Additionally, I am sure that scalafmt could benefit greatly from
+       I am sure that scalafmt could benefit greatly from
        micro optimizations. Any help here is appreciated.
 </p>
-     <p>
-       Performance is still a work in progress and will hopefully
-       continue to improve in future releases. Help here is appreciated.
-</p>
    <h1 id="Codeformatterscreateunnecessarydiffs!" style="display: block;" class=" scalatex-site-Styles-hoverContainer scalatex-site-Styles-headerTag"><a class=" scalatex-site-Styles-headerLink" href="#Codeformatterscreateunnecessarydiffs!" style="position: absolute;right: 0px;"><i class="fa fa-link"></i></a>Code formatters create unnecessary diffs!</h1>
-     That's not a question, but I agree that code formatters like scalafmt do
-     sometimes increase the size of diffs in code reviews.
-     I still believe it's worth it, considering
-
+     <p>
+       That's not a question, but I agree that code formatters like scalafmt do
+       sometimes increase the size of diffs in code reviews.
+       I still believe it's worth it, considering
+</p>
      <ol>
        <li>
          Proper formatting <a href="https://twitter.com/extempore2/status/717716747181096960">helps you catch bugs</a>!</li>
@@ -983,11 +925,11 @@ object PatternMatching {
               Refactor your code to eliminate deeply nested function calls.
               Binding large function arguments to variables is a good start.</li>
             <li>
-              Try the experimental <code>--bestEffortInDeeplyNestedCode</code> flag
+              Try the experimental <code>bestEffortInDeeplyNestedCode</code> flag
               that will try to produce decent formatting output even for the most
               pathologically nested code. YMMV.</li>
             <li>
-              Try <code>--alignByOpenParenCallSite false</code> to shrink the search
+              Try <code>align.openParenCallSite = false</code> to shrink the search
               space.</li></ul></p></p>
       <p>
         Other cool code formatters like ClangFormat, dartfmt and rfmt use
@@ -1010,23 +952,84 @@ object PatternMatching {
   
 
 <div style="margin: 0px;color: #333;text-align: center;padding: 2.5em 2em 0;border-bottom: 1px solid #eee;display: block;" id="Changelog" class=" scalatex-site-Styles-hoverContainer scalatex-site-Styles-headerTag"><h1 style="margin: 0.2em 0;font-size: 3em;font-weight: 300;">Changelog<a class=" scalatex-site-Styles-headerLink" href="#Changelog" style="position: absolute;right: 0px;"><i class="fa fa-link"></i></a></h1><br /></div>
-  <h1 id="0.3.x" style="display: block;" class=" scalatex-site-Styles-hoverContainer scalatex-site-Styles-headerTag"><a class=" scalatex-site-Styles-headerLink" href="#0.3.x" style="position: absolute;right: 0px;"><i class="fa fa-link"></i></a>0.3.x</h1>
+  <h1 id="0.4.x" style="display: block;" class=" scalatex-site-Styles-hoverContainer scalatex-site-Styles-headerTag"><a class=" scalatex-site-Styles-headerLink" href="#0.4.x" style="position: absolute;right: 0px;"><i class="fa fa-link"></i></a>0.4.x</h1>
     
-<h2 id="0.3.2" style="display: block;" class=" scalatex-site-Styles-hoverContainer scalatex-site-Styles-headerTag"><a class=" scalatex-site-Styles-headerLink" href="#0.3.2" style="position: absolute;right: 0px;"><i class="fa fa-link"></i></a>0.3.2</h2>
+<h2 id="0.4.0-RC1" style="display: block;" class=" scalatex-site-Styles-hoverContainer scalatex-site-Styles-headerTag"><a class=" scalatex-site-Styles-headerLink" href="#0.4.0-RC1" style="position: absolute;right: 0px;"><i class="fa fa-link"></i></a>0.4.0-RC1</h2>
+  <b>NOTE</b>. This changelog is incomplete. More details to come!
+
   <ul>
+    <li>
+      NEW! HOCON configuration, see <a href="https://github.com/olafurpg/scalafmt/issues/316">#316</a>. Say goodbye to <code>.scalafmt</code>
+      and hello to <code>.scalafmt.conf</code>.
+      The old style configuration can me migrated with the CLI by running
+      <code>scalafmt --migrate2hocon .scalafmt</code>.</li>
+    <li>
+      NEW! See <a href="#rewrite.rules">rewrite.rules</a>.</li>
+    <li>
+      NEW! Dynamic style configuration. You can now update the configuration
+      by adding comments to the source code. Example:
+
+      <pre><code class="scala scalatex-site-Styles-highlightMe">// scalafmt: { maxColumn = 200 }
+
+// OR
+
+/*
+scalafmt: {
+  maxColumn = 200
+  style = defaultWithAlign
+}
+*/
+
+object Foo {
+ ... // configuration is applied to remainder of file
+}
+</code></pre>
+      Why? This can be useful
+
+      <ul>
+        <li>
+          for generated code where you might prefer vertical alignment or longer max columns</li>
+        <li>
+          in long variadic code, see
+          <a href="https://github.com/olafurpg/scalafmt/issues/431">#431</a>,
+          <a href="https://github.com/olafurpg/scalafmt/issues/347">#347</a> and
+          <a href="https://github.com/olafurpg/scalafmt/issues/348">#348</a>.</li>
+        <li>
+          Blocks of code where each line is almost identical to the previous line
+          (<a href="https://github.com/CommBank/coppersmith/blob/3f752670d3b2212e0c09872df2859d06c47fde89/core/src/main/scala/commbank/coppersmith/Feature.scala#L58-L73">example</a>).</li>
+        <li>
+          Use your imagination.
+</li></ul>
+      A word of caution.
+      I don't recommend you clutter your codebase with <code>// scalafmt: ...</code>.
+      This feature does not give you an excuse to change you mind about the configuration on every single line of code.
+      Use this feature for good.</li>
     <li>
       SBT plugin now no longer includes generated sources in <code>target</code>.</li>
     <li>
       New CLI flag <code>--exclude</code> to exclude a set of directories.</li>
     <li>
-      New style flag <code>--keepSelectChainLineBreaks</code>.</li>
+      New option <code>optIn.breakChainOnFirstMethodDot = false</code>.
+
+      <pre><code class="scala scalatex-site-Styles-highlightMe">// Original before running scalafmt
+List(1, 2, 3)
+  .map(_ + 1).filter(_ &gt; 2)
+
+// false (default)
+List(1, 2, 3).map(_ + 1).filter(_ &gt; 2)
+
+// true
+List(1, 2, 3)
+  .map(_ + 1)
+  .filter(_ &gt; 2)
+// Note, only the dot before the first method call triggers this option.</code></pre></li>
     <li>
       <code>defaultWithAlign</code> will now also align <code>%%%</code>.</li>
     <li>
-      New style flag <code>--alwaysNewlineBeforeLambdaParameters</code>.</li>
+      New style flag <code>newlines.alwaysBeforeCurlyBraceLambdaParams</code>.</li>
     <li>
-      <code>--alignTokens</code> can now align on tokens that have no leading space.
-      For example, with settings <code>:;.*</code>
+      <code>align.tokens</code> can now align on tokens that have no leading space.
+      For example, with settings <code>align.tokens = [ &quot;:&quot; ]</code>
 
       <pre><code class="scala scalatex-site-Styles-highlightMe">// Before
 def foo(
@@ -1047,8 +1050,11 @@ def foo(
       <pre><code class="scala scalatex-site-Styles-highlightMe">case object A extends Super
 case class B(b: B) extends Super
 </code></pre>
-      I welcome contributions to improve this.
-</li></ul>
+      I welcome contributions to improve this.</li></ul>
+
+  <h1 id="0.3.x" style="display: block;" class=" scalatex-site-Styles-hoverContainer scalatex-site-Styles-headerTag"><a class=" scalatex-site-Styles-headerLink" href="#0.3.x" style="position: absolute;right: 0px;"><i class="fa fa-link"></i></a>0.3.x</h1>
+    
+
 <h2 id="0.3.1" style="display: block;" class=" scalatex-site-Styles-hoverContainer scalatex-site-Styles-headerTag"><a class=" scalatex-site-Styles-headerLink" href="#0.3.1" style="position: absolute;right: 0px;"><i class="fa fa-link"></i></a>0.3.1</h2>
   <ul>
     <li>
@@ -1134,7 +1140,7 @@ system.actorOf(
 }</code></pre></li>
     <li>
       The default <code>--alignByArrowEnumeratorGenerator</code> is now false
-      instead of true. Refer to <a href="#--alignByArrowEnumeratorGenerator">--alignByArrowEnumeratorGenerator</a>.</li>
+      instead of true. Refer to <a href="#align.arrowEnumeratorGenerator">align.arrowEnumeratorGenerator</a>.</li>
     <li>
       Function literals in argument lists can now be single line.
       See <a href="https://github.com/olafurpg/scalafmt/issues/323">#323</a>.
@@ -1236,10 +1242,10 @@ def routes = {
 }</code></pre></li>
         <li>
           (advanced) <code>--indentOperatorsIncludeFilter &lt;str&gt;</code>.
-          See <a href="https://github.com/olafurpg/scalafmt/blob/master/core/src/main/scala/org/scalafmt/ScalafmtStyle.scala#L88">docstring</a>.</li>
+          See <a href="https://github.com/olafurpg/scalafmt/blob/master/core/src/main/scala/org/scalafmt/ScalafmtConfig.scala#L88">docstring</a>.</li>
         <li>
           (advanced) <code>--indentOperatorsExcludeFilter &lt;str&gt;</code>
-          See <a href="https://github.com/olafurpg/scalafmt/blob/master/core/src/main/scala/org/scalafmt/ScalafmtStyle.scala#L97">docstring</a>.</li></ul></li>
+          See <a href="https://github.com/olafurpg/scalafmt/blob/master/core/src/main/scala/org/scalafmt/ScalafmtConfig.scala#L97">docstring</a>.</li></ul></li>
     <li>
       Backwards incompatible change: <code>FormatResult.Incomplete</code> is now
       a <code>FormatResult.Failure(e: Incomplete)</code>.</li>
@@ -1493,11 +1499,11 @@ function(
       The tests now format 1.244.070 LOC <b>twice</b> to ensure that
       scalafmt is idempotent.</li>
     <li>
-      <a href="#--assumeStandardLibraryStripMargin">--assumeStandardLibraryStripMargin</a> is now disabled by default for two
+      <a href="#assumeStandardLibraryStripMargin">assumeStandardLibraryStripMargin</a> is now disabled by default for two
       reasons: 1. it may cause non-idempotent formatting in very rare cases
       and 2. it makes the false assumption that
       <code>stripMargin</code> comes from the standard library (discussion here <span><a href="https://github.com/olafurpg/scalafmt/issues/170">#170</a></span>).
-      Refer to <a href="#--assumeStandardLibraryStripMargin">--assumeStandardLibraryStripMargin</a> to enable it at your own risk.</li>
+      Refer to <a href="#assumeStandardLibraryStripMargin">assumeStandardLibraryStripMargin</a> to enable it at your own risk.</li>
     <li>
       IntelliJ plugin does not require restart when <code>.scalafmt</code> changes.
       Instead, new changes are picked up automatically and a green info bubble
@@ -1543,7 +1549,7 @@ function(
     <li>
       Custom style configuration, see <a href="#Configuration">Configuration</a></li>
     <li>
-      Token alignment, see <a href="#--alignTokens">--alignTokens</a></li>
+      Token alignment, see <a href="#align.tokens">align.tokens</a></li>
     <li>
       Closed issues: <span><a href="https://github.com/olafurpg/scalafmt/issues/144">#144</a><a href="https://github.com/olafurpg/scalafmt/issues/143">#143</a><a href="https://github.com/olafurpg/scalafmt/issues/138">#138</a><a href="https://github.com/olafurpg/scalafmt/issues/131">#131</a><a href="https://github.com/olafurpg/scalafmt/issues/120">#120</a><a href="https://github.com/olafurpg/scalafmt/issues/114">#114</a></span>.</li>
     <li>
@@ -1551,7 +1557,7 @@ function(
     <li>
       The <code>scalafmtFormat</code> sbt task is now <code>scalafmt</code>.</li>
     <li>
-      <code>ScalaStyle</code> is now <code>ScalafmtStyle</code>.</li>
+      <code>ScalaStyle</code> is now <code>ScalafmtConfig</code>.</li>
     <li>
       <code>ScalaFmt.format</code> and
       <code>ScalaFmt.format_!</code> have been replaced by a single
@@ -1678,7 +1684,7 @@ List(1).map { x =&gt;
 <h2 id="0.1.4" style="display: block;" class=" scalatex-site-Styles-hoverContainer scalatex-site-Styles-headerTag"><a class=" scalatex-site-Styles-headerLink" href="#0.1.4" style="position: absolute;right: 0px;"><i class="fa fa-link"></i></a>0.1.4</h2>
   <ul>
     <li>
-      <a href="#--assumeStandardLibraryStripMargin">--assumeStandardLibraryStripMargin</a>.</li>
+      <a href="#assumeStandardLibraryStripMargin">assumeStandardLibraryStripMargin</a>.</li>
     <li>
       <a href="#//format:off">// format: off</a>.</li>
     <li>
@@ -1717,7 +1723,7 @@ List(1).map { x =&gt;
     The <code>-f</code> flag in the CLI can be a directory.
 </ul>
 <p>
-  This page was last updated on Sep 17, 2016.</p>
+  This page was last updated on Sep 27, 2016.</p>
 
 
   
@@ -1739,13 +1745,20 @@ List(1).map { x =&gt;
   </script>
   <noscript><p><img src="https://stats.lassie.io/hello/hello.php?idsite=3" style="border:0;" alt="" /></p></noscript>
   <!-- End Stats Code -->
+  <script>
+
+    function closeSidebar() {
+      document.getElementsByClassName("scalatex-scrollspy-Styles-menu")[0].children[1].click()
+    }
+    window.onload = closeSidebar
+  </script>
 
 </div>
 
   <a href="https://github.com/olafurpg/scalafmt"><img style="position: absolute; top: 0; right: 0; border: 0;" src="https://camo.githubusercontent.com/652c5b9acfaddf3a9c326fa6bde407b87f7be0f4/68747470733a2f2f73332e616d617a6f6e6177732e636f6d2f6769746875622f726962626f6e732f666f726b6d655f72696768745f6f72616e67655f6666373630302e706e67" alt="Fork me on GitHub" data-canonical-src="https://s3.amazonaws.com/github/ribbons/forkme_right_orange_ff7600.png"></a>
 </div><script>
     scalatex.scrollspy.Controller().main(
-      [{"value":"Scalafmt - code formatter for Scala","children":[{"value":"Installation","children":[{"value":"IntelliJ","children":[]},{"value":"SBT","children":[]},{"value":"CLI","children":[{"value":"Build from source","children":[]},{"value":"scalafmt.jar","children":[]},{"value":"Homebrew/Mac OSX","children":[]},{"value":"Linux/Windows/...","children":[]},{"value":"Usage examples","children":[]}]},{"value":"Vim","children":[]},{"value":"Standalone library","children":[]},{"value":"Coming soon...","children":[]}]},{"value":"Configuration","children":[{"value":"--style","children":[]},{"value":"--maxColumn","children":[]},{"value":"--continuationIndentCallSite","children":[]},{"value":"--continuationIndentDefnSite","children":[]},{"value":"--alignTokens","children":[]},{"value":"// format: off","children":[]},{"value":"--assumeStandardLibraryStripMargin","children":[]},{"value":"--javaDocs vs. --scalaDocs","children":[]},{"value":"--allowNewlineBeforeColonInMassiveReturnTypes","children":[]},{"value":"--alignByArrowEnumeratorGenerator","children":[]},{"value":"--binPackParentConstructors","children":[]},{"value":"--alignByOpenParenCallSite","children":[]}]},{"value":"Formatting rules","children":[{"value":"Function application","children":[]},{"value":"Select chains","children":[]},{"value":"Pattern matching","children":[]}]},{"value":"Community","children":[{"value":"Related projects","children":[]},{"value":"Adopters","children":[]}]},{"value":"FAQ / Troubleshooting","children":[{"value":"How can I be notified of releases/announcements?","children":[]},{"value":"How do I customize scalafmt?","children":[]},{"value":"Why not Scalariform?","children":[]},{"value":"Why is scalafmt so slow?","children":[]},{"value":"Code formatters create unnecessary diffs!","children":[]},{"value":"Is the formatting output stable between releases?","children":[]}]},{"value":"Known issues","children":[{"value":"Non-idempotent","children":[]},{"value":"Deeply nested code","children":[]},{"value":"Performance","children":[]}]},{"value":"Changelog","children":[{"value":"0.3.x","children":[{"value":"0.3.2","children":[]},{"value":"0.3.1","children":[]},{"value":"0.3.0","children":[]}]},{"value":"0.2.x","children":[{"value":"0.2.12","children":[]},{"value":"0.2.11","children":[]},{"value":"0.2.10","children":[]},{"value":"0.2.9","children":[]},{"value":"0.2.8","children":[]},{"value":"0.2.7","children":[]},{"value":"0.2.6","children":[]},{"value":"0.2.5","children":[]},{"value":"0.2.4","children":[]},{"value":"0.2.3","children":[]},{"value":"0.2.2","children":[]},{"value":"0.2.1","children":[]},{"value":"0.2.0","children":[]}]},{"value":"0.1.x","children":[{"value":"0.1.6","children":[]},{"value":"0.1.5","children":[]},{"value":"0.1.4","children":[]},{"value":"0.1.3","children":[]},{"value":"0.1.2","children":[]},{"value":"0.1.1","children":[]}]}]}]}]
+      [{"value":"Scalafmt - code formatter for Scala","children":[{"value":"Installation","children":[{"value":"IntelliJ","children":[]},{"value":"SBT","children":[]},{"value":"CLI","children":[{"value":"Build from source","children":[]},{"value":"scalafmt.jar","children":[]},{"value":"Homebrew/Mac OSX","children":[]},{"value":"Linux/Windows/...","children":[]},{"value":"--help","children":[]}]},{"value":"Vim","children":[]},{"value":"Standalone library","children":[]},{"value":"Coming soon...","children":[]}]},{"value":"Configuration","children":[{"value":"style","children":[]},{"value":"maxColumn","children":[]},{"value":"continuationIndent.callSite","children":[]},{"value":"continuationIndent.defnSite","children":[]},{"value":"align.tokens","children":[]},{"value":"// format: off","children":[]},{"value":"assumeStandardLibraryStripMargin","children":[]},{"value":"docstrings","children":[]},{"value":"newlines.sometimesBeforeColonInMethodReturnType","children":[]},{"value":"align.arrowEnumeratorGenerator","children":[]},{"value":"binPackParentConstructors","children":[]},{"value":"align.openParenCallSite","children":[]},{"value":"lineEndings","children":[]},{"value":"rewrite.rules","children":[{"value":"RedundantBraces","children":[]},{"value":"SortImports","children":[]}]}]},{"value":"Formatting rules","children":[{"value":"Function application","children":[]},{"value":"Select chains","children":[]},{"value":"Pattern matching","children":[]}]},{"value":"Community","children":[{"value":"Related projects","children":[]},{"value":"Adopters","children":[]}]},{"value":"FAQ / Troubleshooting","children":[{"value":"How can I be notified of releases/announcements?","children":[]},{"value":"How do I customize scalafmt?","children":[]},{"value":"Why not Scalariform?","children":[]},{"value":"Why is scalafmt so slow?","children":[]},{"value":"Code formatters create unnecessary diffs!","children":[]},{"value":"Is the formatting output stable between releases?","children":[]}]},{"value":"Known issues","children":[{"value":"Non-idempotent","children":[]},{"value":"Deeply nested code","children":[]},{"value":"Performance","children":[]}]},{"value":"Changelog","children":[{"value":"0.4.x","children":[{"value":"0.4.0-RC1","children":[]}]},{"value":"0.3.x","children":[{"value":"0.3.1","children":[]},{"value":"0.3.0","children":[]}]},{"value":"0.2.x","children":[{"value":"0.2.12","children":[]},{"value":"0.2.11","children":[]},{"value":"0.2.10","children":[]},{"value":"0.2.9","children":[]},{"value":"0.2.8","children":[]},{"value":"0.2.7","children":[]},{"value":"0.2.6","children":[]},{"value":"0.2.5","children":[]},{"value":"0.2.4","children":[]},{"value":"0.2.3","children":[]},{"value":"0.2.2","children":[]},{"value":"0.2.1","children":[]},{"value":"0.2.0","children":[]}]},{"value":"0.1.x","children":[{"value":"0.1.6","children":[]},{"value":"0.1.5","children":[]},{"value":"0.1.4","children":[]},{"value":"0.1.3","children":[]},{"value":"0.1.2","children":[]},{"value":"0.1.1","children":[]}]}]}]}]
   )</script><script>
     ['DOMContentLoaded', 'load'].forEach(function(ev){
       addEventListener(ev, function(){
@@ -1755,4 +1768,4 @@ List(1).map { x =&gt;
         );
       })
     })
-  </script></body></html>                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  
+  </script></body></html>                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         
