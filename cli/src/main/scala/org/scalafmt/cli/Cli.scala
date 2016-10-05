@@ -2,6 +2,7 @@ package org.scalafmt.cli
 
 import scala.meta.Dialect
 import scala.util.control.NonFatal
+
 import java.io.File
 import java.util.Date
 import java.util.concurrent.TimeUnit
@@ -14,6 +15,7 @@ import org.scalafmt.Scalafmt
 import org.scalafmt.Versions
 import org.scalafmt.config.ScalafmtRunner
 import org.scalafmt.config.ScalafmtConfig
+import org.scalafmt.util.GitOps
 import org.scalafmt.util.{BuildTime, FileOps, GitCommit, LoggerOps}
 import scopt.OptionParser
 import scopt.Read
@@ -54,6 +56,7 @@ object Cli {
                     testing: Boolean,
                     debug: Boolean,
                     sbtFiles: Boolean,
+                    gitFiles: Boolean,
                     style: ScalafmtConfig,
                     runner: ScalafmtRunner,
                     range: Set[Range],
@@ -67,6 +70,7 @@ object Cli {
                          inPlace = false,
                          testing = false,
                          sbtFiles = true,
+                         gitFiles = false,
                          debug = false,
                          style = ScalafmtConfig.default,
                          runner = ScalafmtRunner.default,
@@ -170,6 +174,9 @@ object Cli {
       opt[Boolean]("formatSbtFiles") action { (b, c) =>
         c.copy(sbtFiles = b)
       } text s"If true, formats .sbt files as well."
+      opt[Unit]("git") action { (_, c) =>
+        c.copy(gitFiles = true)
+      } text s"If true, format all tracked files in this git repository"
 
       note(s"""
               |Examples:
@@ -187,17 +194,18 @@ object Cli {
         scala.io.Source.fromInputStream(System.in).getLines().mkString("\n")
       Seq(StdinCode(contents))
     } else {
-      config.files.flatMap { file =>
-        FileOps
-          .listFiles(file, config.exclude.toSet)
-          .withFilter { x =>
-            x.endsWith(".scala") ||
-            (config.sbtFiles && x.endsWith(".sbt"))
-          }
-          .map { filename =>
-            val contents = FileOps.readFile(filename)
-            FileContents(filename, contents)
-          }
+      val manualFiles: Seq[String] = config.files.flatMap { file =>
+        FileOps.listFiles(file, config.exclude.toSet)
+      }
+      val gitFiles: Seq[String] =
+        if (config.gitFiles) GitOps.lsTree.map(_.getPath)
+        else Nil
+      (manualFiles ++ gitFiles).withFilter { x =>
+        x.endsWith(".scala") ||
+        (config.sbtFiles && x.endsWith(".sbt"))
+      }.map { filename =>
+        val contents = FileOps.readFile(filename)
+        FileContents(filename, contents)
       }
     }
   }
