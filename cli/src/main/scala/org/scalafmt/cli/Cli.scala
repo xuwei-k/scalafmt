@@ -339,7 +339,8 @@ object Cli {
         .toRight[Throwable](UnableToParseCliOptions)
         .right
       config <- {
-        val configString = cliFlags.config.orElse(GitOps.rootDir)
+        val gitModel = GitModel.get
+        val configString = cliFlags.config
         val result: Either[Throwable, Config] = configString match {
           case Some(configFile) =>
             val contents =
