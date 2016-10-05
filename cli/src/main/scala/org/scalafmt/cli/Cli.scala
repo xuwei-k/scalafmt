@@ -10,9 +10,12 @@ import java.util.concurrent.atomic.AtomicInteger
 
 import org.scalafmt
 import org.scalafmt.Error.MisformattedFile
+import org.scalafmt.Error.UnableToParseCliOptions
 import org.scalafmt.Formatted
 import org.scalafmt.Scalafmt
 import org.scalafmt.Versions
+import org.scalafmt.config
+import org.scalafmt.config.GitModel
 import org.scalafmt.config.ScalafmtRunner
 import org.scalafmt.config.ScalafmtConfig
 import org.scalafmt.util.GitOps
@@ -56,7 +59,6 @@ object Cli {
                     testing: Boolean,
                     debug: Boolean,
                     sbtFiles: Boolean,
-                    gitFiles: Boolean,
                     style: ScalafmtConfig,
                     runner: ScalafmtRunner,
                     range: Set[Range],
@@ -70,7 +72,6 @@ object Cli {
                          inPlace = false,
                          testing = false,
                          sbtFiles = true,
-                         gitFiles = false,
                          debug = false,
                          style = ScalafmtConfig.default,
                          runner = ScalafmtRunner.default,
@@ -174,9 +175,6 @@ object Cli {
       opt[Boolean]("formatSbtFiles") action { (b, c) =>
         c.copy(sbtFiles = b)
       } text s"If true, formats .sbt files as well."
-      opt[Unit]("git") action { (_, c) =>
-        c.copy(gitFiles = true)
-      } text s"If true, format all tracked files in this git repository"
 
       note(s"""
               |Examples:
@@ -189,7 +187,7 @@ object Cli {
   lazy val parser = scoptParser
 
   def getCode(config: Config): Seq[InputMethod] = {
-    if (config.files.isEmpty) {
+    if (config.files.isEmpty && !config.style.project.git) {
       val contents =
         scala.io.Source.fromInputStream(System.in).getLines().mkString("\n")
       Seq(StdinCode(contents))
@@ -198,7 +196,7 @@ object Cli {
         FileOps.listFiles(file, config.exclude.toSet)
       }
       val gitFiles: Seq[String] =
-        if (config.gitFiles) GitOps.lsTree.map(_.getPath)
+        if (config.style.project.git) GitOps.lsTree.map(_.getPath)
         else Nil
       (manualFiles ++ gitFiles).withFilter { x =>
         x.endsWith(".scala") ||
@@ -335,19 +333,27 @@ object Cli {
   }
 
   def getConfig(args: Array[String]): Either[Throwable, Config] = {
-    scoptParser.parse(args, Config.default) match {
-      case Some(c) if c.config.nonEmpty =>
-        val config = c.config.get
-        val configFile = new File(config)
-        val contents =
-          if (configFile.isFile) FileOps.readFile(configFile)
-          else config.stripPrefix("\"").stripSuffix("\"")
-        scalafmt.config.Config
-          .fromHocon(contents)
-          .right
-          .map(x => c.copy(style = x))
-      case x => x.toRight(org.scalafmt.Error.UnableToParseCliOptions)
-    }
+    for {
+      cliFlags <- scoptParser
+        .parse(args, Config.default)
+        .toRight[Throwable](UnableToParseCliOptions)
+        .right
+      config <- {
+        val configString = cliFlags.config.orElse(GitOps.rootDir)
+        val result: Either[Throwable, Config] = configString match {
+          case Some(configFile) =>
+            val contents =
+              if (configFile.startsWith("\""))
+                configFile.stripPrefix("\"").stripSuffix("\"")
+              else FileOps.readFile(configFile)
+            scalafmt.config.Config.fromHocon(contents).right.map { x =>
+              cliFlags.copy(style = x)
+            }
+          case None => Right(cliFlags)
+        }
+        result.right
+      }
+    } yield config
   }
 
   def main(args: Array[String]): Unit = {

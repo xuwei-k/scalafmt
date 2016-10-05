@@ -1,10 +1,12 @@
 package org.scalafmt.util
 
 import scala.collection.breakOut
-
 import scala.util.Try
 
 import java.io.File
+
+import org.scalafmt.config
+import org.scalafmt.config.ScalafmtConfig
 
 object FileExists {
   def unapply(arg: String): Option[File] = {
@@ -22,7 +24,13 @@ object GitOps {
         .split("\n")
         .collect {
           case FileExists(f) => f
-        }.toSeq
+        }
+        .toSeq
     }.getOrElse(Nil)
+
+  def rootDir: Option[String] =
+    Try {
+      Seq("git", "rev-parse", "--show-toplevel").!!
+    }.toOption
 
 }
