@@ -23,7 +23,9 @@ object InputMethod {
       Source.fromInputStream(System.in).getLines().mkString("\n")
     override def write(code: String,
                        original: String,
-                       options: CliOptions): Unit = println(code)
+                       options: CliOptions): Unit = {
+      options.common.out.println(code)
+    }
   }
   case class FileContents(filename: String) extends InputMethod {
     def readInput: String = FileOps.readFile(filename)
@@ -38,7 +40,7 @@ object InputMethod {
           if (codeChanged) FileOps.writeFile(filename, formatted)
           else Unit
         } else {
-          println(formatted)
+          options.common.out.println(formatted)
         }
       }
     }

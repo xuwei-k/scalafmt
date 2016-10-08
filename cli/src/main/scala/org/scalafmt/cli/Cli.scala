@@ -39,7 +39,10 @@ object Cli {
   def getFiles(config: CliOptions): Seq[String] = {
     if (config.files.nonEmpty) {
       config.files.flatMap { file =>
-        FileOps.listFiles(file, config.exclude.toSet)
+        val absolutePath =
+          if (file.isAbsolute) file
+          else new File(config.common.workingDirectory, file.getPath)
+        FileOps.listFiles(absolutePath, config.exclude.toSet)
       }
     } else getFilesFromProject(config.style.project)
   }
