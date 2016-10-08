@@ -67,7 +67,7 @@ class CliTest extends FunSuite with DiffAssertions {
     val tmpFile = Files.createTempFile("prefix", ".scala")
     Files.write(tmpFile, unformatted.getBytes)
     val formatInPlace =
-      Cli.Config.default.copy(style =
+      CliOptions.default.copy(style =
                                 ScalafmtConfig.default.copy(maxColumn = 7),
                               files = Seq(tmpFile.toFile),
                               inPlace = true)
@@ -80,7 +80,7 @@ class CliTest extends FunSuite with DiffAssertions {
     val tmpFile = Files.createTempFile("prefix", ".scala")
     Files.write(tmpFile, unformatted.getBytes)
     val formatInPlace =
-      Cli.Config.default.copy(files = Seq(tmpFile.toFile), testing = true)
+      CliOptions.default.copy(files = Seq(tmpFile.toFile), testing = true)
     intercept[MisformattedFile] {
       Cli.run(formatInPlace)
     }
@@ -90,7 +90,7 @@ class CliTest extends FunSuite with DiffAssertions {
     val tmpFile = Files.createTempFile("prefix", "suffix")
     Files.write(tmpFile, unformatted.getBytes)
     val formatInPlace =
-      Cli.Config.default.copy(files = Seq(tmpFile.toFile), inPlace = true)
+      CliOptions.default.copy(files = Seq(tmpFile.toFile), inPlace = true)
     Cli.run(formatInPlace)
     val obtained = FileOps.readFile(tmpFile.toString)
     assertNoDiff(obtained, unformatted)
@@ -133,7 +133,7 @@ class CliTest extends FunSuite with DiffAssertions {
       """.stripMargin
     FileOps.writeFile(file1.getAbsolutePath, original1)
     FileOps.writeFile(file2.getAbsolutePath, original2)
-    val config = Cli.Config.default.copy(inPlace = true, files = Seq(dir))
+    val config = CliOptions.default.copy(inPlace = true, files = Seq(dir))
     Cli.run(config)
     val obtained1 = FileOps.readFile(file1)
     val obtained2 = FileOps.readFile(file2)
@@ -168,8 +168,12 @@ class CliTest extends FunSuite with DiffAssertions {
                     """.stripMargin
     FileOps.writeFile(file1.getAbsolutePath, original1)
     FileOps.writeFile(file2.getAbsolutePath, original2)
-    val config = Cli.Config.default
-      .copy(inPlace = true, files = Seq(dir), exclude = Seq(file2))
+    val config = CliOptions.default
+      .copy(
+        inPlace = true,
+        files = Seq(dir),
+        exclude = Seq(file2)
+      )
     Cli.run(config)
     val obtained1 = FileOps.readFile(file1)
     val obtained2 = FileOps.readFile(file2)

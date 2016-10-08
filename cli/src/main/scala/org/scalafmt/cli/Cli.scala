@@ -26,6 +26,23 @@ import org.scalafmt.util.{BuildTime, FileOps, GitCommit, LoggerOps}
 import scopt.OptionParser
 import scopt.Read
 
+case class CliOptions(
+    files: Seq[File] = Nil,
+    exclude: Seq[File] = Nil,
+    inPlace: Boolean = false,
+    testing: Boolean = false,
+    debug: Boolean = false,
+    sbtFiles: Boolean = true,
+    style: ScalafmtConfig = ScalafmtConfig.default,
+    range: Set[Range] = Set.empty[Range],
+    migrate: Option[File] = None
+) {
+  require(!(inPlace && testing), "inPlace and testing can't both be true")
+}
+object CliOptions {
+  val default = CliOptions()
+}
+
 object Cli {
   import LoggerOps._
   val usageExamples =
@@ -54,23 +71,6 @@ object Cli {
       |// read scala code from stdin and print formatted contents to stdout.
       |scalafmt
     """.stripMargin
-
-  case class Config(
-      files: Seq[File] = Nil,
-      exclude: Seq[File] = Nil,
-      inPlace: Boolean = false,
-      testing: Boolean = false,
-      debug: Boolean = false,
-      sbtFiles: Boolean = true,
-      style: ScalafmtConfig = ScalafmtConfig.default,
-      range: Set[Range] = Set.empty[Range],
-      migrate: Option[File] = None
-  ) {
-    require(!(inPlace && testing), "inPlace and testing can't both be true")
-  }
-  object Config {
-    val default = Config()
-  }
 
   case class DebugError(filename: String, error: Throwable)
 
@@ -114,10 +114,11 @@ object Cli {
     s"""build commit: $gitCommit
        |build time: ${new Date(buildTimeMs)}""".stripMargin
 
-  lazy val scoptParser: OptionParser[Config] =
-    new scopt.OptionParser[Config]("scalafmt") {
+  lazy val scoptParser: OptionParser[CliOptions] =
+    new scopt.OptionParser[CliOptions]("scalafmt") {
 
-      def printAndExit(inludeUsage: Boolean)(ignore: Unit, c: Config): Config = {
+      def printAndExit(inludeUsage: Boolean)(ignore: Unit,
+                                             c: CliOptions): CliOptions = {
         if (inludeUsage) showUsage
         else showHeader
         sys.exit
@@ -206,7 +207,7 @@ object Cli {
     (files ++ gitFiles).filter(matches)
   }
 
-  def getFiles(config: Config): Seq[String] = {
+  def getFiles(config: CliOptions): Seq[String] = {
     if (config.files.nonEmpty) {
       config.files.flatMap { file =>
         FileOps.listFiles(file, config.exclude.toSet)
@@ -214,7 +215,7 @@ object Cli {
     } else getFilesFromProject(config.style.project)
   }
 
-  def getCode(config: Config): Seq[InputMethod] = {
+  def getCode(config: CliOptions): Seq[InputMethod] = {
     if (config.files.isEmpty && !config.style.project.git) {
       val contents =
         scala.io.Source.fromInputStream(System.in).getLines().mkString("\n")
@@ -230,7 +231,7 @@ object Cli {
     }
   }
 
-  def run(config: Config): Unit = {
+  def run(config: CliOptions): Unit = {
     val inputMethods = getCode(config)
     val errorBuilder = Seq.newBuilder[DebugError]
     val counter = new AtomicInteger()
@@ -361,8 +362,8 @@ object Cli {
     }
   }
 
-  def getConfig(args: Array[String]): Option[Config] = {
-    scoptParser.parse(args, Config.default)
+  def getConfig(args: Array[String]): Option[CliOptions] = {
+    scoptParser.parse(args, CliOptions.default)
   }
 
   def main(args: Array[String]): Unit = {
