@@ -67,8 +67,8 @@ object Cli {
       case Formatted.Failure(e) =>
         if (options.style.runner.fatalWarnings) {
           throw e
-        } else {
-          logger.error(s"Error in ${inputMethod.filename}: $e")
+        } else if (!options.inPlace) {
+          logger.warn(s"Error in ${inputMethod.filename}: $e")
         }
     }
   }
@@ -82,7 +82,7 @@ object Cli {
         runner = config.style.runner.copy(
           dialect = Sbt0137
         )))
-    val msg = "Running scalafix..."
+    val msg = "Running scalafmt..."
     val termDisplay = new TermDisplay(new OutputStreamWriter(System.out))
     if (config.inPlace) termDisplay.init()
     termDisplay.startTask(msg, workingDirectory)
