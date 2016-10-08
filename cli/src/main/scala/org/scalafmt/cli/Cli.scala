@@ -11,10 +11,8 @@ import java.util.concurrent.atomic.AtomicInteger
 import org.scalafmt.Error.UnableToParseCliOptions
 import org.scalafmt.Formatted
 import org.scalafmt.Scalafmt
-import org.scalafmt.config.ProjectFiles
 import org.scalafmt.util.FileOps
 import org.scalafmt.util.LogLevel
-import org.scalafmt.util.logger
 
 object Cli {
   case class DebugError(filename: String, error: Throwable)
@@ -28,17 +26,17 @@ object Cli {
 
   def getFilesFromProject(options: CliOptions): Seq[String] = {
     import options.config.project._
-    val include = mkRegexp(includeFilter)
-    val exclude = mkRegexp(excludeFilter)
+    val include = mkRegexp(includeFilters)
+    val exclude = mkRegexp(excludeFilters)
 
     def matches(path: String): Boolean =
       include.findFirstIn(path).isDefined &&
         exclude.findFirstIn(path).isEmpty
 
     val gitFiles: Seq[String] = if (git) options.gitOps.lsTree else Nil
-    logger.elem(gitFiles)
     val otherFiles: Seq[String] =
       files.flatMap(x => FileOps.listFiles(x))
+    val x  = gitFiles.map(x => matches(x) -> x)
     (otherFiles ++ gitFiles).filter(matches)
   }
 
@@ -101,7 +99,6 @@ object Cli {
 
   def runFormat(options: CliOptions): Unit = {
     val inputMethods = getInputMethods(options)
-    logger.elem(inputMethods)
     val counter = new AtomicInteger()
     val sbtConfig = options.copy(
       config = options.config.copy(

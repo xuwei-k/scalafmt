@@ -78,7 +78,7 @@ object CliArgParser {
             c.copy(
               config = c.config.copy(
                 project = c.config.project.copy(
-                  excludeFilter = files
+                  excludeFilters = files
                 )
               )
           ))
@@ -95,7 +95,6 @@ object CliArgParser {
             if (!optionalConfigFile.isFile) c.config
             else {
               val contents = FileOps.readFile(optionalConfigFile)
-              logger.elem(contents)
               Config.fromHocon(contents) match {
                 case Right(e) => e
                 case Left(e) => throw e
@@ -103,7 +102,7 @@ object CliArgParser {
             }
           c.copy(
             config = config.copy(
-              project = c.config.project.copy(
+              project = config.project.copy(
                 git = true
               )
             )
