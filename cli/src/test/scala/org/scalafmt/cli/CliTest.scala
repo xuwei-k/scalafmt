@@ -5,6 +5,7 @@ import java.nio.file.Files
 
 import org.scalafmt.Error.MisformattedFile
 import org.scalafmt.config
+import org.scalafmt.config.Config
 import org.scalafmt.config.ScalafmtConfig
 import org.scalafmt.util.DiffAssertions
 import org.scalafmt.util.FileOps
@@ -26,14 +27,19 @@ class CliTest extends FunSuite with DiffAssertions {
                    |}
                  """.stripMargin
 
+  def gimmeConfig(string: String): ScalafmtConfig =
+    Config.fromHocon(string).right.get
+
   test("scalafmt -i --file tmpFile") {
     val tmpFile = Files.createTempFile("prefix", ".scala")
     Files.write(tmpFile, unformatted.getBytes)
     val formatInPlace =
-      CliOptions.default.copy(config =
-                                ScalafmtConfig.default.copy(maxColumn = 7),
-                              files = Seq(tmpFile.toFile),
-                              inPlace = true)
+      CliOptions.default
+        .copy(
+          config = ScalafmtConfig.default.copy(maxColumn = 7),
+          inPlace = true
+        )
+        .withFiles(Seq(tmpFile.toFile))
     Cli.run(formatInPlace)
     val obtained = FileOps.readFile(tmpFile.toString)
     assertNoDiff(obtained, expected)
@@ -43,7 +49,12 @@ class CliTest extends FunSuite with DiffAssertions {
     val tmpFile = Files.createTempFile("prefix", ".scala")
     Files.write(tmpFile, unformatted.getBytes)
     val formatInPlace =
-      CliOptions.default.copy(files = Seq(tmpFile.toFile), testing = true)
+      CliOptions.default.copy(
+        config = gimmeConfig(
+          s"project.files = [${tmpFile.toFile.getPath}]"
+        ),
+        testing = true
+      )
     intercept[MisformattedFile] {
       Cli.run(formatInPlace)
     }
@@ -53,7 +64,9 @@ class CliTest extends FunSuite with DiffAssertions {
     val tmpFile = Files.createTempFile("prefix", "suffix")
     Files.write(tmpFile, unformatted.getBytes)
     val formatInPlace =
-      CliOptions.default.copy(files = Seq(tmpFile.toFile), inPlace = true)
+      CliOptions.default
+        .copy(inPlace = true)
+        .withFiles(Seq(tmpFile.toFile))
     Cli.run(formatInPlace)
     val obtained = FileOps.readFile(tmpFile.toString)
     assertNoDiff(obtained, unformatted)
@@ -88,7 +101,15 @@ class CliTest extends FunSuite with DiffAssertions {
       """.stripMargin
     FileOps.writeFile(file1.getAbsolutePath, original1)
     FileOps.writeFile(file2.getAbsolutePath, original2)
-    val config = CliOptions.default.copy(inPlace = true, files = Seq(dir))
+    val c = CliOptions.default
+    val config = CliOptions.default.copy(
+      inPlace = true,
+      config = c.config.copy(
+        project = c.config.project.copy(
+          files = Seq(dir.getPath)
+        )
+      )
+    )
     Cli.run(config)
     val obtained1 = FileOps.readFile(file1)
     val obtained2 = FileOps.readFile(file2)
@@ -123,11 +144,16 @@ class CliTest extends FunSuite with DiffAssertions {
                     """.stripMargin
     FileOps.writeFile(file1.getAbsolutePath, original1)
     FileOps.writeFile(file2.getAbsolutePath, original2)
-    val config = CliOptions.default.copy(
-      inPlace = true,
-      files = Seq(dir),
-      exclude = Seq(file2)
-    )
+    val config = CliOptions.default
+      .copy(
+        inPlace = true,
+        config = gimmeConfig(
+          s"""
+             |project.files = [${file1.getPath}]
+             |project.excludeFilters = [${file2.getPath}]
+        """.stripMargin
+        )
+      )
     Cli.run(config)
     val obtained1 = FileOps.readFile(file1)
     val obtained2 = FileOps.readFile(file2)

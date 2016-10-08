@@ -36,24 +36,13 @@ object Cli {
     (files ++ gitFiles).filter(matches)
   }
 
-  def getFiles(options: CliOptions): Seq[String] = {
-    if (options.files.nonEmpty) {
-      options.files.flatMap { file =>
-        val absolutePath =
-          if (file.isAbsolute) file
-          else new File(options.common.workingDirectory, file.getPath)
-        FileOps.listFiles(absolutePath, options.exclude.toSet)
-      }
-    } else getFilesFromProject(options.config.project)
-  }
-
   def getInputMethods(options: CliOptions): Seq[InputMethod] = {
-    if (options.files.isEmpty && !options.config.project.git) {
+    if (options.stdIn) {
       Seq(InputMethod.StdinCode(options.assumeFilename, options.common.in))
     } else {
-      getFiles(options)
+      getFilesFromProject(options.config.project)
         .withFilter(
-          x => x.endsWith(".scala") || (options.sbtFiles && x.endsWith(".sbt"))
+          x => x.endsWith(".scala") || x.endsWith(".sbt")
         )
         .map(InputMethod.FileContents.apply)
     }
@@ -114,7 +103,7 @@ object Cli {
         )))
     val termDisplay = newTermDisplay(options, inputMethods)
     inputMethods.par.foreach { inputMethod =>
-      val inputConfig = if (inputMethod.isSbt(options)) sbtConfig else options
+      val inputConfig = if (inputMethod.isSbt) sbtConfig else options
       handleFile(inputMethod, inputConfig)
       termDisplay.taskProgress(termDisplayMessage, counter.incrementAndGet())
     }

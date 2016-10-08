@@ -9,8 +9,7 @@ import org.scalafmt.Error.MisformattedFile
 import org.scalafmt.util.FileOps
 
 sealed abstract class InputMethod {
-  def isSbt(options: CliOptions) =
-    options.sbtFiles && filename.endsWith(".sbt")
+  def isSbt = filename.endsWith(".sbt")
   def readInput: String
   def filename: String
   def write(formatted: String, original: String, options: CliOptions): Unit

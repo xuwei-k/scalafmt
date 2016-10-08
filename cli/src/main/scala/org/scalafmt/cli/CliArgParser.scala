@@ -15,31 +15,17 @@ object CliArgParser {
   @GitCommit val gitCommit: String = ???
   @BuildTime val buildTimeMs: Long = ???
   val usageExamples =
-    """
-      |// get help
-      |scalafmt --help
-      |
-      |// print formatted contents of file to stdout.
-      |scalafmt -f Code.scala
-      |
-      |// write formatted contents to file.
-      |scalafmt -i -f Code1.scala,Code2.scala
-      |
-      |// format with predefined custom style
-      |scalafmt --config "style=defaultWithAlign" -f Code.scala
-      |
-      |// read style options from a configuration file
-      |$ cat .scalafmt.conf
-      |maxColumn = 120
-      |docstrings = JavaDoc
-      |$ scalafmt --config .scalafmt -i -f Code.scala
-      |
-      |// format all files in current directory, write new contents to each file.
-      |scalafmt -i -f .
-      |
-      |// read scala code from stdin and print formatted contents to stdout.
-      |scalafmt
-    """.stripMargin
+    """|scalafmt        # format all files in current git repo, reads configuration
+       |                # from .scalafmt.conf in the root directory, if the file exists.
+       |scalafmt --test # throw error if any file in current project is mis-formatted.
+       |scalafmt --stdin                           # read from stdin and print to stdout
+       |scalafmt --stdin --assume-filename foo.sbt # required to format .sbt files
+       |scalafmt -f Code.scala,Code2.scala # print formatted contents to stdout.
+       |scalafmt -i -f Code1.scala         # write formatted contents to file.
+       |scalafmt -i -f . --exclude target  # format all files in directory excluding target
+       |scalafmt --config "style=IntelliJ" # define custom style as a flag
+       |scalafmt --config .scalafmt.conf   # read custom style from file
+       |""".stripMargin
 
   val scoptParser: OptionParser[CliOptions] =
     new scopt.OptionParser[CliOptions]("scalafmt") {
@@ -65,21 +51,27 @@ object CliArgParser {
       }
 
       head("scalafmt", Versions.nightly)
+      opt[Unit]('h', "help")
+        .action(printAndExit(inludeUsage = true))
+        .text("prints this usage text")
       opt[Seq[File]]('f', "files")
-        .action((files, c) => c.copy(files = files))
+        .action((files, c) =>
+          c.copy(
+            config = c.config.copy(
+              project = c.config.project.copy(
+                files = c.config.project.files ++ files.map(_.getPath),
+                git = false // if you want to define both, write it in --config
+              )
+            )
+        ))
         .text(
-          "can be directory, in which case all *.scala files are formatted. " +
-            "If not provided, reads from stdin.")
-      opt[Seq[File]]('e', "exclude").action((exclude, c) =>
-        c.copy(exclude = exclude)) text "can be directory, in which case all *.scala files are ignored when formatting."
+          "file or directory, in which case all *.scala files are formatted.")
+//      opt[Seq[String]]('e', "exclude").action((exclude, c) =>
+//        c.copy(exclude = exclude)) text "file or directory to exclude from formatting"
       opt[String]('c', "config")
         .action(readConfigFromFile)
         .text(
-          "read style flags, see \"Style configuration option\", from this" +
-            " config file. The file can contain comments starting with //")
-      opt[File]("migrate2hocon")
-        .action((file, c) => c.copy(migrate = Some(file)))
-        .text("""migrate .scalafmt CLI style configuration to hocon style configuration in .scalafmt.conf""")
+          "either a file or configuration wrapped in quotes \" with no spaces.")
       opt[Unit]('i', "in-place")
         .action((_, c) => c.copy(inPlace = true))
         .text("write output to file, does nothing if file is not specified")
@@ -89,11 +81,18 @@ object CliArgParser {
       opt[Unit]("debug")
         .action((_, c) => c.copy(debug = true))
         .text("print out debug information")
+      opt[File]("migrate2hocon")
+        .action((file, c) => c.copy(migrate = Some(file)))
+        .text("""migrate .scalafmt CLI style configuration to hocon style configuration in .scalafmt.conf""")
       opt[Unit]("statement")
-        .action((_, c) =>
-          c.copy(config = c.config.copy(runner =
-            c.config.runner.copy(parser = scala.meta.parsers.Parse.parseStat))))
+        .action(
+          (_, c) =>
+            c.copy(
+              config = c.config.copy(runner = c.config.runner.copy(
+                parser = scala.meta.parsers.Parse.parseStat))
+          ))
         .text("parse the input as a statement instead of compilation unit")
+
       opt[Unit]('v', "version")
         .action(printAndExit(inludeUsage = false))
         .text("print version ")
@@ -104,9 +103,6 @@ object CliArgParser {
             sys.exit
         })
         .text("prints build information")
-      opt[Unit]('h', "help")
-        .action(printAndExit(inludeUsage = true))
-        .text("prints this usage text")
       opt[(Int, Int)]("range")
         .hidden()
         .action({
@@ -115,16 +111,10 @@ object CliArgParser {
             c.copy(range = c.range + Range(from - 1, to + offset))
         })
         .text("(experimental) only format line range from=to")
-      opt[Boolean]("formatSbtFiles")
-        .action((b, c) => c.copy(sbtFiles = b))
-        .text(s"If true, formats .sbt files as well.")
 
-      note(s"""
-              |Examples:
-              |
-              |$usageExamples
-              |
-              |Please file bugs to https://github.com/olafurpg/scalafmt/issues
+      note(s"""|Examples:
+               |$usageExamples
+               |Please file bugs to https://github.com/olafurpg/scalafmt/issues
       """.stripMargin)
     }
   def buildInfo =

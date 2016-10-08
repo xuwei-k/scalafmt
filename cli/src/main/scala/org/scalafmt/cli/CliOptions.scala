@@ -4,6 +4,7 @@ import java.io.File
 import java.io.InputStream
 import java.io.PrintStream
 
+import org.scalafmt.config.ProjectFiles
 import org.scalafmt.config.ScalafmtConfig
 
 object CliOptions {
@@ -17,12 +18,10 @@ case class CommonOptions(
 )
 
 case class CliOptions(
-    files: Seq[File] = Nil,
-    exclude: Seq[File] = Nil,
     inPlace: Boolean = false,
     testing: Boolean = false,
     debug: Boolean = false,
-    sbtFiles: Boolean = true,
+    stdIn: Boolean = false,
     config: ScalafmtConfig = ScalafmtConfig.default,
     range: Set[Range] = Set.empty[Range],
     migrate: Option[File] = None,
@@ -30,4 +29,13 @@ case class CliOptions(
     common: CommonOptions = CommonOptions()
 ) {
   require(!(inPlace && testing), "inPlace and testing can't both be true")
+  def withFiles(files: Seq[File]): CliOptions = {
+    this.copy(
+      config = config.copy(
+        project = config.project.copy(
+          files = files.map(_.getPath)
+        )
+      )
+    )
+  }
 }
