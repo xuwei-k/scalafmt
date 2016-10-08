@@ -19,6 +19,8 @@ object LegacyCli {
       "--reformatComments true" -> "",
       "--reformatComments false" -> "docstrings = preserve",
       "--(\\w+) (.*)" -> "$1 = $2",
+      "indentOperatorsIncludeFilter" -> "indentOperator.include",
+      "indentOperatorsExcludeFilter" -> "indentOperator.exclude",
       "alignTokens" -> "align.tokens",
       "noNewlinesBeforeJsNative" -> "newlines.neverBeforeJsNative",
       "allowNewlineBeforeColonInMassiveReturnTypes" -> "newlines.sometimesBeforeColonInMethodReturnType",

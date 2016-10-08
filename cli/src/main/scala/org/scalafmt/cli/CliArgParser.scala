@@ -69,6 +69,18 @@ object CliArgParser {
         ))
         .text(
           "file or directory, in which case all *.scala files are formatted.")
+      opt[Seq[String]]("exclude")
+        .action(
+          (files, c) =>
+            c.copy(
+              config = c.config.copy(
+                project = c.config.project.copy(
+                  excludeFilter = files
+                )
+              )
+          ))
+        .text(
+          "file or directory, in which case all *.scala files are formatted.")
       opt[String]('c', "config")
         .action(readConfigFromFile)
         .text(
