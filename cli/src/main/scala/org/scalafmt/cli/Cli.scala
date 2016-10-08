@@ -1,7 +1,9 @@
 package org.scalafmt.cli
 
 import scala.meta.Dialect
+import scala.meta.dialects.Sbt0137
 import scala.util.control.NonFatal
+import scala.util.matching.Regex
 
 import java.io.File
 import java.util.Date
@@ -15,9 +17,10 @@ import org.scalafmt.Formatted
 import org.scalafmt.Scalafmt
 import org.scalafmt.Versions
 import org.scalafmt.config
-import org.scalafmt.config.GitModel
+import org.scalafmt.config.ProjectFiles
 import org.scalafmt.config.ScalafmtRunner
 import org.scalafmt.config.ScalafmtConfig
+import org.scalafmt.config.hocon.Hocon2Class
 import org.scalafmt.util.GitOps
 import org.scalafmt.util.{BuildTime, FileOps, GitCommit, LoggerOps}
 import scopt.OptionParser
@@ -52,32 +55,21 @@ object Cli {
       |scalafmt
     """.stripMargin
 
-  case class Config(files: Seq[File],
-                    exclude: Seq[File],
-                    config: Option[String],
-                    inPlace: Boolean,
-                    testing: Boolean,
-                    debug: Boolean,
-                    sbtFiles: Boolean,
-                    style: ScalafmtConfig,
-                    runner: ScalafmtRunner,
-                    range: Set[Range],
-                    migrate: Option[File]) {
+  case class Config(
+      files: Seq[File] = Nil,
+      exclude: Seq[File] = Nil,
+      inPlace: Boolean = false,
+      testing: Boolean = false,
+      debug: Boolean = false,
+      sbtFiles: Boolean = true,
+      style: ScalafmtConfig = ScalafmtConfig.default,
+      range: Set[Range] = Set.empty[Range],
+      migrate: Option[File] = None
+  ) {
     require(!(inPlace && testing), "inPlace and testing can't both be true")
   }
   object Config {
-    val default = Config(files = Seq.empty[File],
-                         exclude = Seq.empty[File],
-                         config = None,
-                         inPlace = false,
-                         testing = false,
-                         sbtFiles = true,
-                         debug = false,
-                         style = ScalafmtConfig.default,
-                         runner = ScalafmtRunner.default,
-                         range = Set.empty[Range],
-                         migrate = None)
-
+    val default = Config()
   }
 
   case class DebugError(filename: String, error: Throwable)
@@ -141,7 +133,15 @@ object Cli {
         c.copy(exclude = exclude)
       } text "can be directory, in which case all *.scala files are ignored when formatting."
       opt[String]('c', "config") action { (file, c) =>
-        c.copy(config = Some(file))
+        val contents =
+          if (file.startsWith("\""))
+            file.stripPrefix("\"").stripSuffix("\"")
+          else FileOps.readFile(file)
+        Hocon2Class
+          .gimmeClass[ScalafmtConfig](contents, c.style.reader, None) match {
+          case Right(style) => c.copy(style = style)
+          case Left(e) => throw e
+        }
       } text "read style flags, see \"Style configuration option\", from this" +
         " config file. The file can contain comments starting with //"
       opt[File]("migrate2hocon") action { (file, c) =>
@@ -158,7 +158,11 @@ object Cli {
       } text "print out debug information"
       opt[Unit]("statement") action { (_, c) =>
         c.copy(
-          runner = c.runner.copy(parser = scala.meta.parsers.Parse.parseStat))
+          style = c.style.copy(
+            runner =
+              c.style.runner.copy(parser = scala.meta.parsers.Parse.parseStat)
+          )
+        )
       } text "parse the input as a statement instead of compilation unit"
       opt[Unit]('v', "version") action printAndExit(inludeUsage = false) text "print version "
       opt[Unit]("build-info") action {
@@ -186,19 +190,37 @@ object Cli {
     }
   lazy val parser = scoptParser
 
+  def mkRegexp(filters: Seq[String]): Regex =
+    filters.mkString("(", "|", ")").r
+
+  def getFilesFromProject(projectFiles: ProjectFiles): Seq[String] = {
+    import projectFiles._
+    val include = mkRegexp(includeFilter)
+    val exclude = mkRegexp(excludeFilter)
+
+    def matches(path: String): Boolean =
+      include.findFirstIn(path).isDefined &&
+        exclude.findFirstIn(path).isEmpty
+
+    val gitFiles = if (git) GitOps.lsTree else Nil
+    (files ++ gitFiles).filter(matches)
+  }
+
+  def getFiles(config: Config): Seq[String] = {
+    if (config.files.nonEmpty) {
+      config.files.flatMap { file =>
+        FileOps.listFiles(file, config.exclude.toSet)
+      }
+    } else getFilesFromProject(config.style.project)
+  }
+
   def getCode(config: Config): Seq[InputMethod] = {
     if (config.files.isEmpty && !config.style.project.git) {
       val contents =
         scala.io.Source.fromInputStream(System.in).getLines().mkString("\n")
       Seq(StdinCode(contents))
     } else {
-      val manualFiles: Seq[String] = config.files.flatMap { file =>
-        FileOps.listFiles(file, config.exclude.toSet)
-      }
-      val gitFiles: Seq[String] =
-        if (config.style.project.git) GitOps.lsTree.map(_.getPath)
-        else Nil
-      (manualFiles ++ gitFiles).withFilter { x =>
+      getFiles(config).withFilter { x =>
         x.endsWith(".scala") ||
         (config.sbtFiles && x.endsWith(".sbt"))
       }.map { filename =>
@@ -212,18 +234,25 @@ object Cli {
     val inputMethods = getCode(config)
     val errorBuilder = Seq.newBuilder[DebugError]
     val counter = new AtomicInteger()
+    val sbtStyle = config.style.copy(
+      runner = config.style.runner.copy(
+        dialect = Sbt0137
+      )
+    )
     inputMethods.par.foreach {
       case inputMethod =>
         val start = System.nanoTime()
-        val runner = inputMethod match {
+        val style = inputMethod match {
           case FileContents(filename, _)
               if config.sbtFiles && filename.endsWith(".sbt") =>
-            config.runner.copy(dialect = scala.meta.dialects.Sbt0137)
-          case _ => config.runner
+            sbtStyle
+          case _ => config.style
         }
-        Scalafmt.format(inputMethod.code,
-                        style = config.style.copy(runner = runner),
-                        range = config.range) match {
+        Scalafmt.format(
+          inputMethod.code,
+          style = style,
+          range = config.range
+        ) match {
           case Formatted.Success(formatted) =>
             inputMethod match {
               case FileContents(filename, _) if config.inPlace =>
@@ -332,34 +361,13 @@ object Cli {
     }
   }
 
-  def getConfig(args: Array[String]): Either[Throwable, Config] = {
-    for {
-      cliFlags <- scoptParser
-        .parse(args, Config.default)
-        .toRight[Throwable](UnableToParseCliOptions)
-        .right
-      config <- {
-        val gitModel = GitModel.get
-        val configString = cliFlags.config
-        val result: Either[Throwable, Config] = configString match {
-          case Some(configFile) =>
-            val contents =
-              if (configFile.startsWith("\""))
-                configFile.stripPrefix("\"").stripSuffix("\"")
-              else FileOps.readFile(configFile)
-            scalafmt.config.Config.fromHocon(contents).right.map { x =>
-              cliFlags.copy(style = x)
-            }
-          case None => Right(cliFlags)
-        }
-        result.right
-      }
-    } yield config
+  def getConfig(args: Array[String]): Option[Config] = {
+    scoptParser.parse(args, Config.default)
   }
 
   def main(args: Array[String]): Unit = {
     getConfig(args) match {
-      case Right(x) if x.migrate.nonEmpty =>
+      case Some(x) if x.migrate.nonEmpty =>
         val original = FileOps.readFile(x.migrate.get)
         val modified = migrate(original)
         val newFile = new File(x.migrate.get.getAbsolutePath + ".conf")
@@ -370,8 +378,8 @@ object Cli {
             "please file an issue if it does not work as advertised.")
         println("-------------------------")
         println(modified)
-      case Right(x) => run(x)
-      case Left(e) => throw e
+      case Some(x) => run(x)
+      case None => throw UnableToParseCliOptions
     }
   }
 }

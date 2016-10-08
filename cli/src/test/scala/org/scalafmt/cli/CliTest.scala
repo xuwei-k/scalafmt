@@ -251,7 +251,7 @@ class CliTest extends FunSuite with DiffAssertions {
   }
 
   test("--config can be string") {
-    val Right(obtained) = Cli.getConfig(
+    val Some(obtained) = Cli.getConfig(
       Array(
         "--config",
         """"maxColumn=10""""
