@@ -210,8 +210,8 @@ class GitTest extends FunSuite with DiffAssertions {
          |
          |""".stripMargin
     val fakeGitOps: GitOps = new FakeGitOps(input)
-    val config = Cli
-      .getConfig(
+    val config = CliArgParser.scoptParser
+      .parse(
         Array("--git"),
         init = CliOptions.default.copy(gitOps = fakeGitOps)
       )
