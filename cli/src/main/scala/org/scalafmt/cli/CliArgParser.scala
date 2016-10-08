@@ -118,7 +118,7 @@ object CliArgParser {
         .action((_, c) => c.copy(inPlace = true))
         .text("write output to file, does nothing if file is not specified")
       opt[Unit]("test")
-        .action((_, c) => c.copy(testing = true))
+        .action((_, c) => c.copy(inPlace = false, testing = true))
         .text("test for mis-formatted code, exits with status 1 on failure.")
       opt[File]("migrate2hocon")
         .action((file, c) => c.copy(migrate = Some(file)))
