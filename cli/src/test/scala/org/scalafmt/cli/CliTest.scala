@@ -178,4 +178,27 @@ class CliTest extends FunSuite with DiffAssertions {
     val obtained = dir2string(input)
     assertNoDiff(obtained, expected)
   }
+
+  test("by default format all project") {
+    val input =
+      createDir(
+        """|/foo.scala
+           |object    FormatMe {
+           |  val x = 1
+           |}
+           |/.scalafmt.conf
+           |maxColumn = 2
+           |""".stripMargin
+      )
+    val expected =
+      """|/foo.scala
+         |object FormatMe {
+         |  val x =
+         |    1
+         |}
+         |
+         |/.scalafmt.conf
+         |maxColumn = 2
+         |""".stripMargin
+  }
 }
