@@ -13,7 +13,6 @@ import org.scalafmt.Formatted
 import org.scalafmt.Scalafmt
 import org.scalafmt.config.ProjectFiles
 import org.scalafmt.util.FileOps
-import org.scalafmt.util.GitOps
 import org.scalafmt.util.LogLevel
 import org.scalafmt.util.logger
 
@@ -27,27 +26,26 @@ object Cli {
       case _ => filters.mkString("(", "|", ")").r
     }
 
-  def getFilesFromProject(projectFiles: ProjectFiles): Seq[String] = {
-    val include = mkRegexp(projectFiles.includeFilter)
-    val exclude = mkRegexp(projectFiles.excludeFilter)
+  def getFilesFromProject(options: CliOptions): Seq[String] = {
+    import options.config.project._
+    val include = mkRegexp(includeFilter)
+    val exclude = mkRegexp(excludeFilter)
 
     def matches(path: String): Boolean =
       include.findFirstIn(path).isDefined &&
         exclude.findFirstIn(path).isEmpty
 
-    val gitFiles: Seq[String] = if (projectFiles.git) GitOps.lsTree else Nil
+    val gitFiles: Seq[String] = if (git) options.gitOps.lsTree else Nil
     val otherFiles: Seq[String] =
-      projectFiles.files.flatMap(x => FileOps.listFiles(x))
-    val res = (otherFiles ++ gitFiles).filter(matches)
-//    logger.elem(projectFiles.includeFilter, projectFiles.files, gitFiles, res)
-    res
+      files.flatMap(x => FileOps.listFiles(x))
+    (otherFiles ++ gitFiles).filter(matches)
   }
 
   def getInputMethods(options: CliOptions): Seq[InputMethod] = {
     if (options.stdIn) {
       Seq(InputMethod.StdinCode(options.assumeFilename, options.common.in))
     } else {
-      getFilesFromProject(options.config.project)
+      getFilesFromProject(options)
         .withFilter(
           x => x.endsWith(".scala") || x.endsWith(".sbt")
         )

@@ -6,6 +6,8 @@ import java.io.PrintStream
 
 import org.scalafmt.config.ProjectFiles
 import org.scalafmt.config.ScalafmtConfig
+import org.scalafmt.util.GitOps
+import org.scalafmt.util.GitOpsImpl
 
 object CliOptions {
   val default = CliOptions()
@@ -25,7 +27,8 @@ case class CliOptions(
     stdIn: Boolean = false,
     assumeFilename: String = "foobar.scala", // used when read from stdin
     migrate: Option[File] = None,
-    common: CommonOptions = CommonOptions()
+    common: CommonOptions = CommonOptions(),
+    gitOps: GitOps = new GitOpsImpl
 ) {
   require(!(inPlace && testing), "inPlace and testing can't both be true")
   def withFiles(files: Seq[File]): CliOptions = {
