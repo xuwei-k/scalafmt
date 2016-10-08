@@ -12,6 +12,7 @@ import scala.collection.mutable.ArrayBuffer
 import scala.util.Try
 
 import java.io.File
+import java.io.OutputStreamWriter
 import java.io.Writer
 import java.sql.Timestamp
 import java.util.concurrent._
@@ -68,6 +69,7 @@ object Terminal {
 }
 
 object TermDisplay {
+
   def defaultFallbackMode: Boolean = {
     val env0 = sys.env.get("COURSIER_PROGRESS").map(_.toLowerCase).collect {
       case "true" | "enable" | "1" => true
@@ -269,8 +271,11 @@ object TermDisplay {
 
           if (downloadInfo.length.isEmpty && downloadInfo.downloaded == 0L)
             ""
-          else
-            s"(${pctOpt.map(pct => f"$pct%.2f %%, ").mkString}${downloadInfo.downloaded}${downloadInfo.length.map(" / " + _).mkString})"
+          else {
+            val pctOptStr = pctOpt.map(pct => f"$pct%.2f %%, ").toIterable.mkString
+            val downloadInfoStr = downloadInfo.length.map(" / " + _).mkString
+            s"($pctOptStr${downloadInfo.downloaded}$downloadInfoStr)"
+          }
 
         case updateInfo: CheckUpdateInfo =>
           "Checking for updates"

@@ -18,7 +18,6 @@ import org.scalafmt.util.GitOps
 import org.scalafmt.util.logger
 
 object Cli {
-
   case class DebugError(filename: String, error: Throwable)
 
   def mkRegexp(filters: Seq[String]): Regex =
@@ -74,36 +73,45 @@ object Cli {
   }
 
   def runMigrate(options: CliOptions): Unit = {
-    val original = FileOps.readFile(options.migrate.get)
-    val modified = LegacyCli.migrate(original)
-    val newFile = new File(options.migrate.get.getAbsolutePath + ".conf")
-    FileOps.writeFile(newFile.getAbsolutePath, modified)
-    println("Wrote migrated config to file: " + newFile.getPath)
-    println(
-      "NOTE. This automatic migration is a best-effort, " +
-        "please file an issue if it does not work as advertised.")
-    println("-------------------------")
-    println(modified)
+    options.migrate.foreach { oldStyleConfigFile =>
+      val original = FileOps.readFile(oldStyleConfigFile)
+      val modified = LegacyCli.migrate(original)
+      val newFile = new File(oldStyleConfigFile.getAbsolutePath + ".conf")
+      FileOps.writeFile(newFile.getAbsolutePath, modified)
+      println("Wrote migrated config to file: " + newFile.getPath)
+      println(
+        "NOTE. This automatic migration is a best-effort, " +
+          "please file an issue if it does not work as advertised.")
+      println("-------------------------")
+      println(modified)
+    }
+  }
+
+  val termDisplayMessage = "Running scalafmt..."
+
+  def newTermDisplay(options: CliOptions,
+                     inputMethods: Seq[InputMethod]): TermDisplay = {
+    val workingDirectory = new File(options.common.workingDirectory)
+    val termDisplay = new TermDisplay(new OutputStreamWriter(System.out))
+    if (options.inPlace) termDisplay.init()
+    termDisplay.startTask(termDisplayMessage, workingDirectory)
+    termDisplay.taskLength(termDisplayMessage, inputMethods.length, 0)
+    termDisplay
   }
 
   def runFormat(options: CliOptions): Unit = {
     val inputMethods = getInputMethods(options)
     val counter = new AtomicInteger()
-    val workingDirectory = new File(options.common.workingDirectory)
     val sbtConfig = options.copy(
       style = options.style.copy(
         runner = options.style.runner.copy(
           dialect = Sbt0137
         )))
-    val msg = "Running scalafmt..."
-    val termDisplay = new TermDisplay(new OutputStreamWriter(System.out))
-    if (options.inPlace) termDisplay.init()
-    termDisplay.startTask(msg, workingDirectory)
-    termDisplay.taskLength(msg, inputMethods.length, 0)
+    val termDisplay = newTermDisplay(options, inputMethods)
     inputMethods.par.foreach { inputMethod =>
       val inputConfig = if (inputMethod.isSbt(options)) sbtConfig else options
       handleFile(inputMethod, inputConfig)
-      termDisplay.taskProgress(msg, counter.incrementAndGet())
+      termDisplay.taskProgress(termDisplayMessage, counter.incrementAndGet())
     }
     termDisplay.stop()
   }
