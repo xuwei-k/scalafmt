@@ -5,6 +5,7 @@ import scala.meta.dialects.Sbt0137
 import scala.util.matching.Regex
 
 import java.io.File
+import java.io.OutputStreamWriter
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -56,34 +57,42 @@ object Cli {
     }
   }
 
+  def handleFile(inputMethod: InputMethod, options: CliOptions): Unit = {
+    val input = inputMethod.readInput
+    val formatResult =
+      Scalafmt.format(input, options.style, options.range)
+    formatResult match {
+      case Formatted.Success(formatted) =>
+        inputMethod.write(formatted, input, options)
+      case Formatted.Failure(e) =>
+        if (options.style.runner.fatalWarnings) {
+          throw e
+        } else {
+          logger.error(s"Error in ${inputMethod.filename}: $e")
+        }
+    }
+  }
+
   def run(config: CliOptions): Unit = {
     val inputMethods = getInputMethods(config)
-    val errorBuilder = Seq.newBuilder[DebugError]
     val counter = new AtomicInteger()
-    val sbtStyle = config.style.copy(
-      runner = config.style.runner.copy(
-        dialect = Sbt0137
-      )
-    )
+    val workingDirectory = new File(config.common.workingDirectory)
+    val sbtConfig = config.copy(
+      style = config.style.copy(
+        runner = config.style.runner.copy(
+          dialect = Sbt0137
+        )))
+    val msg = "Running scalafix..."
+    val termDisplay = new TermDisplay(new OutputStreamWriter(System.out))
+    if (config.inPlace) termDisplay.init()
+    termDisplay.startTask(msg, workingDirectory)
+    termDisplay.taskLength(msg, inputMethods.length, 0)
     inputMethods.par.foreach { inputMethod =>
-      val style = if (inputMethod.isSbt(config)) sbtStyle else config.style
-      val input = inputMethod.readInput
-      val formatResult = Scalafmt.format(input, style, config.range)
-      val i = counter.incrementAndGet()
-      logger.info(
-        f"${i + 1}%3s/${inputMethods.length} file:${inputMethod.filename}%-50s")
-      formatResult match {
-        case Formatted.Success(formatted) =>
-          inputMethod.write(formatted, input, config)
-        case Formatted.Failure(e) =>
-          if (config.debug) {
-            logger.error(s"Error in ${inputMethod.filename}")
-            e.printStackTrace()
-          } else {
-            errorBuilder += DebugError(inputMethod.filename, e)
-          }
-      }
+      val inputConfig = if (inputMethod.isSbt(config)) sbtConfig else config
+      handleFile(inputMethod, inputConfig)
+      termDisplay.taskProgress(msg, counter.incrementAndGet())
     }
+    termDisplay.stop()
   }
 
   def printErrors(options: CliOptions, errors: Seq[DebugError]): Unit = {
