@@ -1,5 +1,6 @@
 package org.scalafmt.cli
 
+import scala.io.Source
 import scala.meta.Dialect
 import scala.meta.dialects.Sbt0137
 import scala.util.control.NonFatal
@@ -22,6 +23,7 @@ import org.scalafmt.config.ScalafmtRunner
 import org.scalafmt.config.ScalafmtConfig
 import org.scalafmt.config.hocon.Hocon2Class
 import org.scalafmt.util.GitOps
+import org.scalafmt.util.logger
 import org.scalafmt.util.{BuildTime, FileOps, GitCommit, LoggerOps}
 import scopt.OptionParser
 import scopt.Read
@@ -35,7 +37,8 @@ case class CliOptions(
     sbtFiles: Boolean = true,
     style: ScalafmtConfig = ScalafmtConfig.default,
     range: Set[Range] = Set.empty[Range],
-    migrate: Option[File] = None
+    migrate: Option[File] = None,
+    assumeFilename: String = "foobar.scala" // used when read from stdin
 ) {
   require(!(inPlace && testing), "inPlace and testing can't both be true")
 }
@@ -115,7 +118,6 @@ object LegacyCli {
 }
 
 object Cli {
-  import LoggerOps._
   val usageExamples =
     """
       |// get help
@@ -144,13 +146,6 @@ object Cli {
     """.stripMargin
 
   case class DebugError(filename: String, error: Throwable)
-
-  sealed abstract class InputMethod(val code: String)
-  case class StdinCode(override val code: String) extends InputMethod(code)
-  case class FileContents(filename: String, override val code: String)
-      extends InputMethod(code)
-
-
 
   @GitCommit val gitCommit: String = ???
   @BuildTime val buildTimeMs: Long = ???
@@ -260,24 +255,20 @@ object Cli {
     } else getFilesFromProject(config.style.project)
   }
 
-  def getCode(config: CliOptions): Seq[InputMethod] = {
+  def getInputMethods(config: CliOptions): Seq[InputMethod] = {
     if (config.files.isEmpty && !config.style.project.git) {
-      val contents =
-        scala.io.Source.fromInputStream(System.in).getLines().mkString("\n")
-      Seq(StdinCode(contents))
+      Seq(InputMethod.StdinCode(config.assumeFilename))
     } else {
-      getFiles(config).withFilter { x =>
-        x.endsWith(".scala") ||
-        (config.sbtFiles && x.endsWith(".sbt"))
-      }.map { filename =>
-        val contents = FileOps.readFile(filename)
-        FileContents(filename, contents)
-      }
+      getFiles(config)
+        .withFilter(
+          x => x.endsWith(".scala") || (config.sbtFiles && x.endsWith(".sbt"))
+        )
+        .map(InputMethod.FileContents.apply)
     }
   }
 
   def run(config: CliOptions): Unit = {
-    val inputMethods = getCode(config)
+    val inputMethods = getInputMethods(config)
     val errorBuilder = Seq.newBuilder[DebugError]
     val counter = new AtomicInteger()
     val sbtStyle = config.style.copy(
@@ -285,68 +276,39 @@ object Cli {
         dialect = Sbt0137
       )
     )
-    inputMethods.par.foreach {
-      case inputMethod =>
-        val start = System.nanoTime()
-        val style = inputMethod match {
-          case FileContents(filename, _)
-              if config.sbtFiles && filename.endsWith(".sbt") =>
-            sbtStyle
-          case _ => config.style
-        }
-        Scalafmt.format(
-          inputMethod.code,
-          style = style,
-          range = config.range
-        ) match {
-          case Formatted.Success(formatted) =>
-            inputMethod match {
-              case FileContents(filename, _) if config.inPlace =>
-                val elapsed = TimeUnit.MILLISECONDS
-                  .convert(System.nanoTime() - start, TimeUnit.NANOSECONDS)
-                val i = counter.incrementAndGet()
-                logger.info(
-                  f"${i + 1}%3s/${inputMethods.length} file:$filename%-50s (${elapsed}ms)")
-                if (inputMethod.code != formatted) {
-                  FileOps.writeFile(filename, formatted)
-                }
-              case FileContents(filename, _) if config.testing =>
-                if (inputMethod.code != formatted) {
-                  throw MisformattedFile(new File(filename))
-                }
-              case _ if !config.debug =>
-                println(formatted)
-              case _ =>
-            }
-          case e if config.debug =>
-            inputMethod match {
-              case FileContents(filename, _) =>
-                try e.get
-                catch {
-                  case NonFatal(error) =>
-                    errorBuilder += DebugError(filename, error)
-                    logger.error(s"Error in $filename")
-                    error.printStackTrace()
-                }
-              case _ =>
-            }
-          case _ if !config.inPlace =>
-            println(inputMethod.code)
-          case _ =>
-        }
-    }
-    if (config.debug) {
-      val errors = errorBuilder.result()
-      if (errors.nonEmpty) {
-        val list = errors.map(x => s"${x.filename}: ${x.error}")
-        logger.error(s"""Found ${errors.length} errors:
-                        |${list.mkString("\n")}
-                        |""".stripMargin)
-
+    inputMethods.par.foreach { inputMethod =>
+      val start = System.nanoTime()
+      val style = if (inputMethod.isSbt(config)) sbtStyle else config.style
+      val input = inputMethod.code
+      Scalafmt.format(
+        inputMethod.code,
+        style = style,
+        range = config.range
+      ) match {
+        case Formatted.Success(formatted) =>
+          val elapsed = TimeUnit.MILLISECONDS
+            .convert(System.nanoTime() - start, TimeUnit.NANOSECONDS)
+          val i = counter.incrementAndGet()
+          logger.info(
+            f"${i + 1}%3s/${inputMethods.length} file:${inputMethod.filename}%-50s (${elapsed}ms)")
+          inputMethod.write(formatted, input, config)
+        case Formatted.Failure(e) if config.debug =>
+          errorBuilder += DebugError(inputMethod.filename, e)
+          logger.error(s"Error in ${inputMethod.filename}")
+          e.printStackTrace()
+        case _ =>
       }
     }
   }
 
+  def printErrors(options: CliOptions, errors: Seq[DebugError]): Unit = {
+    if (options.debug && errors.nonEmpty) {
+      val list = errors.map(x => s"${x.filename}: ${x.error}")
+      logger.error(s"""Found ${errors.length} errors:
+                      |${list.mkString("\n")}
+                      |""".stripMargin)
+    }
+  }
 
   def getConfig(args: Array[String]): Option[CliOptions] = {
     scoptParser.parse(args, CliOptions.default)
