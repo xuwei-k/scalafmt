@@ -3,6 +3,7 @@ package org.scalafmt.cli
 import scala.io.Source
 
 import java.io.File
+import java.io.InputStream
 
 import org.scalafmt.Error.MisformattedFile
 import org.scalafmt.util.FileOps
@@ -17,10 +18,16 @@ sealed abstract class InputMethod {
 
 object InputMethod {
 
-  case class StdinCode(assumedFilename: String) extends InputMethod {
-    override def filename = assumedFilename
-    override def readInput: String =
-      Source.fromInputStream(System.in).getLines().mkString("\n")
+  object StdinCode {
+    def apply(assumeFilename: String, inputStream: InputStream): StdinCode = {
+      StdinCode.apply(
+        assumeFilename,
+        Source.fromInputStream(inputStream).getLines().mkString("\n")
+      )
+    }
+  }
+  case class StdinCode(filename: String, readInput: String)
+      extends InputMethod {
     override def write(code: String,
                        original: String,
                        options: CliOptions): Unit = {

@@ -15,6 +15,7 @@ import org.scalafmt.Scalafmt
 import org.scalafmt.config.ProjectFiles
 import org.scalafmt.util.FileOps
 import org.scalafmt.util.GitOps
+import org.scalafmt.util.LogLevel
 import org.scalafmt.util.logger
 
 object Cli {
@@ -49,7 +50,7 @@ object Cli {
 
   def getInputMethods(config: CliOptions): Seq[InputMethod] = {
     if (config.files.isEmpty && !config.style.project.git) {
-      Seq(InputMethod.StdinCode(config.assumeFilename))
+      Seq(InputMethod.StdinCode(config.assumeFilename, config.common.in))
     } else {
       getFiles(config)
         .withFilter(
@@ -69,8 +70,10 @@ object Cli {
       case Formatted.Failure(e) =>
         if (options.style.runner.fatalWarnings) {
           throw e
-        } else if (!options.inPlace) {
-          logger.warn(s"Error in ${inputMethod.filename}: $e")
+        } else {
+          options.common.err.println(
+            s"${LogLevel.warn} Error in ${inputMethod.filename}: $e"
+          )
         }
     }
   }
