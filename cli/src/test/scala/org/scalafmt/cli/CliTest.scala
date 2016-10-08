@@ -136,7 +136,7 @@ class CliTest extends FunSuite with DiffAssertions {
   }
 
   test("migrate") {
-    val result = Cli.migrate(
+    val result = LegacyCli.migrate(
       """
         |--maxColumn 100 # comment
         |--alignTokens %;Infix,%%;Infix
