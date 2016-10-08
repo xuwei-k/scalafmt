@@ -47,13 +47,14 @@ class CliTest extends FunSuite with DiffAssertions {
   test("scalafmt -i --file tmpFile") {
     val tmpFile = Files.createTempFile("prefix", ".scala")
     Files.write(tmpFile, unformatted.getBytes)
-    val formatInPlace =
-      CliOptions.default
-        .copy(
-          config = ScalafmtConfig.default.copy(maxColumn = 7),
-          inPlace = true
-        )
-        .withFiles(Seq(tmpFile.toFile))
+    val args = Array(
+      "--config",
+      "\"maxColumn=7\"",
+      "--test",
+      "--files",
+      tmpFile.toFile.getPath
+    )
+    val formatInPlace = Cli.getConfig(args)
     Cli.run(formatInPlace)
     val obtained = FileOps.readFile(tmpFile.toString)
     assertNoDiff(obtained, expected10)
@@ -62,13 +63,12 @@ class CliTest extends FunSuite with DiffAssertions {
   test("scalafmt --test --file tmpFile") {
     val tmpFile = Files.createTempFile("prefix", ".scala")
     Files.write(tmpFile, unformatted.getBytes)
-    val formatInPlace =
-      CliOptions.default.copy(
-        config = gimmeConfig(
-          s"project.files = [${tmpFile.toFile.getPath}]"
-        ),
-        testing = true
-      )
+    val args = Array(
+      "--files",
+      tmpFile.toFile.getPath,
+      "--test"
+    )
+    val formatInPlace = Cli.getConfig(args).get
     intercept[MisformattedFile] {
       Cli.run(formatInPlace)
     }

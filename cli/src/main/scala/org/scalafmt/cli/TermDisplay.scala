@@ -137,7 +137,7 @@ object TermDisplay {
 
       fraction.fold(" " * 6)(p => f"${100.0 * p}%5.1f%%") +
         " [" + ("#" * decile) + (" " * (10 - decile)) + "] " +
-        downloaded + " source files fixed"
+        downloaded + " source files formatted"
     }
   }
 
