@@ -66,26 +66,22 @@ object Cli {
       )
     )
     inputMethods.par.foreach { inputMethod =>
-      val start = System.nanoTime()
       val style = if (inputMethod.isSbt(config)) sbtStyle else config.style
-      val input = inputMethod.code
-      Scalafmt.format(
-        inputMethod.code,
-        style = style,
-        range = config.range
-      ) match {
+      val input = inputMethod.readInput
+      val formatResult = Scalafmt.format(input, style, config.range)
+      val i = counter.incrementAndGet()
+      logger.info(
+        f"${i + 1}%3s/${inputMethods.length} file:${inputMethod.filename}%-50s")
+      formatResult match {
         case Formatted.Success(formatted) =>
-          val elapsed = TimeUnit.MILLISECONDS
-            .convert(System.nanoTime() - start, TimeUnit.NANOSECONDS)
-          val i = counter.incrementAndGet()
-          logger.info(
-            f"${i + 1}%3s/${inputMethods.length} file:${inputMethod.filename}%-50s (${elapsed}ms)")
           inputMethod.write(formatted, input, config)
-        case Formatted.Failure(e) if config.debug =>
-          errorBuilder += DebugError(inputMethod.filename, e)
-          logger.error(s"Error in ${inputMethod.filename}")
-          e.printStackTrace()
-        case _ =>
+        case Formatted.Failure(e) =>
+          if (config.debug) {
+            logger.error(s"Error in ${inputMethod.filename}")
+            e.printStackTrace()
+          } else {
+            errorBuilder += DebugError(inputMethod.filename, e)
+          }
       }
     }
   }

@@ -10,7 +10,7 @@ import org.scalafmt.util.FileOps
 sealed abstract class InputMethod {
   def isSbt(options: CliOptions) =
     options.sbtFiles && filename.endsWith(".sbt")
-  def code: String
+  def readInput: String
   def filename: String
   def write(formatted: String, original: String, options: CliOptions): Unit
 }
@@ -19,14 +19,14 @@ object InputMethod {
 
   case class StdinCode(assumedFilename: String) extends InputMethod {
     override def filename = assumedFilename
-    override def code: String =
+    override def readInput: String =
       Source.fromInputStream(System.in).getLines().mkString("\n")
     override def write(code: String,
                        original: String,
                        options: CliOptions): Unit = println(code)
   }
   case class FileContents(filename: String) extends InputMethod {
-    def code: String = FileOps.readFile(filename)
+    def readInput: String = FileOps.readFile(filename)
     override def write(formatted: String,
                        original: String,
                        options: CliOptions): Unit = {
