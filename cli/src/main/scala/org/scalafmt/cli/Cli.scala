@@ -1,9 +1,7 @@
 package org.scalafmt.cli
 
-import scala.io.Source
 import scala.meta.Dialect
 import scala.meta.dialects.Sbt0137
-import scala.util.control.NonFatal
 import scala.util.matching.Regex
 
 import java.io.File
@@ -11,111 +9,19 @@ import java.util.Date
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
-import org.scalafmt
-import org.scalafmt.Error.MisformattedFile
 import org.scalafmt.Error.UnableToParseCliOptions
 import org.scalafmt.Formatted
 import org.scalafmt.Scalafmt
 import org.scalafmt.Versions
-import org.scalafmt.config
 import org.scalafmt.config.ProjectFiles
-import org.scalafmt.config.ScalafmtRunner
 import org.scalafmt.config.ScalafmtConfig
 import org.scalafmt.config.hocon.Hocon2Class
 import org.scalafmt.util.GitOps
 import org.scalafmt.util.logger
-import org.scalafmt.util.{BuildTime, FileOps, GitCommit, LoggerOps}
+import org.scalafmt.util.BuildTime
+import org.scalafmt.util.FileOps
+import org.scalafmt.util.GitCommit
 import scopt.OptionParser
-import scopt.Read
-
-case class CliOptions(
-    files: Seq[File] = Nil,
-    exclude: Seq[File] = Nil,
-    inPlace: Boolean = false,
-    testing: Boolean = false,
-    debug: Boolean = false,
-    sbtFiles: Boolean = true,
-    style: ScalafmtConfig = ScalafmtConfig.default,
-    range: Set[Range] = Set.empty[Range],
-    migrate: Option[File] = None,
-    assumeFilename: String = "foobar.scala" // used when read from stdin
-) {
-  require(!(inPlace && testing), "inPlace and testing can't both be true")
-}
-object CliOptions {
-  val default = CliOptions()
-}
-
-object LegacyCli {
-  private def gimmeStrPairs(tokens: Seq[String]): Seq[(String, String)] = {
-    tokens.map { token =>
-      val splitted = token.split(";", 2)
-      if (splitted.length != 2)
-        throw new IllegalArgumentException("pair must contain ;")
-      (splitted(0), splitted(1))
-    }
-  }
-  def migrate(contents: String): String = {
-    val regexp: Seq[String => String] = Seq(
-      "--bestEffortInDeeplyNestedCode" -> "bestEffortInDeeplyNestedCode = true",
-      "--scalaDocs true" -> "docstrings = ScalaDoc",
-      "--indentOperators false" -> "indentOperator = spray",
-      "--indentOperators true" -> "",
-      "--scalaDocs false" -> "docstrings = JavaDoc",
-      "--reformatComments true" -> "",
-      "--reformatComments false" -> "docstrings = preserve",
-      "--(\\w+) (.*)" -> "$1 = $2",
-      "alignTokens" -> "align.tokens",
-      "noNewlinesBeforeJsNative" -> "newlines.neverBeforeJsNative",
-      "allowNewlineBeforeColonInMassiveReturnTypes" -> "newlines.sometimesBeforeColonInMethodReturnType",
-      "configStyleArguments" -> "optIn.configStyleArguments",
-      "alignStripMarginStrings" -> "assumeStandardLibraryStripMargin",
-      "binPackArguments" -> "binPack.callSite",
-      "binPackParameters" -> "binPack.defnSite",
-      "binPackParentConstructors" -> "binPack.parentConstructors",
-      "alignByOpenParenCallSite" -> "align.openParenCallSite",
-      "alignByOpenParenDefnSite" -> "align.openParenDefnSite",
-      "continuationIndentCallSite" -> "continuationIndent.callSite",
-      "continuationIndentDefnSite" -> "continuationIndent.defnSite",
-      "alignMixedOwners" -> "align.mixedOwners",
-      "spacesInImportCurlyBraces" -> "spaces.inImportCurlyBraces",
-      "spaceAfterTripleEquals" -> "spaces.afterTripleEquals",
-      "spaceBeforeContextBoundColon" -> "spaces.beforeContextBoundColon"
-    ).map {
-      case (from, to) =>
-        (x: String) =>
-          x.replaceAll(from, to)
-    }
-    val alignR = "(align.tokens = )\"?([^#\"]*)\"?(.*)$".r
-    val rewriteR = "(rewriteTokens = )\"?([^#\"]*)\"?(.*)$".r
-    val custom = Seq[String => String](
-      x =>
-        x.lines.map {
-          case rewriteR(lhs, rhs, comments) =>
-            val arr = gimmeStrPairs(rhs.split(",").toSeq).map {
-              case (l, r) => s"""  "$l" = "$r""""
-            }.mkString("\n")
-            s"""rewriteTokens: {$comments
-               |$arr
-               |}""".stripMargin
-          case alignR(lhs, rhs, comments) =>
-            val arr = gimmeStrPairs(rhs.split(",").toSeq).map {
-              case (l, r) if r == ".*" => s""""$l""""
-              case (l, r) => s"""{ code = "$l", owner = "$r" }"""
-            }.mkString("\n  ")
-            s"""|$lhs[$comments
-                |  $arr
-                |]""".stripMargin
-          case y => y
-        }.mkString("\n")
-    )
-
-    (regexp ++ custom).foldLeft(contents) {
-      case (curr, f) => f(curr)
-    }
-  }
-
-}
 
 object Cli {
   val usageExamples =
