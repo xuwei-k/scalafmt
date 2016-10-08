@@ -6,7 +6,6 @@ import scala.util.matching.Regex
 
 import java.io.File
 import java.io.OutputStreamWriter
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
 import org.scalafmt.Error.UnableToParseCliOptions
@@ -37,24 +36,24 @@ object Cli {
     (files ++ gitFiles).filter(matches)
   }
 
-  def getFiles(config: CliOptions): Seq[String] = {
-    if (config.files.nonEmpty) {
-      config.files.flatMap { file =>
+  def getFiles(options: CliOptions): Seq[String] = {
+    if (options.files.nonEmpty) {
+      options.files.flatMap { file =>
         val absolutePath =
           if (file.isAbsolute) file
-          else new File(config.common.workingDirectory, file.getPath)
-        FileOps.listFiles(absolutePath, config.exclude.toSet)
+          else new File(options.common.workingDirectory, file.getPath)
+        FileOps.listFiles(absolutePath, options.exclude.toSet)
       }
-    } else getFilesFromProject(config.style.project)
+    } else getFilesFromProject(options.config.project)
   }
 
-  def getInputMethods(config: CliOptions): Seq[InputMethod] = {
-    if (config.files.isEmpty && !config.style.project.git) {
-      Seq(InputMethod.StdinCode(config.assumeFilename, config.common.in))
+  def getInputMethods(options: CliOptions): Seq[InputMethod] = {
+    if (options.files.isEmpty && !options.config.project.git) {
+      Seq(InputMethod.StdinCode(options.assumeFilename, options.common.in))
     } else {
-      getFiles(config)
+      getFiles(options)
         .withFilter(
-          x => x.endsWith(".scala") || (config.sbtFiles && x.endsWith(".sbt"))
+          x => x.endsWith(".scala") || (options.sbtFiles && x.endsWith(".sbt"))
         )
         .map(InputMethod.FileContents.apply)
     }
@@ -63,12 +62,12 @@ object Cli {
   def handleFile(inputMethod: InputMethod, options: CliOptions): Unit = {
     val input = inputMethod.readInput
     val formatResult =
-      Scalafmt.format(input, options.style, options.range)
+      Scalafmt.format(input, options.config, options.range)
     formatResult match {
       case Formatted.Success(formatted) =>
         inputMethod.write(formatted, input, options)
       case Formatted.Failure(e) =>
-        if (options.style.runner.fatalWarnings) {
+        if (options.config.runner.fatalWarnings) {
           throw e
         } else {
           options.common.err.println(
@@ -109,8 +108,8 @@ object Cli {
     val inputMethods = getInputMethods(options)
     val counter = new AtomicInteger()
     val sbtConfig = options.copy(
-      style = options.style.copy(
-        runner = options.style.runner.copy(
+      config = options.config.copy(
+        runner = options.config.runner.copy(
           dialect = Sbt0137
         )))
     val termDisplay = newTermDisplay(options, inputMethods)

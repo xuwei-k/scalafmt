@@ -58,8 +58,8 @@ object CliArgParser {
             file.stripPrefix("\"").stripSuffix("\"")
           else FileOps.readFile(file)
         Hocon2Class
-          .gimmeClass[ScalafmtConfig](contents, c.style.reader, None) match {
-          case Right(style) => c.copy(style = style)
+          .gimmeClass[ScalafmtConfig](contents, c.config.reader, None) match {
+          case Right(style) => c.copy(config = style)
           case Left(e) => throw e
         }
       }
@@ -91,8 +91,8 @@ object CliArgParser {
         .text("print out debug information")
       opt[Unit]("statement")
         .action((_, c) =>
-          c.copy(style = c.style.copy(runner =
-            c.style.runner.copy(parser = scala.meta.parsers.Parse.parseStat))))
+          c.copy(config = c.config.copy(runner =
+            c.config.runner.copy(parser = scala.meta.parsers.Parse.parseStat))))
         .text("parse the input as a statement instead of compilation unit")
       opt[Unit]('v', "version")
         .action(printAndExit(inludeUsage = false))

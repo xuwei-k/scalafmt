@@ -23,12 +23,11 @@ case class CliOptions(
     testing: Boolean = false,
     debug: Boolean = false,
     sbtFiles: Boolean = true,
-    style: ScalafmtConfig = ScalafmtConfig.default,
+    config: ScalafmtConfig = ScalafmtConfig.default,
     range: Set[Range] = Set.empty[Range],
     migrate: Option[File] = None,
     assumeFilename: String = "foobar.scala", // used when read from stdin
     common: CommonOptions = CommonOptions()
-
 ) {
   require(!(inPlace && testing), "inPlace and testing can't both be true")
 }

@@ -30,7 +30,7 @@ class CliTest extends FunSuite with DiffAssertions {
     val tmpFile = Files.createTempFile("prefix", ".scala")
     Files.write(tmpFile, unformatted.getBytes)
     val formatInPlace =
-      CliOptions.default.copy(style =
+      CliOptions.default.copy(config =
                                 ScalafmtConfig.default.copy(maxColumn = 7),
                               files = Seq(tmpFile.toFile),
                               inPlace = true)
@@ -214,7 +214,7 @@ class CliTest extends FunSuite with DiffAssertions {
         "--config",
         """"maxColumn=10""""
       ))
-    assert(obtained.style.maxColumn == 10)
+    assert(obtained.config.maxColumn == 10)
   }
 
 }
