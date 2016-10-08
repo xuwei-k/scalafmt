@@ -52,15 +52,7 @@ object CliArgParser {
         c
       }
 
-      head("scalafmt", Versions.nightly)
-      opt[Seq[File]]('f', "files") action { (files, c) =>
-        c.copy(files = files)
-      } text "can be directory, in which case all *.scala files are formatted. " +
-        "If not provided, reads from stdin."
-      opt[Seq[File]]('e', "exclude") action { (exclude, c) =>
-        c.copy(exclude = exclude)
-      } text "can be directory, in which case all *.scala files are ignored when formatting."
-      opt[String]('c', "config") action { (file, c) =>
+      def readConfigFromFile(file: String, c: CliOptions): CliOptions = {
         val contents =
           if (file.startsWith("\""))
             file.stripPrefix("\"").stripSuffix("\"")
@@ -70,43 +62,62 @@ object CliArgParser {
           case Right(style) => c.copy(style = style)
           case Left(e) => throw e
         }
-      } text "read style flags, see \"Style configuration option\", from this" +
-        " config file. The file can contain comments starting with //"
-      opt[File]("migrate2hocon") action { (file, c) =>
-        c.copy(migrate = Some(file))
-      } text """migrate .scalafmt CLI style configuration to hocon style configuration in .scalafmt.conf"""
-      opt[Unit]('i', "in-place") action { (_, c) =>
-        c.copy(inPlace = true)
-      } text "write output to file, does nothing if file is not specified"
-      opt[Unit]("test") action { (_, c) =>
-        c.copy(testing = true)
-      } text "test for mis-formatted code, exits with status 1 on failure."
-      opt[Unit]("debug") action { (_, c) =>
-        c.copy(debug = true)
-      } text "print out debug information"
-      opt[Unit]("statement") action { (_, c) =>
-        c.copy(
-          style = c.style.copy(
-            runner =
-              c.style.runner.copy(parser = scala.meta.parsers.Parse.parseStat)
-          )
-        )
-      } text "parse the input as a statement instead of compilation unit"
-      opt[Unit]('v', "version") action printAndExit(inludeUsage = false) text "print version "
-      opt[Unit]("build-info") action {
-        case (_, c) =>
-          println(buildInfo)
-          sys.exit
-      } text "prints build information"
-      opt[Unit]('h', "help") action printAndExit(inludeUsage = true) text "prints this usage text"
-      opt[(Int, Int)]("range").hidden() action {
-        case ((from, to), c) =>
-          val offset = if (from == to) 0 else -1
-          c.copy(range = c.range + Range(from - 1, to + offset))
-      } text "(experimental) only format line range from=to"
-      opt[Boolean]("formatSbtFiles") action { (b, c) =>
-        c.copy(sbtFiles = b)
-      } text s"If true, formats .sbt files as well."
+      }
+
+      head("scalafmt", Versions.nightly)
+      opt[Seq[File]]('f', "files")
+        .action((files, c) => c.copy(files = files))
+        .text(
+          "can be directory, in which case all *.scala files are formatted. " +
+            "If not provided, reads from stdin.")
+      opt[Seq[File]]('e', "exclude").action((exclude, c) =>
+        c.copy(exclude = exclude)) text "can be directory, in which case all *.scala files are ignored when formatting."
+      opt[String]('c', "config")
+        .action(readConfigFromFile)
+        .text(
+          "read style flags, see \"Style configuration option\", from this" +
+            " config file. The file can contain comments starting with //")
+      opt[File]("migrate2hocon")
+        .action((file, c) => c.copy(migrate = Some(file)))
+        .text("""migrate .scalafmt CLI style configuration to hocon style configuration in .scalafmt.conf""")
+      opt[Unit]('i', "in-place")
+        .action((_, c) => c.copy(inPlace = true))
+        .text("write output to file, does nothing if file is not specified")
+      opt[Unit]("test")
+        .action((_, c) => c.copy(testing = true))
+        .text("test for mis-formatted code, exits with status 1 on failure.")
+      opt[Unit]("debug")
+        .action((_, c) => c.copy(debug = true))
+        .text("print out debug information")
+      opt[Unit]("statement")
+        .action((_, c) =>
+          c.copy(style = c.style.copy(runner =
+            c.style.runner.copy(parser = scala.meta.parsers.Parse.parseStat))))
+        .text("parse the input as a statement instead of compilation unit")
+      opt[Unit]('v', "version")
+        .action(printAndExit(inludeUsage = false))
+        .text("print version ")
+      opt[Unit]("build-info")
+        .action({
+          case (_, c) =>
+            println(buildInfo)
+            sys.exit
+        })
+        .text("prints build information")
+      opt[Unit]('h', "help")
+        .action(printAndExit(inludeUsage = true))
+        .text("prints this usage text")
+      opt[(Int, Int)]("range")
+        .hidden()
+        .action({
+          case ((from, to), c) =>
+            val offset = if (from == to) 0 else -1
+            c.copy(range = c.range + Range(from - 1, to + offset))
+        })
+        .text("(experimental) only format line range from=to")
+      opt[Boolean]("formatSbtFiles")
+        .action((b, c) => c.copy(sbtFiles = b))
+        .text(s"If true, formats .sbt files as well.")
 
       note(s"""
               |Examples:
