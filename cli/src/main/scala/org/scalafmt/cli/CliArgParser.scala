@@ -58,15 +58,15 @@ object CliArgParser {
         .action(printAndExit(inludeUsage = false))
         .text("print version ")
       opt[Seq[File]]('f', "files")
-        .action((files, c) =>
-          c.copy(
-            config = c.config.copy(
-              project = c.config.project.copy(
-                files = c.config.project.files ++ files.map(_.getPath),
-                git = false // if you want to define both, write it in --config
+        .action(
+          (files, c) =>
+            c.copy(
+              config = c.config.copy(
+                project = c.config.project.copy(
+                  files = c.config.project.files ++ files.map(_.getPath)
+                )
               )
-            )
-        ))
+          ))
         .text(
           "file or directory, in which case all *.scala files are formatted.")
       opt[Seq[String]]("exclude")
@@ -81,6 +81,17 @@ object CliArgParser {
           ))
         .text(
           "file or directory, in which case all *.scala files are formatted.")
+      opt[Unit]("git")
+        .action(
+          (_, c) =>
+            c.copy(
+              config = c.config.copy(
+                project = c.config.project.copy(
+                  git = true
+                )
+              )
+          ))
+        .text("format all files in current git repo")
       opt[String]('c', "config")
         .action(readConfigFromFile)
         .text(
