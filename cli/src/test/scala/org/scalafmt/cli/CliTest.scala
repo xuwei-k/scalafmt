@@ -50,11 +50,11 @@ class CliTest extends FunSuite with DiffAssertions {
     val args = Array(
       "--config",
       "\"maxColumn=7\"",
-      "--test",
+      "--in-place",
       "--files",
       tmpFile.toFile.getPath
     )
-    val formatInPlace = Cli.getConfig(args)
+    val formatInPlace = Cli.getConfig(args).get
     Cli.run(formatInPlace)
     val obtained = FileOps.readFile(tmpFile.toString)
     assertNoDiff(obtained, expected10)
