@@ -18,14 +18,13 @@ case class CommonOptions(
 )
 
 case class CliOptions(
-    inPlace: Boolean = false,
-    testing: Boolean = false,
-    debug: Boolean = false,
-    stdIn: Boolean = false,
     config: ScalafmtConfig = ScalafmtConfig.default,
     range: Set[Range] = Set.empty[Range],
-    migrate: Option[File] = None,
+    inPlace: Boolean = false,
+    testing: Boolean = false,
+    stdIn: Boolean = false,
     assumeFilename: String = "foobar.scala", // used when read from stdin
+    migrate: Option[File] = None,
     common: CommonOptions = CommonOptions()
 ) {
   require(!(inPlace && testing), "inPlace and testing can't both be true")

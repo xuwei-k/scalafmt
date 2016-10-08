@@ -39,7 +39,7 @@ object Cli {
     val otherFiles: Seq[String] =
       projectFiles.files.flatMap(x => FileOps.listFiles(x))
     val res = (otherFiles ++ gitFiles).filter(matches)
-    logger.elem(projectFiles.includeFilter, projectFiles.files, gitFiles, res)
+//    logger.elem(projectFiles.includeFilter, projectFiles.files, gitFiles, res)
     res
   }
 
@@ -121,15 +121,6 @@ object Cli {
   def run(options: CliOptions): Unit = {
     if (options.migrate.nonEmpty) runMigrate(options)
     else runFormat(options)
-  }
-
-  def printErrors(options: CliOptions, errors: Seq[DebugError]): Unit = {
-    if (options.debug && errors.nonEmpty) {
-      val list = errors.map(x => s"${x.filename}: ${x.error}")
-      logger.error(s"""Found ${errors.length} errors:
-                      |${list.mkString("\n")}
-                      |""".stripMargin)
-    }
   }
 
   def getConfig(args: Array[String]): Option[CliOptions] = {

@@ -54,6 +54,9 @@ object CliArgParser {
       opt[Unit]('h', "help")
         .action(printAndExit(inludeUsage = true))
         .text("prints this usage text")
+      opt[Unit]('v', "version")
+        .action(printAndExit(inludeUsage = false))
+        .text("print version ")
       opt[Seq[File]]('f', "files")
         .action((files, c) =>
           c.copy(
@@ -66,8 +69,6 @@ object CliArgParser {
         ))
         .text(
           "file or directory, in which case all *.scala files are formatted.")
-//      opt[Seq[String]]('e', "exclude").action((exclude, c) =>
-//        c.copy(exclude = exclude)) text "file or directory to exclude from formatting"
       opt[String]('c', "config")
         .action(readConfigFromFile)
         .text(
@@ -78,24 +79,9 @@ object CliArgParser {
       opt[Unit]("test")
         .action((_, c) => c.copy(testing = true))
         .text("test for mis-formatted code, exits with status 1 on failure.")
-      opt[Unit]("debug")
-        .action((_, c) => c.copy(debug = true))
-        .text("print out debug information")
       opt[File]("migrate2hocon")
         .action((file, c) => c.copy(migrate = Some(file)))
         .text("""migrate .scalafmt CLI style configuration to hocon style configuration in .scalafmt.conf""")
-      opt[Unit]("statement")
-        .action(
-          (_, c) =>
-            c.copy(
-              config = c.config.copy(runner = c.config.runner.copy(
-                parser = scala.meta.parsers.Parse.parseStat))
-          ))
-        .text("parse the input as a statement instead of compilation unit")
-
-      opt[Unit]('v', "version")
-        .action(printAndExit(inludeUsage = false))
-        .text("print version ")
       opt[Unit]("build-info")
         .action({
           case (_, c) =>

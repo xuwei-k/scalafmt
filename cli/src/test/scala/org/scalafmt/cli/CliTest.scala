@@ -9,6 +9,7 @@ import org.scalafmt.config.Config
 import org.scalafmt.config.ScalafmtConfig
 import org.scalafmt.util.DiffAssertions
 import org.scalafmt.util.FileOps
+import org.scalafmt.util.logger
 import org.scalatest.FunSuite
 
 class CliTest extends FunSuite with DiffAssertions {
@@ -75,94 +76,126 @@ class CliTest extends FunSuite with DiffAssertions {
     assertNoDiff(obtained, unformatted)
   }
 
-  test("handles .scala and .sbt files") {
-    val dir = File.createTempFile("dir", "dir")
-    dir.delete()
-    dir.mkdir()
-    val file1 = File.createTempFile("foo", ".scala", dir)
-    val file2 = File.createTempFile("foo", ".sbt", dir)
-    val original1 = """
-                      |object   a {
-                      |println(1)
-                      |}
-      """.stripMargin
-    val expected1 = """
-                      |object a {
-                      |  println(1)
-                      |}
-      """.stripMargin
-    val original2 = """
-                      |lazy val x = project
-                      |.dependsOn(core)
-                      |
-                      |lazy val y =    project.dependsOn(core)
-      """.stripMargin
-    val expected2 = """
-                      |lazy val x = project.dependsOn(core)
-                      |
-                      |lazy val y = project.dependsOn(core)
-      """.stripMargin
-    FileOps.writeFile(file1.getAbsolutePath, original1)
-    FileOps.writeFile(file2.getAbsolutePath, original2)
-    val c = CliOptions.default
-    val config = CliOptions.default.copy(
-      inPlace = true,
-      config = c.config.copy(
-        project = c.config.project.copy(
-          files = Seq(dir.getPath)
-        )
-      )
-    )
-    Cli.run(config)
-    val obtained1 = FileOps.readFile(file1)
-    val obtained2 = FileOps.readFile(file2)
-    assertNoDiff(obtained2, expected2)
+  case class FileContents(prefix: String, suffix: String, contents: String)
+
+  def createDir(layout: String): File = {
+    val root = File.createTempFile("root", "root")
+    root.delete()
+    root.mkdir()
+    layout.split("(?=\n/)").foreach { row =>
+      val path :: contents :: Nil =
+        row.stripPrefix("\n").split("\n", 2).toList
+      val file = new File(root, path)
+      file.getParentFile.mkdirs()
+      FileOps.writeFile(file, contents)
+      logger.elem(path, contents)
+    }
+    root
   }
 
-  test("ignores files if told so by the configuration") {
-    val dir = File.createTempFile("dir", "dir")
-    dir.delete()
-    dir.mkdir()
-    val file1 = File.createTempFile("foo", ".scala", dir)
-    val file2 = File.createTempFile("bar", ".scala", dir)
-    val original1 = """
-                      |object   a {
-                      |println(1)
-                      |}
-                    """.stripMargin
-    val expected1 = """
-                      |object a {
-                      |  println(1)
-                      |}
-                    """.stripMargin
-    val original2 = """
-                      |object   a {
-                      |println(1)
-                      |}
-                    """.stripMargin
-    val expected2 = """
-                      |object   a {
-                      |println(1)
-                      |}
-                    """.stripMargin
-    FileOps.writeFile(file1.getAbsolutePath, original1)
-    FileOps.writeFile(file2.getAbsolutePath, original2)
-    val config = CliOptions.default
-      .copy(
-        inPlace = true,
-        config = gimmeConfig(
-          s"""
-             |project.files = [${file1.getPath}]
-             |project.excludeFilter = [${file2.getPath}]
-        """.stripMargin
-        )
-      )
-    Cli.run(config)
-    val obtained1 = FileOps.readFile(file1)
-    val obtained2 = FileOps.readFile(file2)
-    assertNoDiff(obtained1, expected1)
-    assertNoDiff(obtained2, expected2)
+  def dir2string(file: File): String = {
+    FileOps
+      .listFiles(file)
+      .map { path =>
+        val contents = FileOps.readFile(path)
+        s"""|${path.stripPrefix(file.getPath)}
+            |$contents""".stripMargin
+      }
+      .mkString("\n")
   }
+  val root = createDir(
+    """/foo/bar
+      |println(1)
+      |yea
+      |/foo/kaz
+      |whoo
+    """.stripMargin
+  )
+  logger.elem(dir2string(root))
+
+//  test("handles .scala and .sbt files") {
+//    val original1 = """
+//                      |object   a {
+//                      |println(1)
+//                      |}
+//      """.stripMargin
+//    val expected1 = """
+//                      |object a {
+//                      |  println(1)
+//                      |}
+//      """.stripMargin
+//    val original2 = """
+//                      |lazy val x = project
+//                      |.dependsOn(core)
+//                      |
+//                      |lazy val y =    project.dependsOn(core)
+//      """.stripMargin
+//    val expected2 = """
+//                      |lazy val x = project.dependsOn(core)
+//                      |
+//                      |lazy val y = project.dependsOn(core)
+//      """.stripMargin
+//    FileOps.writeFile(file1.getAbsolutePath, original1)
+//    FileOps.writeFile(file2.getAbsolutePath, original2)
+//    val c = CliOptions.default
+//    val config = CliOptions.default.copy(
+//      inPlace = true,
+//      config = c.config.copy(
+//        project = c.config.project.copy(
+//          files = Seq(dir.getPath)
+//        )
+//      )
+//    )
+//    Cli.run(config)
+//    val obtained1 = FileOps.readFile(file1)
+//    val obtained2 = FileOps.readFile(file2)
+//    assertNoDiff(obtained2, expected2)
+//  }
+//
+//  test("ignores files if told so by the configuration") {
+//    val dir = File.createTempFile("dir", "dir")
+//    dir.delete()
+//    dir.mkdir()
+//    val file1 = File.createTempFile("foo", ".scala", dir)
+//    val file2 = File.createTempFile("bar", ".scala", dir)
+//    val original1 = """
+//                      |object   a {
+//                      |println(1)
+//                      |}
+//                    """.stripMargin
+//    val expected1 = """
+//                      |object a {
+//                      |  println(1)
+//                      |}
+//                    """.stripMargin
+//    val original2 = """
+//                      |object   a {
+//                      |println(1)
+//                      |}
+//                    """.stripMargin
+//    val expected2 = """
+//                      |object   a {
+//                      |println(1)
+//                      |}
+//                    """.stripMargin
+//    FileOps.writeFile(file1.getAbsolutePath, original1)
+//    FileOps.writeFile(file2.getAbsolutePath, original2)
+//    val config = CliOptions.default
+//      .copy(
+//        inPlace = true,
+//        config = gimmeConfig(
+//          s"""
+//             |project.files = [${file1.getPath}]
+//             |project.excludeFilter = [${file2.getPath}]
+//        """.stripMargin
+//        )
+//      )
+//    Cli.run(config)
+//    val obtained1 = FileOps.readFile(file1)
+//    val obtained2 = FileOps.readFile(file2)
+//    assertNoDiff(obtained1, expected1)
+//    assertNoDiff(obtained2, expected2)
+//  }
 
   test("migrate") {
     val result = LegacyCli.migrate(
