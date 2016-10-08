@@ -21,19 +21,26 @@ object Cli {
   case class DebugError(filename: String, error: Throwable)
 
   def mkRegexp(filters: Seq[String]): Regex =
-    filters.mkString("(", "|", ")").r
+    filters match {
+      case Nil => "$a".r // will never match anything
+      case head :: Nil => head.r
+      case _ => filters.mkString("(", "|", ")").r
+    }
 
   def getFilesFromProject(projectFiles: ProjectFiles): Seq[String] = {
-    import projectFiles._
-    val include = mkRegexp(includeFilter)
-    val exclude = mkRegexp(excludeFilter)
+    val include = mkRegexp(projectFiles.includeFilter)
+    val exclude = mkRegexp(projectFiles.excludeFilter)
 
     def matches(path: String): Boolean =
       include.findFirstIn(path).isDefined &&
         exclude.findFirstIn(path).isEmpty
 
-    val gitFiles = if (git) GitOps.lsTree else Nil
-    (files ++ gitFiles).filter(matches)
+    val gitFiles: Seq[String] = if (projectFiles.git) GitOps.lsTree else Nil
+    val otherFiles: Seq[String] =
+      projectFiles.files.flatMap(x => FileOps.listFiles(x))
+    val res = (otherFiles ++ gitFiles).filter(matches)
+    logger.elem(projectFiles.includeFilter, projectFiles.files, gitFiles, res)
+    res
   }
 
   def getInputMethods(options: CliOptions): Seq[InputMethod] = {
@@ -95,6 +102,7 @@ object Cli {
 
   def runFormat(options: CliOptions): Unit = {
     val inputMethods = getInputMethods(options)
+    logger.elem(inputMethods)
     val counter = new AtomicInteger()
     val sbtConfig = options.copy(
       config = options.config.copy(

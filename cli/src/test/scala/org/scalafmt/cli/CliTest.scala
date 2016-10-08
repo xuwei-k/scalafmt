@@ -28,7 +28,10 @@ class CliTest extends FunSuite with DiffAssertions {
                  """.stripMargin
 
   def gimmeConfig(string: String): ScalafmtConfig =
-    Config.fromHocon(string).right.get
+    Config.fromHocon(string) match {
+      case Right(e) => e
+      case Left(e) => throw e
+    }
 
   test("scalafmt -i --file tmpFile") {
     val tmpFile = Files.createTempFile("prefix", ".scala")
@@ -150,7 +153,7 @@ class CliTest extends FunSuite with DiffAssertions {
         config = gimmeConfig(
           s"""
              |project.files = [${file1.getPath}]
-             |project.excludeFilters = [${file2.getPath}]
+             |project.excludeFilter = [${file2.getPath}]
         """.stripMargin
         )
       )
@@ -229,7 +232,6 @@ class CliTest extends FunSuite with DiffAssertions {
         |  "←" = "<-"
         |}
       """.stripMargin
-    println(result)
     assertNoDiff(result, expected)
     val Right(_) = config.Config.fromHocon(result)
   }
