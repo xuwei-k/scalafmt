@@ -30,4 +30,23 @@ object GitOps {
       Seq("git", "rev-parse", "--show-toplevel").!!
     }.toOption
 
+  def createGitRepoInDir(file: File): Unit = Try {
+    require(file.isDirectory)
+    val path = file.getAbsolutePath
+    val gitPath = new File(file, ".git").getAbsolutePath
+    val commands: Seq[Seq[String]] = Seq(
+      Seq("git", s"--git-dir=$gitPath", "init"),
+      Seq("git", s"--git-dir=$gitPath", s"--work-tree=$path", "add", path),
+      Seq("git",
+          s"--git-dir=$gitPath",
+          s"--work-tree=$path",
+          "commit",
+          "-m",
+          "\"first commit\"")
+    )
+    commands.foreach { cmd =>
+      cmd.!!
+    }
+  }
+
 }
