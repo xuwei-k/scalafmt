@@ -20,7 +20,7 @@ object GitModel {
   def get: Option[GitModel] = {
     val gitOps = new GitOpsImpl
     gitOps.rootDir.map { dir =>
-      GitModel(new File(dir), gitOps.lsTree)
+      GitModel(dir, gitOps.lsTree)
     }
   }
 }

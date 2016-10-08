@@ -10,7 +10,7 @@ import org.scalafmt.config.ScalafmtConfig
 
 trait GitOps {
   def lsTree: Seq[String]
-  def rootDir: Option[String]
+  def rootDir: Option[File]
 }
 
 class GitOpsImpl extends GitOps {
@@ -23,10 +23,11 @@ class GitOpsImpl extends GitOps {
         .toSeq
     }.getOrElse(Nil)
 
-  override def rootDir: Option[String] =
+  override def rootDir: Option[File] =
     Try {
-      Seq("git", "rev-parse", "--show-toplevel").!!
+      val result = new File(Seq("git", "rev-parse", "--show-toplevel").!!.trim)
+      require(result.isDirectory)
+      result
     }.toOption
 
 }
-
