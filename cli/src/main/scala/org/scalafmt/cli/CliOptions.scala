@@ -30,7 +30,13 @@ case class CliOptions(
     common: CommonOptions = CommonOptions(),
     gitOps: GitOps = new GitOpsImpl
 ) {
+
   require(!(inPlace && testing), "inPlace and testing can't both be true")
+
+  def withProject(projectFiles: ProjectFiles): CliOptions = {
+    this.copy(config = config.copy(project = projectFiles))
+  }
+
   def withFiles(files: Seq[File]): CliOptions = {
     this.copy(
       config = config.copy(

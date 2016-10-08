@@ -4,11 +4,13 @@ import java.io.File
 import java.util.Date
 
 import org.scalafmt.Versions
+import org.scalafmt.config.Config
 import org.scalafmt.config.ScalafmtConfig
 import org.scalafmt.config.hocon.Hocon2Class
 import org.scalafmt.util.BuildTime
 import org.scalafmt.util.FileOps
 import org.scalafmt.util.GitCommit
+import org.scalafmt.util.logger
 import scopt.OptionParser
 
 object CliArgParser {
@@ -29,6 +31,7 @@ object CliArgParser {
 
   val scoptParser: OptionParser[CliOptions] =
     new scopt.OptionParser[CliOptions]("scalafmt") {
+      override def showUsageOnError = false
 
       def printAndExit(inludeUsage: Boolean)(ignore: Unit,
                                              c: CliOptions): CliOptions = {
@@ -82,15 +85,30 @@ object CliArgParser {
         .text(
           "file or directory, in which case all *.scala files are formatted.")
       opt[Unit]("git")
-        .action(
-          (_, c) =>
-            c.copy(
-              config = c.config.copy(
-                project = c.config.project.copy(
-                  git = true
-                )
+        .action({ (_, c) =>
+          val gitRoot = c.gitOps.rootDir.getOrElse {
+            throw new IllegalStateException("Must be inside a git repository")
+          }
+          val optionalConfigFile = new File(gitRoot, ".scalafmt.conf")
+
+          val config: ScalafmtConfig =
+            if (!optionalConfigFile.isFile) c.config
+            else {
+              val contents = FileOps.readFile(optionalConfigFile)
+              logger.elem(contents)
+              Config.fromHocon(contents) match {
+                case Right(e) => e
+                case Left(e) => throw e
+              }
+            }
+          c.copy(
+            config = config.copy(
+              project = c.config.project.copy(
+                git = true
               )
-          ))
+            )
+          )
+        })
         .text("format all files in current git repo")
       opt[String]('c', "config")
         .action(readConfigFromFile)

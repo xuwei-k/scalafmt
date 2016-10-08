@@ -272,7 +272,8 @@ object TermDisplay {
           if (downloadInfo.length.isEmpty && downloadInfo.downloaded == 0L)
             ""
           else {
-            val pctOptStr = pctOpt.map(pct => f"$pct%.2f %%, ").toIterable.mkString
+            val pctOptStr =
+              pctOpt.map(pct => f"$pct%.2f %%, ").toIterable.mkString
             val downloadInfoStr = downloadInfo.length.map(" / " + _).mkString
             s"($pctOptStr${downloadInfo.downloaded}$downloadInfoStr)"
           }

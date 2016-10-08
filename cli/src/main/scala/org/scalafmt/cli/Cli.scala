@@ -122,7 +122,8 @@ object Cli {
     else runFormat(options)
   }
 
-  def getConfig(args: Array[String]): Option[CliOptions] = {
+  def getConfig(args: Array[String],
+                init: CliOptions = CliOptions.default): Option[CliOptions] = {
     CliArgParser.scoptParser.parse(args, CliOptions.default)
   }
 

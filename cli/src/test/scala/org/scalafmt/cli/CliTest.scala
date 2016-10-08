@@ -212,10 +212,10 @@ class GitTest extends FunSuite with DiffAssertions {
     val fakeGitOps: GitOps = new FakeGitOps(input)
     val config = Cli
       .getConfig(
-        Array("--git")
+        Array("--git"),
+        init = CliOptions.default.copy(gitOps = fakeGitOps)
       )
       .get
-      .copy(gitOps = fakeGitOps)
     Cli.run(config)
     val obtained = dir2string(input)
     assertNoDiff(obtained, expected)
@@ -229,5 +229,5 @@ class FakeGitOps(root: File) extends GitOps {
     res
   }
 
-  override def rootDir = Some(root.getAbsolutePath)
+  override def rootDir = Some(root)
 }
