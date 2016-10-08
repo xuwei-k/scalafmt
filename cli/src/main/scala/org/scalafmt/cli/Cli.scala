@@ -36,6 +36,7 @@ object Cli {
         exclude.findFirstIn(path).isEmpty
 
     val gitFiles: Seq[String] = if (git) options.gitOps.lsTree else Nil
+    logger.elem(gitFiles)
     val otherFiles: Seq[String] =
       files.flatMap(x => FileOps.listFiles(x))
     (otherFiles ++ gitFiles).filter(matches)

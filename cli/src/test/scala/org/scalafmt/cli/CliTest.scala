@@ -8,13 +8,41 @@ import org.scalafmt.config
 import org.scalafmt.config.Config
 import org.scalafmt.config.ScalafmtConfig
 import org.scalafmt.util.DiffAssertions
-import org.scalafmt.util.FakeGitOps
 import org.scalafmt.util.FileOps
 import org.scalafmt.util.GitOps
 import org.scalafmt.util.logger
 import org.scalatest.FunSuite
 
+object FileTestOps {
+  def createDir(layout: String): File = {
+    val root = File.createTempFile("root", "root")
+    root.delete()
+    root.mkdir()
+    layout.split("(?=\n/)").foreach { row =>
+      val path :: contents :: Nil =
+        row.stripPrefix("\n").split("\n", 2).toList
+      val file = new File(root, path)
+      file.getParentFile.mkdirs()
+      FileOps.writeFile(file, contents)
+    }
+    root
+  }
+
+  def dir2string(file: File): String = {
+    FileOps
+      .listFiles(file)
+      .map { path =>
+        val contents = FileOps.readFile(path)
+        s"""|${path.stripPrefix(file.getPath)}
+            |$contents""".stripMargin
+      }
+      .mkString("\n")
+  }
+
+}
+
 class CliTest extends FunSuite with DiffAssertions {
+  import FileTestOps._
   val unformatted = """
                       |object a    extends   App {
                       |pr(
@@ -88,32 +116,6 @@ class CliTest extends FunSuite with DiffAssertions {
     assertNoDiff(obtained, unformatted)
   }
 
-  case class FileContents(prefix: String, suffix: String, contents: String)
-
-  def createDir(layout: String): File = {
-    val root = File.createTempFile("root", "root")
-    root.delete()
-    root.mkdir()
-    layout.split("(?=\n/)").foreach { row =>
-      val path :: contents :: Nil =
-        row.stripPrefix("\n").split("\n", 2).toList
-      val file = new File(root, path)
-      file.getParentFile.mkdirs()
-      FileOps.writeFile(file, contents)
-    }
-    root
-  }
-
-  def dir2string(file: File): String = {
-    FileOps
-      .listFiles(file)
-      .map { path =>
-        val contents = FileOps.readFile(path)
-        s"""|${path.stripPrefix(file.getPath)}
-            |$contents""".stripMargin
-      }
-      .mkString("\n")
-  }
 //  val root = createDir(
 //    """/foo/bar
 //      |println(1)
@@ -180,6 +182,10 @@ class CliTest extends FunSuite with DiffAssertions {
     val obtained = dir2string(input)
     assertNoDiff(obtained, expected)
   }
+}
+
+class GitTest extends FunSuite with DiffAssertions {
+  import FileTestOps._
 
   test("by default format all project") {
     val input =
@@ -209,4 +215,14 @@ class CliTest extends FunSuite with DiffAssertions {
     val obtained = dir2string(input)
     assertNoDiff(obtained, expected)
   }
+}
+
+class FakeGitOps(root: File) extends GitOps {
+  override def lsTree = {
+    val res = FileOps.listFiles(root)
+    logger.elem(res)
+    res
+  }
+
+  override def rootDir = Some(root.getAbsolutePath)
 }

@@ -30,7 +30,3 @@ class GitOpsImpl extends GitOps {
 
 }
 
-class FakeGitOps(root: File) extends GitOps {
-  override def lsTree = FileOps.listFiles(root)
-  override def rootDir = Some(root.getAbsolutePath)
-}

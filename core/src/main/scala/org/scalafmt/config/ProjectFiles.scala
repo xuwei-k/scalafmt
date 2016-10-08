@@ -7,7 +7,7 @@ import org.scalafmt.util.GitOps
 
 @ConfigReader
 case class ProjectFiles(
-    git: Boolean = false,
+    git: Boolean = true,
     files: Seq[String] = Nil,
     includeFilter: Seq[String] = Seq(".*"),
     excludeFilter: Seq[String] = Nil

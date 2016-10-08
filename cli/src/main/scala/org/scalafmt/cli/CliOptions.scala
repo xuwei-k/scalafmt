@@ -22,7 +22,7 @@ case class CommonOptions(
 case class CliOptions(
     config: ScalafmtConfig = ScalafmtConfig.default,
     range: Set[Range] = Set.empty[Range],
-    inPlace: Boolean = false,
+    inPlace: Boolean = true,
     testing: Boolean = false,
     stdIn: Boolean = false,
     assumeFilename: String = "foobar.scala", // used when read from stdin
