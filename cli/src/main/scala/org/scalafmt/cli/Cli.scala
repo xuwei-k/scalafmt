@@ -79,24 +79,6 @@ object Cli {
   case class FileContents(filename: String, override val code: String)
       extends InputMethod(code)
 
-  val dialectsByName: Map[String, Dialect] = {
-    import scala.meta.dialects._
-    LoggerOps
-      .name2style[Dialect](
-        Sbt0136,
-        Sbt0137,
-        Scala210,
-        Scala211,
-        Dotty
-      )
-      .map { case (a, b) => a.toLowerCase -> b }
-  }
-  implicit val dialectReads: Read[Dialect] = Read.reads { input =>
-    dialectsByName.getOrElse(input.toLowerCase, {
-      throw new IllegalArgumentException(
-        s"Unknown dialect name $input. Expected one of ${dialectsByName.keys}")
-    })
-  }
 
   private def gimmeStrPairs(tokens: Seq[String]): Seq[(String, String)] = {
     tokens.map { token =>

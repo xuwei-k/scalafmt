@@ -25,43 +25,6 @@ class CliTest extends FunSuite with DiffAssertions {
                    |    "h")
                    |}
                  """.stripMargin
-  val args = Array(
-    "--poorMansTrailingCommasInConfigStyle",
-    "true",
-    "--reformatComments",
-    "false",
-    "--binPackImportSelectors",
-    "false",
-    "--unindentTopLevelOperators",
-    "true",
-    "--alignMixedOwners",
-    "true",
-    "--indentOperators",
-    "false",
-    "--rewriteTokens",
-    "=>;⇒,<-;←",
-    "--rewriteRules",
-    "SortImportSelectors",
-    "--statement",
-    "--bestEffortInDeeplyNestedCode",
-    "--debug",
-    "--maxColumn",
-    "99",
-    "--spaceBeforeContextBoundColon",
-    "true",
-    "--keepSelectChainLineBreaks",
-    "false",
-    "--continuationIndentCallSite",
-    "2",
-    "--continuationIndentDefnSite",
-    "3",
-    "--javaDocs",
-    "--assumeStandardLibraryStripMargin",
-    "false",
-    "--files",
-    "foo",
-    "-i"
-  )
 
   test("scalafmt -i --file tmpFile") {
     val tmpFile = Files.createTempFile("prefix", ".scala")
@@ -94,14 +57,6 @@ class CliTest extends FunSuite with DiffAssertions {
     Cli.run(formatInPlace)
     val obtained = FileOps.readFile(tmpFile.toString)
     assertNoDiff(obtained, unformatted)
-  }
-
-  test("reads .scalafmt.conf") {
-    val expectedStyle = ScalafmtConfig.default40
-    val tmpFile = Files.createTempFile("prefix", ".scalafmt.conf")
-    Files.write(tmpFile, "style=40".getBytes)
-    val args = Array("--config", ".scalafmt.conf")
-
   }
 
   test("handles .scala and .sbt files") {
@@ -168,12 +123,11 @@ class CliTest extends FunSuite with DiffAssertions {
                     """.stripMargin
     FileOps.writeFile(file1.getAbsolutePath, original1)
     FileOps.writeFile(file2.getAbsolutePath, original2)
-    val config = CliOptions.default
-      .copy(
-        inPlace = true,
-        files = Seq(dir),
-        exclude = Seq(file2)
-      )
+    val config = CliOptions.default.copy(
+      inPlace = true,
+      files = Seq(dir),
+      exclude = Seq(file2)
+    )
     Cli.run(config)
     val obtained1 = FileOps.readFile(file1)
     val obtained2 = FileOps.readFile(file2)
