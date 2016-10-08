@@ -73,26 +73,44 @@ object Cli {
     }
   }
 
-  def run(config: CliOptions): Unit = {
-    val inputMethods = getInputMethods(config)
+  def runMigrate(options: CliOptions): Unit = {
+    val original = FileOps.readFile(options.migrate.get)
+    val modified = LegacyCli.migrate(original)
+    val newFile = new File(options.migrate.get.getAbsolutePath + ".conf")
+    FileOps.writeFile(newFile.getAbsolutePath, modified)
+    println("Wrote migrated config to file: " + newFile.getPath)
+    println(
+      "NOTE. This automatic migration is a best-effort, " +
+        "please file an issue if it does not work as advertised.")
+    println("-------------------------")
+    println(modified)
+  }
+
+  def runFormat(options: CliOptions): Unit = {
+    val inputMethods = getInputMethods(options)
     val counter = new AtomicInteger()
-    val workingDirectory = new File(config.common.workingDirectory)
-    val sbtConfig = config.copy(
-      style = config.style.copy(
-        runner = config.style.runner.copy(
+    val workingDirectory = new File(options.common.workingDirectory)
+    val sbtConfig = options.copy(
+      style = options.style.copy(
+        runner = options.style.runner.copy(
           dialect = Sbt0137
         )))
     val msg = "Running scalafmt..."
     val termDisplay = new TermDisplay(new OutputStreamWriter(System.out))
-    if (config.inPlace) termDisplay.init()
+    if (options.inPlace) termDisplay.init()
     termDisplay.startTask(msg, workingDirectory)
     termDisplay.taskLength(msg, inputMethods.length, 0)
     inputMethods.par.foreach { inputMethod =>
-      val inputConfig = if (inputMethod.isSbt(config)) sbtConfig else config
+      val inputConfig = if (inputMethod.isSbt(options)) sbtConfig else options
       handleFile(inputMethod, inputConfig)
       termDisplay.taskProgress(msg, counter.incrementAndGet())
     }
     termDisplay.stop()
+  }
+
+  def run(options: CliOptions): Unit = {
+    if (options.migrate.nonEmpty) runMigrate(options)
+    else runFormat(options)
   }
 
   def printErrors(options: CliOptions, errors: Seq[DebugError]): Unit = {
@@ -108,19 +126,10 @@ object Cli {
     CliArgParser.scoptParser.parse(args, CliOptions.default)
   }
 
+  def runOn(options: CliOptions): Unit = {}
+
   def main(args: Array[String]): Unit = {
     getConfig(args) match {
-      case Some(x) if x.migrate.nonEmpty =>
-        val original = FileOps.readFile(x.migrate.get)
-        val modified = LegacyCli.migrate(original)
-        val newFile = new File(x.migrate.get.getAbsolutePath + ".conf")
-        FileOps.writeFile(newFile.getAbsolutePath, modified)
-        println("Wrote migrated config to file: " + newFile.getPath)
-        println(
-          "NOTE. This automatic migration is a best-effort, " +
-            "please file an issue if it does not work as advertised.")
-        println("-------------------------")
-        println(modified)
       case Some(x) => run(x)
       case None => throw UnableToParseCliOptions
     }
