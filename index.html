@@ -59,7 +59,7 @@ span.hljs-tag, span.hljs-symbol{
 }
     </style><title>Scalafmt - code formatter for Scala</title><script src="scripts.js"></script></head><body><div>
 
-<div style="margin: 0px;color: #333;text-align: center;padding: 2.5em 2em 0;border-bottom: 1px solid #eee;display: block;" id="Scalafmt-codeformatterforScala" class=" scalatex-site-Styles-hoverContainer scalatex-site-Styles-headerTag"><h1 style="margin: 0.2em 0;font-size: 3em;font-weight: 300;">Scalafmt - code formatter for Scala<a class=" scalatex-site-Styles-headerLink" href="#Scalafmt-codeformatterforScala" style="position: absolute;right: 0px;"><i class="fa fa-link"></i></a></h1><br /><h2 style="font-weight: 300;color: #ccc;padding: 0px;margin-top: 0px;">0.4.4</h2></div><div class=" scalatex-site-Styles-content">
+<div style="margin: 0px;color: #333;text-align: center;padding: 2.5em 2em 0;border-bottom: 1px solid #eee;display: block;" id="Scalafmt-codeformatterforScala" class=" scalatex-site-Styles-hoverContainer scalatex-site-Styles-headerTag"><h1 style="margin: 0.2em 0;font-size: 3em;font-weight: 300;">Scalafmt - code formatter for Scala<a class=" scalatex-site-Styles-headerLink" href="#Scalafmt-codeformatterforScala" style="position: absolute;right: 0px;"><i class="fa fa-link"></i></a></h1><br /><h2 style="font-weight: 300;color: #ccc;padding: 0px;margin-top: 0px;">0.4.5</h2></div><div class=" scalatex-site-Styles-content">
 
   
 <div>
@@ -157,7 +157,7 @@ span.hljs-tag, span.hljs-symbol{
     <b>NOTE</b>. I maintain the SBT plugin on a best-effort since I personally use the
     IntelliJ plugin. If you rely on the SBT plugin, please consider contributing!
 
-    <pre><code class="scala scalatex-site-Styles-highlightMe">addSbtPlugin(&quot;com.geirsson&quot; % &quot;sbt-scalafmt&quot; % &quot;0.4.4&quot;)
+    <pre><code class="scala scalatex-site-Styles-highlightMe">addSbtPlugin(&quot;com.geirsson&quot; % &quot;sbt-scalafmt&quot; % &quot;0.4.5&quot;)
 </code></pre>
     <ul>
       <li>
@@ -243,7 +243,7 @@ span.hljs-tag, span.hljs-symbol{
 
     <h2 id="Homebrew/MacOSX" style="display: block;" class=" scalatex-site-Styles-hoverContainer scalatex-site-Styles-headerTag"><a class=" scalatex-site-Styles-headerLink" href="#Homebrew/MacOSX" style="position: absolute;right: 0px;"><i class="fa fa-link"></i></a>Homebrew/Mac OSX</h2>
       <pre><code class="scala scalatex-site-Styles-highlightMe">brew install olafurpg/scalafmt/scalafmt
-scalafmt --version // should be 0.4.4
+scalafmt --version // should be 0.4.5
 </code></pre>
     <h2 id="Linux/Windows/..." style="display: block;" class=" scalatex-site-Styles-hoverContainer scalatex-site-Styles-headerTag"><a class=" scalatex-site-Styles-headerLink" href="#Linux/Windows/..." style="position: absolute;right: 0px;"><i class="fa fa-link"></i></a>Linux/Windows/...</h2>
 
@@ -255,64 +255,38 @@ scalafmt --version // should be 0.4.4
       may include flags that have not been published yet.
       <code class="scala scalatex-site-Styles-highlightMe" style="display: inline;padding: 0px;margin: 0px;"></code>
 
-      <pre><code class="scala scalatex-site-Styles-highlightMe">build commit: d75d8a5377
-build time: Fri Oct 07 11:01:59 CEST 2016
-scalafmt 0.4.4
+      <pre><code class="scala scalatex-site-Styles-highlightMe">build commit: 3ee8a6e52e
+build time: Mon Oct 10 20:58:44 CEST 2016
+scalafmt 0.4.5
 Usage: scalafmt [options]
 
-  -f &lt;value&gt; | --files &lt;value&gt;
-        can be directory, in which case all *.scala files are formatted. If not provided, reads from stdin.
-  -e &lt;value&gt; | --exclude &lt;value&gt;
-        can be directory, in which case all *.scala files are ignored when formatting.
-  -c &lt;value&gt; | --config &lt;value&gt;
-        read style flags, see &quot;Style configuration option&quot;, from this config file. The file can contain comments starting with //
-  --migrate2hocon &lt;value&gt;
-        migrate .scalafmt CLI style configuration to hocon style configuration in .scalafmt.conf
-  -i | --in-place
-        write output to file, does nothing if file is not specified
-  --test
-        test for mis-formatted code, exits with status 1 on failure.
-  --debug
-        print out debug information
-  --statement
-        parse the input as a statement instead of compilation unit
-  -v | --version
-        print version 
-  --build-info
-        prints build information
-  -h | --help
-        prints this usage text
-  --formatSbtFiles &lt;value&gt;
-        If true, formats .sbt files as well.
-
+  -h, --help               prints this usage text
+  -v, --version            print version 
+  -f, --files &lt;value&gt;      file or directory, in which case all *.scala files are formatted.
+  --exclude &lt;value&gt;        file or directory, in which case all *.scala files are formatted.
+  -c, --config &lt;value&gt;     either a file or configuration wrapped in quotes &quot; with no spaces.
+  -i, --in-place           write output to file, does nothing if file is not specified
+  --test                   test for mis-formatted code, exits with status 1 on failure.
+  --migrate2hocon &lt;value&gt;  migrate .scalafmt CLI style configuration to hocon style configuration in .scalafmt.conf
+  --build-info             prints build information
 Examples:
+scalafmt  # Format all files in the current project, with config determined:
+          # 1. .scalafmt.conf inside root directory of current git repo
+          #    IF the following setting is enabled: project.git = true
+          # 2. .scalafmt.conf file in current directory
+          # 3. default style
+          # from .scalafmt.conf in the root directory, if the file exists.
+scalafmt --test # same as without --test, except
+                # 1. throws an exception on the first mis-formatted file
+                # 2. does not write to any files.
+scalafmt --stdin                           # read from stdin and print to stdout
+scalafmt --stdin --assume-filename foo.sbt # required to format .sbt files
 
-
-// get help
-scalafmt --help
-
-// print formatted contents of file to stdout.
-scalafmt -f Code.scala
-
-// write formatted contents to file.
-scalafmt -i -f Code1.scala,Code2.scala
-
-// format with predefined custom style
-scalafmt --config &quot;style=defaultWithAlign&quot; -f Code.scala
-
-// read style options from a configuration file
-$ cat .scalafmt.conf
-maxColumn = 120
-docstrings = JavaDoc
-$ scalafmt --config .scalafmt -i -f Code.scala
-
-// format all files in current directory, write new contents to each file.
-scalafmt -i -f .
-
-// read scala code from stdin and print formatted contents to stdout.
-scalafmt
-    
-
+scalafmt -f Code.scala             # print formatted contents to stdout.
+scalafmt -i -f Code1.scala,A.scala # write formatted contents to file.
+scalafmt -i -f . --exclude target  # format all files in directory excluding target
+scalafmt --config .scalafmt.conf   # read custom style from file
+scalafmt --config &quot;style=IntelliJ&quot; # define custom style as a flag, must be quoted.
 Please file bugs to https://github.com/olafurpg/scalafmt/issues
       </code></pre>
 
@@ -332,7 +306,7 @@ let g:formatters_scala = ['scalafmt']
 
   <h1 id="Standalonelibrary" style="display: block;" class=" scalatex-site-Styles-hoverContainer scalatex-site-Styles-headerTag"><a class=" scalatex-site-Styles-headerLink" href="#Standalonelibrary" style="position: absolute;right: 0px;"><i class="fa fa-link"></i></a>Standalone library</h1>
     Add to your dependencies
-    <pre><code class="scala scalatex-site-Styles-highlightMe">libraryDependencies += &quot;com.geirsson&quot; %% &quot;scalafmt&quot; % &quot;0.4.4&quot;</code></pre>
+    <pre><code class="scala scalatex-site-Styles-highlightMe">libraryDependencies += &quot;com.geirsson&quot; %% &quot;scalafmt&quot; % &quot;0.4.5&quot;</code></pre>
     <p>
       Use the API like this
 </p>
@@ -741,6 +715,10 @@ function(
 
     <pre><code class="scala scalatex-site-Styles-highlightMe">maxColumn = 80
 bestEffortInDeeplyNestedCode = false
+project.git = false
+project.files = []
+project.includeFilters = [&quot;.*&quot;]
+project.excludeFilters = []
 align.openParenCallSite = true
 align.openParenDefnSite = true
 align.ifWhileOpenParen = true
@@ -762,8 +740,9 @@ runner.optimizer.recurseOnBlocks = true
 runner.optimizer.escapeInPathologicalCases = true
 runner.optimizer.pruneSlowStates = true
 runner.eventCallback = &quot;&lt;function1&gt;&quot;
-runner.parser = scala.meta.internal.parsers.ScalametaParser$$anon$201@173ecb15
+runner.parser = scala.meta.internal.parsers.ScalametaParser$$anon$201@6bbec23e
 runner.debug = false
+runner.fatalWarnings = false
 runner.maxStateVisits = 1000000
 runner.dialect = Scala211
 newlines.neverBeforeJsNative = false
@@ -1049,6 +1028,61 @@ object PatternMatching {
   <h1 id="0.4.x" style="display: block;" class=" scalatex-site-Styles-hoverContainer scalatex-site-Styles-headerTag"><a class=" scalatex-site-Styles-headerLink" href="#0.4.x" style="position: absolute;right: 0px;"><i class="fa fa-link"></i></a>0.4.x</h1>
     
 
+<h2 id="0.4.5" style="display: block;" class=" scalatex-site-Styles-hoverContainer scalatex-site-Styles-headerTag"><a class=" scalatex-site-Styles-headerLink" href="#0.4.5" style="position: absolute;right: 0px;"><i class="fa fa-link"></i></a>0.4.5</h2>
+  <ul>
+    <li>
+      The CLI has a new experimental feature so that running <code>scalafmt</code> (without flags)
+      will read configuration from .scalafmt.conf at the root of your git repo or current directory and
+      then format all files in your entire project or current directory.
+      <p>
+        You opt into the git integration by setting <code class="scala scalatex-site-Styles-highlightMe" style="display: inline;padding: 0px;margin: 0px;">project.git = true</code>.</p>
+      <p>
+        You exclude files with <code class="scala scalatex-site-Styles-highlightMe" style="display: inline;padding: 0px;margin: 0px;">project.excludeFilters = [regex1, regex2]</code>.</p>
+      <p>
+        For more details, refer to the brand new <a href="#--help">--help</a> section.
+</p>
+      <p>
+        I hope to make this feature stable by 0.5, all feedback is very welcome.
+        I plan to replace the current logic in the SBT plugin to figure out which
+        files to format with this new feature.</p>
+      <p>
+        If you are interested in having this feature work with other VCS like mercurial,
+        don't hesitate to introduce yourself in the Gitter channel.</p>
+      <p>
+        <b>NOTE</b>. I realised after releasing 0.4.5 that I forgot to
+        expose the <code>--stdin</code> flag that replaces the previous behavior of running
+        <code>scalafmt</code> (without flags). If you rely on reading from stdin you need to wait
+        until 0.4.6, sorry.</p></li>
+    <li>
+      New <code>scalafmt</code> bash script that can upgrade itself, see <a href="#Linux/OSX">Linux/OSX</a>.
+      Thank you <a href="https://github.com/hntd187">@hntd187</a>!</li>
+    <li>
+      You can now see <b>all</b> available configuration options in scalafmt, see <a href="#Other">Other</a>.</li>
+    <li>
+      New flag <code class="scala scalatex-site-Styles-highlightMe" style="display: inline;padding: 0px;margin: 0px;">runner.fatalWarnings = true</code> (only respected in CLI for now)
+      to throw an exception for warnings like parse errors or &quot;Search state exploded&quot;.</li>
+    <li>
+      New configuration syntax <code class="scala scalatex-site-Styles-highlightMe" style="display: inline;padding: 0px;margin: 0px;">align.tokens.add = [foo]</code> to add align
+      tokens on top of the existing align tokens in your base style.</li>
+    <li>
+      The CLI has gone through a long overdue code-health check and should now
+      be easier to extend.</li>
+    <li>
+      Fixed indentation for large patterns on the left-hand side of assignments:
+      <pre><code class="scala scalatex-site-Styles-highlightMe">// before (note lack of indent)
+val m.Term.New(
+m.Template(Nil,
+           Seq(mparent),
+           m.Term.Param(Nil, m.Name.Anonymous(), None, None),
+           None)) =
+  lapply.toMtree[m.Term.New]
+// after (note 2 space indent)
+val m.Term.New(
+  m.Template(Nil,
+             Seq(mparent),
+             m.Term.Param(Nil, m.Name.Anonymous(), None, None),
+             None)) =
+  lapply.toMtree[m.Term.New]</code></pre></li></ul>
 <h2 id="0.4.4" style="display: block;" class=" scalatex-site-Styles-hoverContainer scalatex-site-Styles-headerTag"><a class=" scalatex-site-Styles-headerLink" href="#0.4.4" style="position: absolute;right: 0px;"><i class="fa fa-link"></i></a>0.4.4</h2>
   <ul>
     <li>
@@ -1890,7 +1924,7 @@ List(1).map { x =&gt;
     The <code>-f</code> flag in the CLI can be a directory.
 </ul>
 <p>
-  This page was last updated on Oct 7, 2016.</p>
+  This page was last updated on Oct 10, 2016.</p>
 
 
   
@@ -1925,7 +1959,7 @@ List(1).map { x =&gt;
   <a href="https://github.com/olafurpg/scalafmt"><img style="position: absolute; top: 0; right: 0; border: 0;" src="https://camo.githubusercontent.com/652c5b9acfaddf3a9c326fa6bde407b87f7be0f4/68747470733a2f2f73332e616d617a6f6e6177732e636f6d2f6769746875622f726962626f6e732f666f726b6d655f72696768745f6f72616e67655f6666373630302e706e67" alt="Fork me on GitHub" data-canonical-src="https://s3.amazonaws.com/github/ribbons/forkme_right_orange_ff7600.png"></a>
 </div><script>
     scalatex.scrollspy.Controller().main(
-      [{"value":"Scalafmt - code formatter for Scala","children":[{"value":"Installation","children":[{"value":"IntelliJ","children":[]},{"value":"SBT","children":[]},{"value":"CLI","children":[{"value":"Linux/OSX","children":[]},{"value":"Build from source","children":[]},{"value":"scalafmt.jar","children":[]},{"value":"Homebrew/Mac OSX","children":[]},{"value":"Linux/Windows/...","children":[]},{"value":"--help","children":[]}]},{"value":"Vim","children":[]},{"value":"Standalone library","children":[]},{"value":"Coming soon...","children":[]}]},{"value":"Configuration","children":[{"value":"style","children":[]},{"value":"maxColumn","children":[]},{"value":"continuationIndent.callSite","children":[]},{"value":"continuationIndent.defnSite","children":[]},{"value":"align.tokens","children":[]},{"value":"// format: off","children":[]},{"value":"assumeStandardLibraryStripMargin","children":[]},{"value":"docstrings","children":[]},{"value":"newlines.sometimesBeforeColonInMethodReturnType","children":[]},{"value":"align.arrowEnumeratorGenerator","children":[]},{"value":"binPackParentConstructors","children":[]},{"value":"align.openParenCallSite","children":[]},{"value":"lineEndings","children":[]},{"value":"rewrite.rules","children":[{"value":"RedundantBraces","children":[]},{"value":"SortImports","children":[]},{"value":"PreferCurlyFors","children":[]}]},{"value":"Other","children":[]}]},{"value":"Formatting rules","children":[{"value":"Function application","children":[]},{"value":"Select chains","children":[]},{"value":"Pattern matching","children":[]}]},{"value":"Community","children":[{"value":"Related projects","children":[]},{"value":"Adopters","children":[]}]},{"value":"FAQ / Troubleshooting","children":[{"value":"How can I be notified of releases/announcements?","children":[]},{"value":"How do I customize scalafmt?","children":[]},{"value":"Why not Scalariform?","children":[]},{"value":"Why is scalafmt so slow?","children":[]},{"value":"Code formatters create unnecessary diffs!","children":[]},{"value":"Is the formatting output stable between releases?","children":[]}]},{"value":"Known issues","children":[{"value":"Non-idempotent","children":[]},{"value":"Deeply nested code","children":[]},{"value":"Performance","children":[]}]},{"value":"Changelog","children":[{"value":"0.4.x","children":[{"value":"0.4.4","children":[]},{"value":"0.4.3","children":[]},{"value":"0.4.2","children":[]},{"value":"0.4.1","children":[]},{"value":"0.4.0","children":[]}]},{"value":"0.3.x","children":[{"value":"0.3.1","children":[]},{"value":"0.3.0","children":[]}]},{"value":"0.2.x","children":[{"value":"0.2.12","children":[]},{"value":"0.2.11","children":[]},{"value":"0.2.10","children":[]},{"value":"0.2.9","children":[]},{"value":"0.2.8","children":[]},{"value":"0.2.7","children":[]},{"value":"0.2.6","children":[]},{"value":"0.2.5","children":[]},{"value":"0.2.4","children":[]},{"value":"0.2.3","children":[]},{"value":"0.2.2","children":[]},{"value":"0.2.1","children":[]},{"value":"0.2.0","children":[]}]},{"value":"0.1.x","children":[{"value":"0.1.6","children":[]},{"value":"0.1.5","children":[]},{"value":"0.1.4","children":[]},{"value":"0.1.3","children":[]},{"value":"0.1.2","children":[]},{"value":"0.1.1","children":[]}]}]}]}]
+      [{"value":"Scalafmt - code formatter for Scala","children":[{"value":"Installation","children":[{"value":"IntelliJ","children":[]},{"value":"SBT","children":[]},{"value":"CLI","children":[{"value":"Linux/OSX","children":[]},{"value":"Build from source","children":[]},{"value":"scalafmt.jar","children":[]},{"value":"Homebrew/Mac OSX","children":[]},{"value":"Linux/Windows/...","children":[]},{"value":"--help","children":[]}]},{"value":"Vim","children":[]},{"value":"Standalone library","children":[]},{"value":"Coming soon...","children":[]}]},{"value":"Configuration","children":[{"value":"style","children":[]},{"value":"maxColumn","children":[]},{"value":"continuationIndent.callSite","children":[]},{"value":"continuationIndent.defnSite","children":[]},{"value":"align.tokens","children":[]},{"value":"// format: off","children":[]},{"value":"assumeStandardLibraryStripMargin","children":[]},{"value":"docstrings","children":[]},{"value":"newlines.sometimesBeforeColonInMethodReturnType","children":[]},{"value":"align.arrowEnumeratorGenerator","children":[]},{"value":"binPackParentConstructors","children":[]},{"value":"align.openParenCallSite","children":[]},{"value":"lineEndings","children":[]},{"value":"rewrite.rules","children":[{"value":"RedundantBraces","children":[]},{"value":"SortImports","children":[]},{"value":"PreferCurlyFors","children":[]}]},{"value":"Other","children":[]}]},{"value":"Formatting rules","children":[{"value":"Function application","children":[]},{"value":"Select chains","children":[]},{"value":"Pattern matching","children":[]}]},{"value":"Community","children":[{"value":"Related projects","children":[]},{"value":"Adopters","children":[]}]},{"value":"FAQ / Troubleshooting","children":[{"value":"How can I be notified of releases/announcements?","children":[]},{"value":"How do I customize scalafmt?","children":[]},{"value":"Why not Scalariform?","children":[]},{"value":"Why is scalafmt so slow?","children":[]},{"value":"Code formatters create unnecessary diffs!","children":[]},{"value":"Is the formatting output stable between releases?","children":[]}]},{"value":"Known issues","children":[{"value":"Non-idempotent","children":[]},{"value":"Deeply nested code","children":[]},{"value":"Performance","children":[]}]},{"value":"Changelog","children":[{"value":"0.4.x","children":[{"value":"0.4.5","children":[]},{"value":"0.4.4","children":[]},{"value":"0.4.3","children":[]},{"value":"0.4.2","children":[]},{"value":"0.4.1","children":[]},{"value":"0.4.0","children":[]}]},{"value":"0.3.x","children":[{"value":"0.3.1","children":[]},{"value":"0.3.0","children":[]}]},{"value":"0.2.x","children":[{"value":"0.2.12","children":[]},{"value":"0.2.11","children":[]},{"value":"0.2.10","children":[]},{"value":"0.2.9","children":[]},{"value":"0.2.8","children":[]},{"value":"0.2.7","children":[]},{"value":"0.2.6","children":[]},{"value":"0.2.5","children":[]},{"value":"0.2.4","children":[]},{"value":"0.2.3","children":[]},{"value":"0.2.2","children":[]},{"value":"0.2.1","children":[]},{"value":"0.2.0","children":[]}]},{"value":"0.1.x","children":[{"value":"0.1.6","children":[]},{"value":"0.1.5","children":[]},{"value":"0.1.4","children":[]},{"value":"0.1.3","children":[]},{"value":"0.1.2","children":[]},{"value":"0.1.1","children":[]}]}]}]}]
   )</script><script>
     ['DOMContentLoaded', 'load'].forEach(function(ev){
       addEventListener(ev, function(){
@@ -1935,4 +1969,4 @@ List(1).map { x =&gt;
         );
       })
     })
-  </script></body></html>                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            
+  </script></body></html>                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
