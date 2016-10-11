@@ -13,6 +13,8 @@ check_version(){
   fi
 }
 
+NAILGUN=$(which ng || which ng-nailgun)
+nailgun_installed=$(test $NAILGUN != "")
 CURL=$(which curl)
 TAR=$(which tar)
 JAVA=$(which java)
@@ -29,6 +31,9 @@ check_latest () {
   if [[ $latest_version = "" ]]; then
     echo "The github call failed, either because of an internet connection issue or rate limits..."
     exit 1
+  fi
+  if [[ $nailgun_installed ]]; then
+    ng ng-stop
   fi
 }
 
@@ -128,4 +133,17 @@ if [[ ! -e "$default_dir/scalafmt-$scalafmt_version.jar" ]]; then
   rm "$default_dir/scalafmt.tar.gz"
 fi
 
-$JAVA -jar "$default_dir/$scalafmt_filename" "$@"
+startNailgun() {
+  echo "Starting nailgun..." >& 2
+  $JAVA -cp "$default_dir/$scalafmt_filename" com.martiansoftware.nailgun.NGServer &
+  sleep 1
+  $NAILGUN ng-alias scalafmt org.scalafmt.cli.Cli
+}
+
+nailgun_installed=0
+if [[  "$NAILGUN" != "" ]]; then
+  $NAILGUN ng-stats &> /dev/null || startNailgun
+  $NAILGUN scalafmt "$@"
+else
+  $JAVA -jar "$default_dir/$scalafmt_filename" "$@"
+fi
