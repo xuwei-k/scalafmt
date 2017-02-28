@@ -3,6 +3,7 @@ resolvers ++= Seq(
   Resolver.bintrayIvyRepo("dancingrobot84", "sbt-plugins")
 )
 
+addSbtPlugin("org.scala-sbt"      % "zinc-sbt-plugin"     % "1.0.0-X9-SNAPSHOT")
 addSbtPlugin("com.eed3si9n"       % "sbt-buildinfo"       % "0.6.1")
 addSbtPlugin("io.get-coursier"    % "sbt-coursier"        % "1.0.0-M15-1")
 addSbtPlugin("com.eed3si9n"       % "sbt-assembly"        % "0.14.3")
