@@ -67,7 +67,7 @@ abstract class MicroBenchmark(path: String*) extends FormatBenchmark {
     Scalafmt.format(code).get
   }
 
-  @Benchmark
+//  @Benchmark
   def scalafmt_rewrite(): String = {
     formatRewrite(code)
   }
