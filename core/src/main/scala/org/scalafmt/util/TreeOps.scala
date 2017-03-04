@@ -17,6 +17,7 @@ import scala.meta.Type
 import scala.meta.tokens.Token
 import scala.meta.tokens.Token._
 import scala.meta.tokens.Tokens
+import scala.meta.transversers.Traverser
 import scala.reflect.ClassTag
 import scala.reflect.classTag
 
@@ -179,13 +180,15 @@ object TreeOps {
     */
   def getOwners(tree: Tree): Map[TokenHash, Tree] = {
     val result = Map.newBuilder[TokenHash, Tree]
-    def loop(x: Tree): Unit = {
-      x.tokens.foreach { tok =>
-        result += hash(tok) -> x
+    object traverser extends Traverser {
+      override def apply(tree: Tree): Unit = {
+        tree.tokens.foreach { tok =>
+          result += hash(tok) -> tree
+        }
+        super.apply(tree)
       }
-      x.children.foreach(loop)
     }
-    loop(tree)
+    traverser(tree)
     result.result()
   }
 
