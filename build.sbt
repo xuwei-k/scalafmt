@@ -191,7 +191,6 @@ val scalacJvmOptions = Def.setting {
     case Some((2, 13)) =>
       Seq(
         "-Ymacro-annotations",
-        "-Xfatal-warnings",
         "-deprecation:false"
       )
     case _ => Seq.empty

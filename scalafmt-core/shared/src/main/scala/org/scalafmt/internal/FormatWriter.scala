@@ -3,7 +3,6 @@ package org.scalafmt.internal
 import java.nio.CharBuffer
 import java.util.regex.Pattern
 
-import org.scalafmt.CompatCollections.JavaConverters._
 import org.scalafmt.{Formatted, Scalafmt}
 import org.scalafmt.config.{Comments, Docstrings, Newlines, ScalafmtConfig}
 import org.scalafmt.config.{FormatEvent, RewriteScala3Settings}
@@ -1840,7 +1839,7 @@ object FormatWriter {
   }
 
   private def splitAsIterator(regex: Pattern)(value: String): Iterator[String] =
-    regex.splitAsStream(value).iterator().asScala
+    regex.split(value).iterator
 
   // "slc" stands for single-line comment
   private val slcDelim = Pattern.compile("\\h++")

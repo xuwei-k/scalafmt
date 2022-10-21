@@ -72,7 +72,7 @@ object Scalafmt {
     }
     val styleTry =
       if (filename == defaultFilename) Success(baseStyle)
-      else baseStyle.getConfigFor(filename).map(getStyleByFile)
+      else ???
     styleTry.fold(
       x => Formatted.Result(Formatted.Failure(x), baseStyle),
       formatCodeWithStyle(code, _, range, filename)

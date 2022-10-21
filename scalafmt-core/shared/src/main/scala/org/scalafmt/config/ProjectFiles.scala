@@ -41,8 +41,6 @@ object ProjectFiles {
   implicit lazy val codec: ConfCodecEx[ProjectFiles] =
     generic.deriveCodecEx(ProjectFiles()).noTypos
 
-  private implicit val fs: file.FileSystem = file.FileSystems.getDefault
-
   val defaultIncludePaths =
     Seq("glob:**.scala", "glob:**.sbt", "glob:**.sc")
 
@@ -55,25 +53,16 @@ object ProjectFiles {
         pf: ProjectFiles,
         regexExclude: Seq[String] = Nil
     ): FileMatcher = {
-      // check if includePaths were specified explicitly
-      val useIncludePaths =
-        pf.includePaths.ne(defaultIncludePaths) || pf.includeFilters.isEmpty
-      val includePaths = if (useIncludePaths) pf.includePaths else Seq.empty
       new FileMatcher(
-        nio(includePaths) ++ regex(pf.includeFilters),
-        nio(pf.excludePaths) ++ regex(pf.excludeFilters ++ regexExclude)
+        regex(pf.includeFilters),
+        regex(pf.excludeFilters ++ regexExclude)
       )
     }
 
     private def create(seq: Seq[String], f: String => PathMatcher) =
       seq.map(_.asFilename).distinct.map(f)
-    private def nio(seq: Seq[String]) = create(seq, new Nio(_))
     private def regex(seq: Seq[String]) = create(seq, new Regex(_))
 
-    private final class Nio(pattern: String) extends PathMatcher {
-      private val matcher = fs.getPathMatcher(pattern)
-      def matches(path: file.Path): Boolean = matcher.matches(path)
-    }
     private final class Regex(regex: String) extends PathMatcher {
       private val pattern = java.util.regex.Pattern.compile(regex)
       def matches(path: file.Path): Boolean =
@@ -84,8 +73,6 @@ object ProjectFiles {
   class FileMatcher(include: Seq[PathMatcher], exclude: Seq[PathMatcher]) {
     def matchesPath(path: file.Path): Boolean =
       include.exists(_.matches(path)) && !exclude.exists(_.matches(path))
-    def matches(filename: String): Boolean =
-      matchesPath(fs.getPath(filename))
     def matchesFile(file: AbsoluteFile): Boolean =
       matchesPath(file.path)
   }

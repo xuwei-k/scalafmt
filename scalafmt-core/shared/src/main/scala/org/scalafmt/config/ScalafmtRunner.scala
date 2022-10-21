@@ -1,10 +1,8 @@
 package org.scalafmt.config
 
 import metaconfig._
-import scala.meta.Dialect
 import scala.meta.Tree
 import scala.meta.parsers.Parsed
-import scala.reflect.ClassTag
 
 /** A FormatRunner configures how formatting should behave.
   *
@@ -90,14 +88,6 @@ object ScalafmtRunner {
   implicit val encoder: ConfEncoder[ScalafmtRunner] =
     generic.deriveEncoder
 
-  private def overrideDialect[T: ClassTag](d: Dialect, k: String, v: T) = {
-    import org.scalafmt.config.ReflectOps._
-    val methodName =
-      if (k.isEmpty || k.startsWith("with")) k
-      else "with" + Character.toUpperCase(k.head) + k.tail
-    d.invokeAs[Dialect](methodName, v.asParam)
-  }
-
   implicit val decoder: ConfDecoderEx[ScalafmtRunner] =
     generic.deriveDecoderEx(default).noTypos.flatMap { runner =>
       val overrides = runner.dialectOverride.values
@@ -106,7 +96,6 @@ object ScalafmtRunner {
         Configured.fromExceptionThrowing {
           val srcDialect = runner.getDialect
           val dialect = overrides.foldLeft(srcDialect) {
-            case (cur, (k, Conf.Bool(v))) => overrideDialect(cur, k, v)
             case (cur, _) => cur // other config types are unsupported
           }
           if (dialect.isEquivalentTo(srcDialect)) runner
