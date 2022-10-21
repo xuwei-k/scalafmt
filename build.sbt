@@ -19,6 +19,12 @@ inThisBuild(
     licenses := List(
       "Apache-2.0" -> url("http://www.apache.org/licenses/LICENSE-2.0")
     ),
+    scmInfo := Some(
+      ScmInfo(
+        url("https://github.com/xuwei-k/scalafmt"),
+        "git@github.com:xuwei-k/scalafmt.git"
+      )
+    ),
     scalacOptions += {
       val a = (LocalRootProject / baseDirectory).value.toURI.toString
       val g =
