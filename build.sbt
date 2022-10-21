@@ -19,6 +19,16 @@ inThisBuild(
     licenses := List(
       "Apache-2.0" -> url("http://www.apache.org/licenses/LICENSE-2.0")
     ),
+    scalacOptions += {
+      val a = (LocalRootProject / baseDirectory).value.toURI.toString
+      val g =
+        "https://raw.githubusercontent.com/xuwei-k/scalafmt/" + sys.process
+          .Process("git rev-parse HEAD")
+          .lineStream_!
+          .head
+          .take(10)
+      s"-P:scalajs:mapSourceURI:$a->$g/"
+    },
     developers := List(
       Developer(
         "olafurpg",
