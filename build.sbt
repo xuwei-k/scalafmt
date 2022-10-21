@@ -14,12 +14,8 @@ def scala213 = "2.13.10"
 
 inThisBuild(
   List(
-    version ~= { dynVer =>
-      if (isCI) dynVer
-      else localSnapshotVersion // only for local publishing
-    },
-    organization := "org.scalameta",
-    homepage := Some(url("https://github.com/scalameta/scalafmt")),
+    organization := "com.github.xuwei-k",
+    homepage := Some(url("https://github.com/xuwei-k/scalafmt")),
     licenses := List(
       "Apache-2.0" -> url("http://www.apache.org/licenses/LICENSE-2.0")
     ),
@@ -101,7 +97,7 @@ lazy val interfaces = project
     }
   )
 
-lazy val sysops = crossProject(JVMPlatform)
+lazy val sysops = crossProject(JVMPlatform, JSPlatform)
   .withoutSuffixFor(JVMPlatform)
   .in(file("scalafmt-sysops"))
   .settings(
@@ -147,13 +143,14 @@ lazy val config = crossProject(JVMPlatform)
 //   )
 // )
 
-lazy val core = crossProject(JVMPlatform)
+lazy val core = crossProject(JVMPlatform, JSPlatform)
   .in(file("scalafmt-core"))
   .settings(
     moduleName := "scalafmt-core",
     buildInfoSettings,
     scalacOptions ++= scalacJvmOptions.value,
     libraryDependencies ++= Seq(
+      metaconfig.value,
       scalameta.value,
       // scala-reflect is an undeclared dependency of fansi, see #1252.
       // Scalafmt itself does not require scala-reflect.
@@ -181,7 +178,7 @@ lazy val core = crossProject(JVMPlatform)
   .jvmSettings(
     Test / run / fork := true
   )
-  .dependsOn(sysops, config)
+  .dependsOn(sysops)
   .enablePlugins(BuildInfoPlugin)
 lazy val coreJVM = core.jvm
 // lazy val coreJS = core.js
