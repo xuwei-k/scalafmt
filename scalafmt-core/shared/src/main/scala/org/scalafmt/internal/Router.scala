@@ -6,7 +6,6 @@ import org.scalafmt.config.{ImportSelectors, Newlines, ScalafmtConfig, Spaces}
 import org.scalafmt.internal.ExpiresOn.{After, Before}
 import org.scalafmt.internal.Length.{Num, StateColumn}
 import org.scalafmt.internal.Policy.NoPolicy
-import org.scalafmt.sysops.FileOps
 import org.scalafmt.util._
 import org.scalameta.FileLine
 
@@ -89,8 +88,7 @@ class Router(formatOps: FormatOps) {
         Seq(Split(NoSplit.orNL(next(ft).right.is[T.EOF]), 0))
       case FormatToken(_: T.BOF, right, _) =>
         val policy = right match {
-          case T.Ident(name) // shebang in .sc files
-              if FileOps.isAmmonite(filename) && name.startsWith("#!") =>
+          case T.Ident(name) if name.startsWith("#!") =>
             val nl = findFirst(next(formatToken), Int.MaxValue) { x =>
               x.hasBreak || x.right.is[T.EOF]
             }
@@ -662,13 +660,20 @@ class Router(formatOps: FormatOps) {
               // infix applications have no space.
               case _: Type.ApplyInfix | _: Term.ApplyInfix => false
               case _ => true
-            } && (prevNonComment(formatToken).left match {
-              case RightParenOrBracket() | T.KwSuper() | T.KwThis() |
-                  T.Ident(_) | T.RightBrace() | T.Underscore() |
-                  T.Constant.Symbol(_) =>
-                true
-              case _ => false
-            }) =>
+            } && {
+              val prevFt = prevNonComment(formatToken)
+              prevFt.left match {
+                case _: T.RightParen | _: T.RightBrace =>
+                  prevFt.meta.leftOwner match {
+                    case _: Term.For | _: Term.If | _: Term.While => false
+                    case _ => true
+                  }
+                case _: T.RightBracket | _: T.KwSuper | _: T.KwThis |
+                    _: T.Ident | _: T.Underscore | _: T.Constant.Symbol =>
+                  true
+                case _ => false
+              }
+            } =>
         def modification: Modification = leftOwner match {
           case _: Mod => Space
           // Add a space between constructor annotations and their parameter lists
@@ -1300,6 +1305,7 @@ class Router(formatOps: FormatOps) {
           !isBracket && getAssignAtSingleArgCallSite(leftOwner).isDefined
         val noSplitIndents =
           if (noNoSplitIndents) Nil
+          else if (isSingleArg && !style.binPack.indentCallSiteSingleArg) Nil
           else if (style.binPack.indentCallSiteOnce) {
             @tailrec
             def iter(tree: Tree): Option[T] = tree.parent match {
@@ -1339,10 +1345,7 @@ class Router(formatOps: FormatOps) {
               if (oneline) nextCommaOneline.orElse(Some(close))
               else if (style.newlines.source.eq(Newlines.fold)) None
               else findComma(formatToken).orElse(Some(close))
-            def unindentPolicy = Policy.on(close) {
-              val excludeOpen = exclude.ranges.map(_.lt).toSet
-              UnindentAtExclude(excludeOpen, Num(-indentLen))
-            }
+            def unindentPolicy = unindentAtExclude(exclude, Num(-indentLen))
             val noSplitPolicy = if (needOnelinePolicy) {
               val alignPolicy = if (noSplitIndents.exists(_.hasStateColumn)) {
                 nextCommaOnelinePolicy.map(_ & penalizeNewlinesPolicy)
@@ -1352,7 +1355,7 @@ class Router(formatOps: FormatOps) {
                 SingleLineBlock(slbEnd, noSyntaxNL = true)
               }
             } else penalizeNewlinesPolicy
-            val indentOncePolicy =
+            def indentOncePolicy =
               if (style.binPack.indentCallSiteOnce) {
                 val trigger = getIndentTrigger(leftOwner)
                 Policy.on(close) {
@@ -1365,7 +1368,7 @@ class Router(formatOps: FormatOps) {
               .withOptimalTokenOpt(opt)
               .withPolicy(noSplitPolicy)
               .andPolicy(unindentPolicy, !isSingleArg || noSplitIndents.isEmpty)
-              .andPolicy(indentOncePolicy)
+              .andPolicy(indentOncePolicy, noSplitIndents.isEmpty)
           }
 
         val nlPolicy = {
@@ -2132,7 +2135,7 @@ class Router(formatOps: FormatOps) {
                 Num(if (willBreak) style.indent.main else 0)
               }
           }
-          val useSpace = style.spaces.inParentheses
+          val useSpace = style.spaces.inParentheses || right.is[T.Comment]
           Split(Space(useSpace), 0).withIndent(indent, close, Before)
         }
         def spaceSplit(implicit fileLine: FileLine) =

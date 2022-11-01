@@ -2,13 +2,7 @@ package org.scalafmt.util
 
 import scala.meta.tokens.{Token => T}
 
-import org.scalafmt.internal.Decision
-import org.scalafmt.internal.Newline
-import org.scalafmt.internal.Policy
-import org.scalafmt.internal.Policy.End
-import org.scalafmt.internal.Policy.Pf
-import org.scalafmt.internal.Split
-import org.scalafmt.internal.TokenRanges
+import org.scalafmt.internal._
 import org.scalameta.FileLine
 
 object PolicyOps {
@@ -17,10 +11,11 @@ object PolicyOps {
     *   do not allow newlines in token syntax
     */
   class PenalizeAllNewlines(
-      val endPolicy: End.WithPos,
+      val endPolicy: Policy.End.WithPos,
       penalty: Int,
       penalizeLambdas: Boolean = true,
-      noSyntaxNL: Boolean = false
+      noSyntaxNL: Boolean = false,
+      val rank: Int = 0
   )(implicit fileLine: FileLine)
       extends Policy.Clause {
     override val noDequeue: Boolean = false
@@ -55,9 +50,10 @@ object PolicyOps {
     *   if false, allow newlines in token syntax
     */
   class SingleLineBlock(
-      val endPolicy: End.WithPos,
+      val endPolicy: Policy.End.WithPos,
       okSLC: Boolean = false,
-      noSyntaxNL: Boolean = false
+      noSyntaxNL: Boolean = false,
+      val rank: Int = 0
   )(implicit fileLine: FileLine)
       extends Policy.Clause {
     import TokenOps.isLeftCommentThenBreak
@@ -78,18 +74,21 @@ object PolicyOps {
         okSLC: Boolean = false,
         noSyntaxNL: Boolean = false
     )(implicit fileLine: FileLine): Policy =
-      policyWithExclude(exclude, End.On, End.After)(
-        End.On(expire),
+      policyWithExclude(exclude, Policy.End.On, Policy.End.After)(
+        Policy.End.On(expire),
         new SingleLineBlock(_, okSLC = okSLC, noSyntaxNL = noSyntaxNL)
       )
   }
 
-  final class DecideNewlinesOnlyBeforeToken(val token: T, split: Option[Split])(
-      implicit fileLine: FileLine
-  ) extends Policy.Clause {
-    override val endPolicy: End.WithPos = End.On(token)
+  final class DecideNewlinesOnlyBeforeToken(
+      val token: T,
+      split: Option[Split],
+      val rank: Int = 0
+  )(implicit fileLine: FileLine)
+      extends Policy.Clause {
+    override val endPolicy: Policy.End.WithPos = Policy.End.On(token)
     override val noDequeue: Boolean = false
-    override val f: Pf = split.fold[Pf] {
+    override val f: Policy.Pf = split.fold[Policy.Pf] {
       {
         case d: Decision if d.formatToken.right eq token =>
           d.onlyNewlinesWithoutFallback
@@ -103,12 +102,15 @@ object PolicyOps {
     override def toString: String = "NB:" + super.toString
   }
 
-  final class DecideNewlinesOnlyAfterToken(val token: T, split: Option[Split])(
-      implicit fileLine: FileLine
-  ) extends Policy.Clause {
-    override val endPolicy: End.WithPos = End.After(token)
+  final class DecideNewlinesOnlyAfterToken(
+      val token: T,
+      split: Option[Split],
+      val rank: Int = 0
+  )(implicit fileLine: FileLine)
+      extends Policy.Clause {
+    override val endPolicy: Policy.End.WithPos = Policy.End.After(token)
     override val noDequeue: Boolean = false
-    override val f: Pf = split.fold[Pf] {
+    override val f: Policy.Pf = split.fold[Policy.Pf] {
       {
         case d: Decision if d.formatToken.left eq token =>
           d.onlyNewlinesWithoutFallback
@@ -124,11 +126,11 @@ object PolicyOps {
 
   def policyWithExclude(
       exclude: TokenRanges,
-      endLt: T => End.WithPos,
-      endRt: T => End.WithPos
+      endLt: T => Policy.End.WithPos,
+      endRt: T => Policy.End.WithPos
   )(
-      expire: End.WithPos,
-      policyFunc: End.WithPos => Policy
+      expire: Policy.End.WithPos,
+      policyFunc: Policy.End.WithPos => Policy
   )(implicit fileLine: FileLine): Policy = {
     val lastPolicy = policyFunc(expire)
     exclude.ranges.foldLeft(lastPolicy) { case (policy, range) =>
@@ -202,5 +204,28 @@ object PolicyOps {
       token: T
   )(implicit fileLine: FileLine): Policy =
     new DecideNewlinesOnlyAfterToken(token, None)
+
+  def unindentAtExclude(
+      exclude: TokenRanges,
+      indent: Length
+  ): Policy = {
+    exclude.ranges.foldLeft(Policy.noPolicy) { case (policy, range) =>
+      val (lt, rt) = (range.lt, range.rt)
+      val trigger = rt
+      val unindent = Indent(indent, rt, ExpiresOn.After)
+      val triggeredIndent = Indent.before(unindent, trigger)
+      val triggerUnindent = Policy.on(rt) {
+        case Decision(FormatToken(`lt`, _, _), s) =>
+          s.map(_.withIndent(triggeredIndent))
+      }
+      val cancelUnindent = delayedBreakPolicy(Policy.End.On(lt)) {
+        Policy.after(lt, rank = 1) { // use rank to apply after policy above
+          case Decision(FormatToken(`lt`, _, _), s) =>
+            s.map(_.switch(trigger, false))
+        }
+      }
+      Policy.Relay(policy, triggerUnindent & cancelUnindent)
+    }
+  }
 
 }

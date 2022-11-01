@@ -589,6 +589,98 @@ foo // c1
 }
 ```
 
+### Indent for `binPack.unsafeCallSite`
+
+Normally, even when binpacking, there's a new level of indentation added for
+each opening parenthesis starting a nested argument clause (regardless whether
+the first argument follows the opening parenthesis on the same line or on a
+separate one); the parameters below modify this behaviour.
+
+#### `binPack.indentCallSiteOnce`
+
+When this parameter is enabled, only one level is added to the outermost call,
+regardless of the number of nested parentheses.
+
+```scala mdoc:defaults
+binPack.indentCallSiteOnce
+```
+
+With the parameter enabled:
+
+```scala mdoc:scalafmt
+binPack.unsafeCallSite = true
+binPack.indentCallSiteOnce = true
+indent.callSite = 2
+maxColumn = 20
+---
+foo(bar1(baz1(qux1, qux2), baz2), bar2(baz3, baz4))
+```
+
+With the parameter disabled:
+
+```scala mdoc:scalafmt
+binPack.unsafeCallSite = true
+binPack.indentCallSiteOnce = false
+indent.callSite = 2
+maxColumn = 20
+---
+foo(bar1(baz1(qux1, qux2), baz2), bar2(baz3, baz4))
+```
+
+#### `binPack.indentCallSiteSingleArg`
+
+When this parameter is disabled, no indentation is added for same-line single-arg
+cases; the assumption is that if the argument expression spans multiple lines,
+it will introduce its own indentation.
+
+```scala mdoc:defaults
+binPack.indentCallSiteSingleArg
+```
+
+With the parameter enabled:
+
+```scala mdoc:scalafmt
+binPack.unsafeCallSite = true
+binPack.indentCallSiteSingleArg = true
+indent.callSite = 2
+maxColumn = 20
+---
+foo(bar(baz.qux(xyz + zyx)))
+foo(bar((_, _) =>
+  baz { qux =>
+    noop
+  } baz { qux =>
+    noop
+  } baz //
+    { qux =>
+      noop
+    } baz { qux =>
+      noop
+    }))
+```
+
+With the parameter disabled:
+
+```scala mdoc:scalafmt
+binPack.unsafeCallSite = true
+binPack.indentCallSiteSingleArg = false
+indent.callSite = 2
+maxColumn = 20
+---
+foo(bar(baz.qux(xyz + zyx)))
+foo(bar((_, _) =>
+  baz { qux =>
+    noop
+  } baz { qux =>
+    noop
+  } baz //
+    { qux =>
+      noop
+    } baz { qux =>
+      noop
+    }))
+```
+
 ### `indentOperator`
 
 Normally, the first eligible break _inside_ a chain of infix operators is
@@ -4419,6 +4511,8 @@ values are supported since v3.0.0:
 > [`danglingParentheses.xxxSite`](#newlines-danglingparentheses) will be ignored
 > if [`optIn.configStyleArguments`](#optinconfigstylearguments) is set since binpacking
 > and listing each argument/parameter on a separate line are at odds.
+
+> Please also see [callSite indentation parameters](#indent-for-binpackunsafecallsite).
 
 ### `binPack.bracketXxxSite`
 
