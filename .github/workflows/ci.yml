@@ -22,7 +22,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v3
-      - uses: olafurpg/setup-scala@v13
+      - uses: olafurpg/setup-scala@v14
         with:
           java-version: ${{ matrix.java }}
       # https://github.com/dwijnand/sbt-dynver#setup
@@ -38,7 +38,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: olafurpg/setup-scala@v13
+      - uses: olafurpg/setup-scala@v14
       - run: ./scalafmt --test
       - run: yarn install
       - run: yarn format-check
@@ -71,7 +71,7 @@ jobs:
     env: ${{ matrix.env }}
     steps:
       - uses: actions/checkout@v3
-      - uses: olafurpg/setup-scala@v13
+      - uses: olafurpg/setup-scala@v14
         with:
           java-version: graalvm-ce-java11@20.1.0
       - if: matrix.libc == 'musl'
