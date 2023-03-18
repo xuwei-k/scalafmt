@@ -13,26 +13,11 @@ import org.scalafmt.util.{LiteralOps, TreeOps}
 import scala.annotation.tailrec
 import scala.collection.AbstractIterator
 import scala.collection.mutable
-import scala.collection.mutable.ListBuffer
 import scala.meta.internal.Scaladoc
 import scala.meta.internal.parsers.ScaladocParser
 import scala.meta.tokens.{Token => T}
 import scala.meta.transversers.Traverser
-import scala.meta.{
-  Case,
-  Ctor,
-  Defn,
-  Enumerator,
-  ImportExportStat,
-  Pat,
-  Pkg,
-  Source,
-  Stat,
-  Template,
-  Term,
-  Tree,
-  Type
-}
+import scala.meta._
 
 /** Produces formatted output from sequence of splits.
   */
@@ -115,7 +100,7 @@ class FormatWriter(formatOps: FormatOps) {
   }
 
   private def getFormatLocations(state: State): FormatLocations = {
-    val toks = formatOps.tokens.arr
+    val toks = tokens.arr
     require(toks.length >= state.depth, "splits !=")
     val result = new Array[FormatLocation](state.depth)
 
@@ -134,20 +119,22 @@ class FormatWriter(formatOps: FormatOps) {
       }
     iter(state, 0)
 
-    val initStyle = styleMap.init
-    if (initStyle.dialect.allowSignificantIndentation) {
-      if (initStyle.rewrite.scala3.removeEndMarkerMaxLines > 0)
-        checkRemoveEndMarkers(result)
-      if (initStyle.rewrite.scala3.insertEndMarkerMinLines > 0)
-        checkInsertEndMarkers(result)
+    if (state.depth == toks.length) { // format completed
+      val initStyle = styleMap.init
+      if (initStyle.dialect.allowSignificantIndentation) {
+        if (initStyle.rewrite.scala3.removeEndMarkerMaxLines > 0)
+          checkRemoveEndMarkers(result)
+        if (initStyle.rewrite.scala3.insertEndMarkerMinLines > 0)
+          checkInsertEndMarkers(result)
+      }
+      if (initStyle.rewrite.insertBraces.minLines > 0)
+        checkInsertBraces(result)
+      if (
+        initStyle.rewrite.rules.contains(RedundantBraces) &&
+        initStyle.rewrite.redundantBraces.parensForOneLineApply
+      )
+        replaceRedundantBraces(result)
     }
-    if (initStyle.rewrite.insertBraces.minLines > 0)
-      checkInsertBraces(result)
-    if (
-      initStyle.rewrite.rules.contains(RedundantBraces) &&
-      initStyle.rewrite.redundantBraces.parensForOneLineApply
-    )
-      replaceRedundantBraces(result)
 
     new FormatLocations(result)
   }
@@ -155,6 +142,12 @@ class FormatWriter(formatOps: FormatOps) {
   private def replaceRedundantBraces(locations: Array[FormatLocation]): Unit = {
     // will map closing brace to opening brace and its line offset
     val lookup = mutable.Map.empty[Int, (Int, Int)]
+
+    def checkApply(t: Tree): Boolean = t.parent match {
+      case Some(p @ Term.ArgClause(`t` :: Nil, _)) =>
+        p.parent.exists(_.is[Term.Apply])
+      case _ => false
+    }
 
     // iterate backwards, to encounter closing braces first
     var idx = locations.length - 1
@@ -164,10 +157,6 @@ class FormatWriter(formatOps: FormatOps) {
       val state = loc.state
       tok.left match {
         case rb: T.RightBrace => // look for "foo { bar }"
-          def checkApply(t: Tree): Boolean = t.parent match {
-            case Some(Term.Apply(_, List(`t`))) => true
-            case _ => false
-          }
           val ok = tok.meta.leftOwner match {
             case b: Term.Block =>
               checkApply(b) && RedundantBraces.canRewriteWithParens(b) &&
@@ -263,7 +252,7 @@ class FormatWriter(formatOps: FormatOps) {
 
   private def checkRemoveEndMarkers(locations: Array[FormatLocation]): Unit = {
     var removedLines = 0
-    val endMarkers = new ListBuffer[(Int, Int)]
+    val endMarkers = new mutable.ListBuffer[(Int, Int)]
     locations.foreach { x =>
       val idx = x.formatToken.meta.idx
       val floc = if (removedLines > 0 && x.isNotRemoved) {
@@ -354,14 +343,17 @@ class FormatWriter(formatOps: FormatOps) {
 
   private def checkInsertBraces(locations: Array[FormatLocation]): Unit = {
     def checkInfix(tree: Tree): Boolean = tree match {
-      case ai @ Term.ApplyInfix(lhs, op, _, rhs) =>
+      case ai: Term.ApplyInfix =>
         tokens.isEnclosedInParens(ai) ||
-        tokens.prevNonCommentSameLine(tokens.tokenJustBefore(op)).noBreak &&
-        checkInfix(lhs) && (rhs.lengthCompare(1) != 0 || checkInfix(rhs.head))
+        tokens.prevNonCommentSameLine(tokens.tokenJustBefore(ai.op)).noBreak &&
+        checkInfix(ai.lhs) && (ai.argClause.values match {
+          case head :: Nil => checkInfix(head)
+          case _ => true
+        })
       case _ => true
     }
     var addedLines = 0
-    val willAddLines = new ListBuffer[Int]
+    val willAddLines = new mutable.ListBuffer[Int]
     locations.foreach { x =>
       val idx = x.formatToken.meta.idx
       val floc = if (addedLines > 0 && x.isNotRemoved) {
@@ -1152,6 +1144,9 @@ class FormatWriter(formatOps: FormatOps) {
         val shouldFlush: Tree => Boolean =
           if (!isMultiline) _ => true
           else (x: Tree) => x eq prevAlignContainer
+        val wasSameContainer: Tree => Boolean =
+          if (isMultiline) _ => true
+          else (x: Tree) => x eq prevAlignContainer
 
         var idx = 0
         while (idx < locations.length) {
@@ -1175,7 +1170,6 @@ class FormatWriter(formatOps: FormatOps) {
                   columnCandidates += new AlignStop(
                     getAlignColumn(floc) + columnShift,
                     floc,
-                    alignContainer,
                     getAlignHashKey(floc)
                   )
                 if (alignContainer eq null)
@@ -1214,8 +1208,12 @@ class FormatWriter(formatOps: FormatOps) {
             if (block.isEmpty) {
               if (!isBlankLine) appendToBlock()
             } else {
-              val matches =
-                columnMatches(block.refStops, candidates, location.formatToken)
+              val matches = columnMatches(
+                wasSameContainer(alignContainer),
+                block.refStops,
+                candidates,
+                location.formatToken
+              )
               if (matches > 0) appendToBlock(matches)
               if (isBlankLine || matches == 0 && shouldFlush(alignContainer)) {
                 flushAlignBlock(block)
@@ -1243,6 +1241,13 @@ class FormatWriter(formatOps: FormatOps) {
       locations(idx).leftLineId != fl.leftLineId
     }
 
+    private def onSingleLine(t: Tree): Boolean = {
+      val ttokens = t.tokens
+      val beg = tokens.after(ttokens.head)
+      val end = tokens.before(ttokens.last)
+      getLineDiff(locations, beg, end) == 0
+    }
+
     object AlignContainer {
       def unapply(tree: Tree): Option[Tree] =
         tree match {
@@ -1255,13 +1260,12 @@ class FormatWriter(formatOps: FormatOps) {
       object WithBody {
         def unapply(tree: Tree): Option[(List[meta.Mod], Tree)] =
           tree match {
-            case p: Defn.Def => Some(p.mods -> p.body)
-            case p: Defn.Given => Some(p.mods -> p.templ)
-            case p: Defn.GivenAlias => Some(p.mods -> p.body)
-            case p: Defn.Val => Some(p.mods -> p.rhs)
-            case p: Defn.Trait => Some(p.mods -> p.templ)
-            case p: Defn.Class => Some(p.mods -> p.templ)
-            case p: Defn.Object => Some(p.mods -> p.templ)
+            case wm: Stat.WithMods =>
+              tree match {
+                case t: Tree.WithBody => Some(wm.mods -> t.body)
+                case t: Stat.WithTemplate => Some(wm.mods -> t.templ)
+                case _ => None
+              }
             case _ => None
           }
       }
@@ -1274,12 +1278,12 @@ class FormatWriter(formatOps: FormatOps) {
     )(implicit fl: FormatLocation): Tree =
       maybeParent.orElse(child.parent) match {
         case Some(AlignContainer(p)) => p
-        case Some(p @ (_: Term.Select | _: Pat.Var)) =>
+        case Some(p @ (_: Term.Select | _: Pat.Var | _: Term.ApplyInfix)) =>
           getAlignContainerParent(p)
-        case Some(p: Term.Apply) if p.fun eq child =>
-          getAlignContainerParent(p)
-        case Some(p: Term.Apply)
-            if p.args.lengthCompare(1) == 0 && child.is[Term.Apply] =>
+        case Some(p: Term.Apply) if (p.argClause.values match {
+              case (_: Term.Apply) :: Nil => true
+              case _ => p.fun eq child
+            }) =>
           getAlignContainerParent(p)
         // containers that can be traversed further if on same line
         case Some(p @ (_: Case | _: Enumerator)) =>
@@ -1298,6 +1302,17 @@ class FormatWriter(formatOps: FormatOps) {
           }
           if (keepGoing) getAlignContainerParent(p) else p
         case Some(p: Term.ForYield) if child ne p.body => p
+        case Some(p: Member.ParamClause) =>
+          p.parent match {
+            // if all on single line, keep going
+            case Some(q) if onSingleLine(q) => getAlignContainerParent(p)
+            // if this one not on single line, use parent as the owner
+            case Some(q) if !onSingleLine(p) => // skip ParamClauseGroup
+              if (q.is[Member.ParamClauseGroup]) q.parent.getOrElse(q) else q
+            case _ => p // this one on single line, but the rest are not
+          }
+        case Some(p: Member.SyntaxValuesClause) => getAlignContainerParent(p)
+        case Some(p: Member.ParamClauseGroup) => getAlignContainerParent(p)
         case Some(p) => p.parent.getOrElse(p)
         case _ => child
       }
@@ -1305,22 +1320,12 @@ class FormatWriter(formatOps: FormatOps) {
     @tailrec
     private def getAlignContainer(t: Tree)(implicit fl: FormatLocation): Tree =
       t match {
-        case _: Term.ApplyInfix =>
-          TreeOps
-            .findTreeWithParentSimple(t)(!_.is[Term.ApplyInfix])
-            .fold(t) { x =>
-              val p = x.parent.get
-              if (p.is[Term.Apply]) p.parent.getOrElse(p)
-              else getAlignContainerParent(x)
-            }
-
         case AlignContainer(x) if fl.formatToken.right.is[T.Comment] => x
 
-        case _: Defn | _: Case | _: Term.Apply | _: meta.Init |
-            _: Ctor.Primary =>
+        case _: Defn | _: Case | _: Term.Apply | _: Init | _: Ctor.Primary =>
           getAlignContainerParent(t, Some(t))
 
-        case _: meta.Mod =>
+        case _: Mod =>
           t.parent match {
             case Some(p) => getAlignContainer(p)
             case None => t
@@ -1621,30 +1626,8 @@ class FormatWriter(formatOps: FormatOps) {
       case x => x
     }
 
-  private def columnsMatch(
-      row1: AlignStop,
-      row2: AlignStop,
-      eolTree: Tree
-  ): Boolean = {
-    // skip checking if row1 and row2 matches if both of them continues to a single line of comment
-    // in order to vertical align adjacent single lines of comment.
-    // see: https://github.com/scalameta/scalafmt/issues/1242
-    val slc1 = tokens.isRightLikeSingleLineComment(row1.floc.formatToken)
-    val slc2 = tokens.isRightLikeSingleLineComment(row2.floc.formatToken)
-    if (slc1 || slc2) slc1 && slc2
-    else
-      (row1.alignContainer eq row2.alignContainer) &&
-      (row1.alignHashKey == row2.alignHashKey) && {
-        row1.floc.style.align.multiline || {
-          val row2Owner = getAlignOwnerNonComment(row2.floc.formatToken)
-          val row1Owner = getAlignOwnerNonComment(row1.floc.formatToken)
-          def isRowOwner(x: Tree) = (x eq row1Owner) || (x eq row2Owner)
-          TreeOps.findTreeWithParentSimple(eolTree)(isRowOwner).isEmpty
-        }
-      }
-  }
-
   private def columnMatches(
+      sameOwner: Boolean,
       a: Seq[AlignStop],
       b: Seq[AlignStop],
       eol: FormatToken
@@ -1652,9 +1635,25 @@ class FormatWriter(formatOps: FormatOps) {
     val endOfLineOwner = eol.meta.rightOwner
     @tailrec
     def iter(pairs: Seq[(AlignStop, AlignStop)], cnt: Int): Int =
-      pairs.headOption match {
-        case Some((r1, r2)) if columnsMatch(r1, r2, endOfLineOwner) =>
-          iter(pairs.tail, cnt + 1)
+      pairs match {
+        case (r1, r2) +: tail =>
+          val ft1 = r1.floc.formatToken
+          val ft2 = r2.floc.formatToken
+          def checkEol = r1.floc.style.align.multiline || {
+            val row1Owner = getAlignOwnerNonComment(ft1)
+            val row2Owner = getAlignOwnerNonComment(ft2)
+            def isRowOwner(x: Tree) = (x eq row1Owner) || (x eq row2Owner)
+            TreeOps.findTreeWithParentSimple(endOfLineOwner)(isRowOwner).isEmpty
+          }
+          // skip checking if row1 and row2 matches if both of them continues to a single line of comment
+          // in order to vertical align adjacent single lines of comment.
+          // see: https://github.com/scalameta/scalafmt/issues/1242
+          val slc1 = tokens.isRightLikeSingleLineComment(ft1)
+          val slc2 = tokens.isRightLikeSingleLineComment(ft2)
+          val ok =
+            if (slc1) slc2
+            else !slc2 && sameOwner && (r1.hashKey == r2.hashKey) && checkEol
+          if (ok) iter(tail, cnt + 1) else cnt
         case _ => cnt
       }
     iter(a.zip(b), 0)
@@ -1687,12 +1686,7 @@ object FormatWriter {
     @inline def remove: FormatLocation = copy(leftLineId = NoLine)
   }
 
-  class AlignStop(
-      val column: Int,
-      val floc: FormatLocation,
-      val alignContainer: Tree,
-      val alignHashKey: Int
-  )
+  class AlignStop(val column: Int, val floc: FormatLocation, val hashKey: Int)
 
   class AlignLine(var stops: IndexedSeq[AlignStop], val eolColumn: Int)
 
@@ -1712,7 +1706,8 @@ object FormatWriter {
       // compute new stops for the block
       var oldShift = 0
       var newShift = 0
-      val builder = IndexedSeq.newBuilder[Int]
+      val newStopCols =
+        new mutable.ArrayBuffer[Int](oldStops.length.max(newStops.length))
       // common stops first
       oldStops.zip(newStops).foreach { case (oldStopColumn, newStop) =>
         val oldStopShifted = oldShift + oldStopColumn
@@ -1720,16 +1715,15 @@ object FormatWriter {
         val diff = newStopShifted - oldStopShifted
         if (diff > 0) {
           oldShift += diff
-          builder += newStopShifted
+          newStopCols += newStopShifted
         } else {
           newShift -= diff
-          builder += oldStopShifted
+          newStopCols += oldStopShifted
         }
       }
       // whatever remains
-      oldStops.drop(newStops.length).foreach(builder += oldShift + _)
-      newStops.drop(oldStops.length).foreach(builder += newShift + _.column)
-      val newStopColumns = builder.result()
+      oldStops.drop(newStops.length).foreach(newStopCols += oldShift + _)
+      newStops.drop(oldStops.length).foreach(newStopCols += newShift + _.column)
 
       // check overflow
       val style = line.stops.last.floc.style
@@ -1741,7 +1735,7 @@ object FormatWriter {
               else x.stops.length
             }
             val lastStop = x.stops(idx)
-            val totalShift = newStopColumns(idx) - lastStop.column
+            val totalShift = newStopCols(idx) - lastStop.column
             x.eolColumn + totalShift > lastStop.floc.style.maxColumn
           }
         if (overflow) return false // RETURNING
@@ -1750,9 +1744,9 @@ object FormatWriter {
       // now we mutate
       line.stops = newStops
       if (truncate < 0) foreach(x => x.stops = x.stops.take(matches))
-      if (newStopColumns.length == newStops.length) refStops = newStops
+      if (newStopCols.length == newStops.length) refStops = newStops
       buffer += line
-      stopColumns = newStopColumns
+      stopColumns = newStopCols.toIndexedSeq
       true
     }
 
@@ -1885,6 +1879,7 @@ object FormatWriter {
     case t: Pkg.Object => t.name.toString
     // definitions
     case t: Defn.Def => t.name.toString
+    case t: Defn.Macro => t.name.toString
     case t: Defn.GivenAlias =>
       val label = t.name.toString
       if (label.isEmpty) "given" else label

@@ -2,10 +2,7 @@ package org.scalafmt.util
 
 import scala.annotation.tailrec
 import scala.collection.mutable
-import scala.meta.Lit
-import scala.meta.Name
-import scala.meta.Term
-import scala.meta.Tree
+import scala.meta._
 import scala.meta.tokens.Token
 import scala.meta.tokens.Token.Comment
 import scala.meta.tokens.Token.LeftParen
@@ -113,15 +110,15 @@ class StyleMap(
       style.binPack.literalsIncludeSimpleExpr && (tree match {
         case t: Term.Assign => isLiteral(t.rhs)
         case t: Term.Apply =>
-          isBasicLiteral(t.fun) && (t.args match {
-            case Nil => true
-            case arg :: Nil => isLiteral(arg)
+          isBasicLiteral(t.fun) && (t.argClause match {
+            case Term.ArgClause(Nil, None) => true
+            case Term.ArgClause(arg :: Nil, None) => isLiteral(arg)
             case _ => false
           })
         case Term.New(t) =>
-          isBasicLiteral(t.name) && (t.argss match {
-            case Nil => true
-            case (arg :: Nil) :: Nil => isLiteral(arg)
+          isBasicLiteral(t.name) && (t.argClauses match {
+            case Nil | Term.ArgClause(Nil, None) :: Nil => true
+            case Term.ArgClause(arg :: Nil, None) :: Nil => isLiteral(arg)
             case _ => false
           })
         case _ =>
@@ -135,15 +132,13 @@ class StyleMap(
   def opensLiteralArgumentList(
       ft: FormatToken
   )(implicit style: ScalafmtConfig): Boolean =
-    ft.meta.leftOwner match {
-      case TreeOps.SplitCallIntoParts(_, eitherArgs) =>
-        eitherArgs
-          .fold(Some(_), TokenOps.findArgsFor(ft.left, _, tokens.matchingOpt))
-          .exists { args =>
-            args.lengthCompare(style.binPack.literalsMinArgCount) >= 0 &&
-            args.forall(isLiteral)
-          }
-      case _ => false
+    (ft.meta.leftOwner match {
+      case Member.Tuple(v) => Some(v)
+      case Member.SyntaxValuesClause(v) => Some(v)
+      case _ => None
+    }).exists { args =>
+      args.lengthCompare(style.binPack.literalsMinArgCount) >= 0 &&
+      args.forall(isLiteral)
     }
 
   @inline

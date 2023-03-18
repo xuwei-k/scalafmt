@@ -7,7 +7,8 @@ import scala.meta.tokens.Token
 import org.scalafmt.config.{RedundantParensSettings, ScalafmtConfig}
 import org.scalafmt.internal.{FormatToken, FormatTokens}
 import org.scalafmt.internal.{Side, SyntacticGroupOps, TreeSyntacticGroup}
-import org.scalafmt.util.{InfixApp, TreeOps}
+import org.scalafmt.util.InfixApp._
+import org.scalafmt.util.TreeOps
 
 object RedundantParens extends Rewrite with FormatTokensRewrite.RuleFactory {
 
@@ -18,45 +19,27 @@ object RedundantParens extends Rewrite with FormatTokensRewrite.RuleFactory {
   override def create(ftoks: FormatTokens): FormatTokensRewrite.Rule =
     new RedundantParens(ftoks)
 
-  private def infixNeedsParens(outer: InfixApp, inner: Tree): Boolean = {
-    val sgOuter = TreeSyntacticGroup(outer.all)
+  private def infixNeedsParens(outer: Member.Infix, inner: Tree): Boolean = {
+    val sgOuter = TreeSyntacticGroup(outer)
     val sgInner = TreeSyntacticGroup(inner)
     val side = if (outer.lhs eq inner) Side.Left else Side.Right
     SyntacticGroupOps.groupNeedsParenthesis(sgOuter, sgInner, side)
   }
 
-  private val precedenceVeryHigh = InfixApp.getPrecedence("+")
-  private val precedenceHigh = InfixApp.getPrecedence("=")
-  private val precedenceMedium = InfixApp.getPrecedence("<")
-  private val precedenceLowest = InfixApp.getPrecedence("foo")
-
-  object IsCallArg {
-    def unapply(t: Tree): Option[Seq[Tree]] = {
-      def isContains(seq: Seq[Tree]): Boolean = seq.contains(t)
-      t.parent.flatMap(TreeOps.SplitCallIntoParts.unapply).flatMap {
-        _._2.fold(Some(_).filter(isContains), _.find(isContains))
-      }
-    }
-  }
+  private val precedenceVeryHigh = getPrecedence("+")
+  private val precedenceHigh = getPrecedence("=")
+  private val precedenceMedium = getPrecedence("<")
+  private val precedenceLowest = getPrecedence("foo")
 
   object IsExprBody {
     def unapply(t: Tree): Option[Boolean] = {
-      @inline def iff(body: Tree) = Some(body eq t)
       @inline def okIf(body: Tree) = if (body eq t) Some(true) else None
       t.parent.flatMap {
-        case TreeOps.SplitAssignIntoParts((body, _)) => iff(body)
         case p: Case => okIf(p.body)
-        case p: Enumerator.CaseGenerator => iff(p.rhs)
-        case p: Enumerator.Generator => iff(p.rhs)
-        case p: Enumerator.Val => iff(p.rhs)
-        case p: Term.Do => iff(p.body)
-        case p: Term.For => iff(p.body)
-        case p: Term.ForYield => iff(p.body)
-        case p: Term.FunctionTerm => iff(p.body)
         case p: Term.If if p.cond ne t =>
           Some(p.thenp.ne(t) || !TreeOps.ifWithoutElse(t))
-        case p: Term.PolyFunction => iff(p.body)
         case p: Term.While => okIf(p.body)
+        case p: Tree.WithBody => Some(t eq p.body)
         case _: Term.Return | _: Term.Throw | _: Term.QuotedMacroExpr |
             _: Term.SplicedMacroExpr | _: Term.Block =>
           Some(true)
@@ -69,7 +52,7 @@ object RedundantParens extends Rewrite with FormatTokensRewrite.RuleFactory {
     def unapply(t: Tree): Option[Boolean] = t match {
       case _: Term.Block | _: Term.PartialFunction =>
         t.parent.collect {
-          case _: Term.Apply | _: Term.ApplyInfix => true
+          case _: Term.ArgClause => true
           case _: Term.Block => false
         }
       case _ => None
@@ -103,7 +86,7 @@ class RedundantParens(ftoks: FormatTokens) extends FormatTokensRewrite.Rule {
       style: ScalafmtConfig
   ): Option[(Replacement, Replacement)] =
     ft.right match {
-      case _: Token.RightParen if left.isLeft =>
+      case _: Token.RightParen if left.how eq ReplacementType.Remove =>
         Some((left, removeToken))
       case _ => None
     }
@@ -112,15 +95,21 @@ class RedundantParens(ftoks: FormatTokens) extends FormatTokensRewrite.Rule {
       style: ScalafmtConfig
   ): Boolean =
     tree match {
-      case _: Term.Tuple | _: Type.Tuple | _: Pat.Tuple | _: Lit.Unit =>
-        numParens >= 3
-
+      case _: Lit.Unit | _: Member.Tuple => numParens >= 3
       case _ if numParens >= 2 => true
 
       case _: Term.AnonymousFunction | _: Term.Param => false
+      case _: Type.FunctionType => false
+
+      case t: Member.ArgClause => okToReplaceArgClause(t)
+      case Term.ParamClause(t :: Nil, _) =>
+        tree.parent.exists {
+          case _: Term.FunctionTerm => t.decltpe.isEmpty && t.mods.isEmpty
+          case _ => false
+        }
+      case _: Member.SyntaxValuesClause => false
 
       case IsInBraces(ok) => ok
-      case IsCallArg(args) => !TreeOps.isSeqSingle(args)
       case t @ IsExprBody(ok) => ok && canRewriteBody(t)
 
       case t =>
@@ -141,61 +130,97 @@ class RedundantParens(ftoks: FormatTokens) extends FormatTokensRewrite.Rule {
           case p: Term.TryWithHandler =>
             (style.dialect.allowTryWithAnyExpr || p.expr.ne(t)) &&
             canRewriteBody(t)
-          case InfixApp(pia) if !infixNeedsParens(pia, t) =>
-            t match {
-              case InfixApp(tia) =>
-                !breaksBeforeOp(tia) &&
-                style.rewrite.redundantParens.infixSide.exists {
-                  case RedundantParensSettings.InfixSide.many =>
-                    tia.op.value == pia.op.value ||
-                    tia.precedence <= precedenceHigh ||
-                    tia.precedence < precedenceLowest &&
-                    pia.precedence >= precedenceLowest
-                  case RedundantParensSettings.InfixSide.some =>
-                    tia.precedence <= precedenceVeryHigh ||
-                    tia.precedence <= precedenceMedium &&
-                    pia.precedence >= precedenceLowest
-                  case _ => true
-                }
-              case _: Lit | _: Name | _: Term.Interpolate => true
-              case _: Term.PartialFunction => true
-              case _ => style.rewrite.redundantParens.infixSide.isDefined
+          case p: Term.ArgClause =>
+            p.parent.exists {
+              case pia: Member.Infix =>
+                !infixNeedsParens(pia, t) && okToReplaceInfix(pia, t)
+              case _ => true
             }
+          case pia: Member.Infix if !infixNeedsParens(pia, t) =>
+            okToReplaceInfix(pia, t)
           case _ =>
-            t match {
-              case _: Lit | _: Name | _: Term.Interpolate => true
-              case _: Term.PartialFunction | _: Term.Apply => true
-              case t: Term.Select =>
-                ftoks.tokenBefore(t.name).left.is[Token.Dot]
-              case t: Term.Match
-                  if style.dialect.allowMatchAsOperator &&
-                    ftoks.tokenAfter(t.expr).right.is[Token.Dot] &&
-                    ftoks.tokenBefore(t.cases).left.is[Token.LeftBrace] =>
-                true
-              case _ => false
-            }
+            okToReplaceOther(t)
         }
     }
 
-  private def breaksBeforeOpAndNotEnclosed(ia: InfixApp): Boolean = {
-    !ftoks.isEnclosedInParens(ia.all) && breaksBeforeOp(ia)
+  private def okToReplaceOther(t: Tree)(implicit
+      style: ScalafmtConfig
+  ): Boolean =
+    t match {
+      case _: Lit | _: Name | _: Term.Interpolate => true
+      case _: Term.PartialFunction | _: Member.Apply => true
+      case t: Term.Select =>
+        ftoks.tokenBefore(t.name).left.is[Token.Dot]
+      case t: Term.Match
+          if style.dialect.allowMatchAsOperator &&
+            ftoks.tokenAfter(t.expr).right.is[Token.Dot] &&
+            ftoks.tokenBefore(t.cases).left.is[Token.LeftBrace] =>
+        true
+      case _ => false
+    }
+
+  private def okToReplaceArgClause(t: Member.ArgClause)(implicit
+      style: ScalafmtConfig
+  ): Boolean = t.values match {
+    case arg :: Nil =>
+      arg match {
+        case _: Term.Block | _: Term.PartialFunction =>
+          t.parent.exists(!_.is[Init])
+        case _: Lit.Unit | _: Member.Tuple => false
+        case _ =>
+          t.parent.exists {
+            case pia: Member.Infix =>
+              val keep = infixNeedsParens(pia, arg)
+              if (keep) okToReplaceOther(arg) else okToReplaceInfix(pia, arg)
+            case _ => false
+          }
+      }
+    case _ => false
   }
 
-  private def breaksBeforeOp(ia: InfixApp): Boolean = {
+  private def okToReplaceInfix(pia: Member.Infix, tia: Member.Infix)(implicit
+      style: ScalafmtConfig
+  ): Boolean = {
+    !breaksBeforeOp(tia) &&
+    style.rewrite.redundantParens.infixSide.exists {
+      case RedundantParensSettings.InfixSide.many
+          if tia.op.value != pia.op.value =>
+        val tiaPrecedence = tia.precedence
+        tiaPrecedence <= precedenceHigh ||
+        tiaPrecedence < precedenceLowest &&
+        pia.precedence >= precedenceLowest
+      case RedundantParensSettings.InfixSide.some =>
+        val tiaPrecedence = tia.precedence
+        tiaPrecedence <= precedenceVeryHigh ||
+        tiaPrecedence <= precedenceMedium &&
+        pia.precedence >= precedenceLowest
+      case _ => true
+    }
+  }
+
+  private def okToReplaceInfix(pia: Member.Infix, t: Tree)(implicit
+      style: ScalafmtConfig
+  ): Boolean = t match {
+    case tia: Member.Infix => okToReplaceInfix(pia, tia)
+    case _: Lit | _: Name | _: Term.Interpolate => true
+    case _: Term.PartialFunction => true
+    case _: Term.AnonymousFunction => false
+    case _ => style.rewrite.redundantParens.infixSide.isDefined
+  }
+
+  private def breaksBeforeOpAndNotEnclosed(ia: Member.Infix): Boolean = {
+    !ftoks.isEnclosedInParens(ia) && breaksBeforeOp(ia)
+  }
+
+  private def breaksBeforeOp(ia: Member.Infix): Boolean = {
     val beforeOp = ftoks.tokenJustBefore(ia.op)
-    ftoks.prevNonCommentSameLine(beforeOp).hasBreak || (ia.lhs match {
-      case InfixApp(lhsApp) if breaksBeforeOpAndNotEnclosed(lhsApp) => true
-      case _ =>
-        ia.rhs match {
-          case Seq(InfixApp(rhsApp)) => breaksBeforeOpAndNotEnclosed(rhsApp)
-          case _ => false
-        }
-    })
+    ftoks.prevNonCommentSameLine(beforeOp).hasBreak ||
+    ia.nestedInfixApps.exists(breaksBeforeOpAndNotEnclosed)
   }
 
   private def canRewriteBody(tree: Tree): Boolean =
     tree match {
-      case InfixApp(ia) => !breaksBeforeOp(ia)
+      case ia: Member.Infix => !breaksBeforeOp(ia)
       case _ => true
     }
 

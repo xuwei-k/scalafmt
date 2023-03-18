@@ -1,38 +1,35 @@
 package org.scalafmt.util
 
-import scala.collection.immutable.Seq
-import scala.meta.Decl
-import scala.meta.Defn
-import scala.meta.Name
-import scala.meta.Pat
-import scala.meta.Self
-import scala.meta.Term
-import scala.meta.Tree
-import scala.meta.Type
-
-case class InfixApp(lhs: Tree, op: Name, rhs: Seq[Tree], all: Tree) {
-
-  @inline
-  def isAssignment: Boolean = InfixApp.isAssignment(op.value)
-
-  @inline
-  lazy val precedence: Int = InfixApp.getPrecedence(op.value)
-
-}
+import scala.meta._
 
 object InfixApp {
 
-  def apply(t: Type.ApplyInfix): InfixApp = InfixApp(t.lhs, t.op, Seq(t.rhs), t)
-  def apply(t: Term.ApplyInfix): InfixApp = InfixApp(t.lhs, t.op, t.args, t)
-  def apply(t: Pat.ExtractInfix): InfixApp = InfixApp(t.lhs, t.op, t.rhs, t)
+  implicit class XtensionInfix(private val tree: Member.Infix) extends AnyVal {
+    @inline
+    def isAssignment: Boolean = InfixApp.isAssignment(tree.op.value)
 
-  def unapply(tree: Tree): Option[InfixApp] =
-    tree match {
-      case t: Type.ApplyInfix => Some(apply(t))
-      case t: Term.ApplyInfix => Some(apply(t))
-      case t: Pat.ExtractInfix => Some(apply(t))
+    @inline
+    def precedence: Int = InfixApp.getPrecedence(tree.op.value)
+
+    def singleArg: Option[Tree] = tree.arg match {
+      case Member.ArgClause(v :: Nil) => Some(v)
       case _ => None
     }
+
+    def args: Seq[Tree] = tree.arg match {
+      case Member.ArgClause(v) => v
+      case arg => arg :: Nil
+    }
+
+    def nestedInfixApps: Seq[Member.Infix] =
+      (tree.lhs :: singleArg.toList).collect { case x: Member.Infix => x }
+
+  }
+
+  def unapply(tree: Tree): Option[Member.Infix] = tree match {
+    case t: Member.Infix => Some(t)
+    case _ => None
+  }
 
   // https://scala-lang.org/files/archive/spec/2.11/06-expressions.html#infix-operations
   private val infixOpPrecedence: Map[Char, Int] = {
@@ -76,10 +73,20 @@ object WithChain {
   def unapply(t: Type.With): Option[Type.With] = {
     // self types, params, val/def/var/type definitions or declarations
     val top = TreeOps.topTypeWith(t)
-    top.parent match {
-      case Some(_: Defn | _: Decl | _: Term.Param | _: Self | _: Type.Apply) =>
-        Some(top)
-      case _ => None
+    top.parent.collect {
+      case _: Defn | _: Decl | _: Term.Param | _: Self | _: Type.ArgClause =>
+        top
     }
   }
+}
+
+object ParamClauseParent {
+  def unapply(t: Member.ParamClause): Option[Tree] = t.parent match {
+    case Some(p: Member.ParamClauseGroup) => p.parent
+    case p => p
+  }
+}
+
+object ArgClauseParent {
+  def unapply(t: Member.ArgClause): Option[Tree] = t.parent
 }

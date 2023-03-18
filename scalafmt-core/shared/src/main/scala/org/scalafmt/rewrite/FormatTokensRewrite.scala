@@ -1,8 +1,7 @@
 package org.scalafmt.rewrite
 
 import scala.annotation.tailrec
-import scala.collection.mutable.ArrayBuffer
-import scala.collection.mutable.ListBuffer
+import scala.collection.mutable
 import scala.meta.Tree
 import scala.meta.tokens.{Token => T}
 
@@ -48,28 +47,28 @@ class FormatTokensRewrite(
       result ++= arr.view.slice(beg, end)
     }
     getRewrittenTokens.foreach { repl =>
-      val ft = repl match {
-        case Right(x) => x
-        case Left(idx) => arr(idx)
-      }
-      copySlice(ft.meta.idx)
+      val ft = repl.ft
+      val idx = ft.meta.idx
+      val ftOld = arr(idx)
+      val rtOld = ftOld.right
+      @inline def mapOld() = tokenMap += FormatTokens.thash(rtOld) -> appended
+      copySlice(idx)
       def append(): Unit = {
-        val oldFt = arr(ft.meta.idx)
-        if (oldFt.right ne ft.right)
-          tokenMap += FormatTokens.thash(oldFt.right) -> appended
+        if (rtOld ne ft.right) mapOld()
         appended += 1
         result += ft
       }
       def remove(): Unit = {
-        tokenMap += FormatTokens.thash(ft.right) -> appended
-        val nextFt = ftoks.next(ft)
+        mapOld()
+        val nextIdx = idx + 1
+        val nextFt = ftoks.at(nextIdx)
         val rtMeta = nextFt.meta
-        mergeWhitespaceLeftToRight(ft.meta, rtMeta).foreach { bw =>
-          arr(nextFt.meta.idx) = nextFt.copy(meta = rtMeta.copy(between = bw))
+        mergeWhitespaceLeftToRight(ftOld.meta, rtMeta).foreach { bw =>
+          arr(nextIdx) = nextFt.copy(meta = rtMeta.copy(between = bw))
         }
         removed += 1
       }
-      if (repl.isLeft) remove() else append()
+      if (repl.how eq ReplacementType.Remove) remove() else append()
     }
 
     if (appended + removed == 0) ftoks
@@ -119,15 +118,24 @@ class FormatTokensRewrite(
    * - for standalone tokens, simply invoke the rule and record any rewrites
    */
   private def getRewrittenTokens: Iterable[Replacement] = {
-    implicit val tokens = new ArrayBuffer[Replacement]()
-    val leftDelimIndex = new ListBuffer[(Int, Option[Rule])]()
-    val formatOffStack = new ListBuffer[Boolean]()
+    implicit val claimed = new mutable.HashMap[Int, Rule]()
+    def claimedRule(implicit ft: FormatToken) = claimed.get(ft.meta.idx)
+    implicit val tokens = new mutable.ArrayBuffer[Replacement]()
+    val leftDelimIndex = new mutable.ListBuffer[(Int, Option[Rule])]()
+    val formatOffStack = new mutable.ListBuffer[Boolean]()
     arr.foreach { implicit ft =>
       ft.right match {
         case _: T.LeftBrace | _: T.LeftParen | _: T.LeftBracket =>
           val ldelimIdx = tokens.length
-          val ruleOpt = if (ft.meta.formatOff) None else applyRules
-          formatOffStack.prepend(ft.meta.formatOff)
+          val formatOff = ft.meta.formatOff
+          formatOffStack.prepend(formatOff)
+          val ruleOpt =
+            if (formatOff) None
+            else
+              claimedRule match {
+                case x @ Some(rule) => if (applyRule(rule)) x else None
+                case _ => applyRules
+              }
           leftDelimIndex.prepend((ldelimIdx, ruleOpt))
           if (ruleOpt.isEmpty) tokens.append(null)
 
@@ -136,14 +144,14 @@ class FormatTokensRewrite(
           val (ldelimIdx, ruleOpt) = leftDelimIndex.remove(0)
           if (formatOff && formatOffStack.nonEmpty)
             formatOffStack.update(0, true)
-          val replacement =
-            if (ft.meta.formatOff) None
-            else
-              ruleOpt.flatMap { rule =>
-                implicit val style = styleMap.at(ft.right)
-                if (rule.enabled) rule.onRight(tokens(ldelimIdx), formatOff)
-                else None
-              }
+          val replacement = ruleOpt match {
+            case Some(rule)
+                if !ft.meta.formatOff && claimedRule.forall(_ eq rule) =>
+              implicit val style = styleMap.at(ft.right)
+              if (rule.enabled) rule.onRight(tokens(ldelimIdx), formatOff)
+              else None
+            case _ => None
+          }
           replacement match {
             case None => tokens(ldelimIdx) = null
             case Some((ltRepl, rtRepl)) =>
@@ -171,23 +179,20 @@ class FormatTokensRewrite(
 
   private def applyRules(implicit
       ft: FormatToken,
-      tokens: ArrayBuffer[Replacement]
+      claimed: mutable.HashMap[Int, Rule],
+      tokens: mutable.ArrayBuffer[Replacement]
   ): Option[Rule] = {
     implicit val style = styleMap.at(ft.right)
-    @tailrec
-    def iter(remainingRules: Seq[Rule]): Option[Rule] =
-      remainingRules.headOption match {
-        case None => None
-        case Some(rule) =>
-          val res = if (rule.enabled) rule.onToken else None
-          res match {
-            case None => iter(remainingRules.tail)
-            case Some(repl) =>
-              tokens.append(repl)
-              Some(rule)
-          }
-      }
-    iter(rules)
+    FormatTokensRewrite.applyRules(rules)
+  }
+
+  private def applyRule(rule: Rule)(implicit
+      ft: FormatToken,
+      claimed: mutable.HashMap[Int, Rule],
+      tokens: mutable.ArrayBuffer[Replacement]
+  ): Boolean = {
+    implicit val style = styleMap.at(ft.right)
+    FormatTokensRewrite.applyRule(rule)
   }
 
 }
@@ -235,28 +240,39 @@ object FormatTokensRewrite {
     else new FormatTokensRewrite(ftoks, styleMap, rules).rewrite
   }
 
-  private[rewrite] type Replacement = Either[Int, FormatToken]
+  private[rewrite] class Replacement(
+      val ft: FormatToken,
+      val how: ReplacementType,
+      // list of FormatToken indices, with the claimed token on the **right**
+      val claim: Iterable[Int] = Nil
+  )
+
+  private[rewrite] sealed trait ReplacementType
+  private[rewrite] object ReplacementType {
+    object Remove extends ReplacementType
+    object Replace extends ReplacementType
+  }
 
   private[rewrite] def removeToken(implicit ft: FormatToken): Replacement =
-    Left(ft.meta.idx)
-
-  private[rewrite] def keepToken(implicit ft: FormatToken): Replacement =
-    Right(ft)
+    new Replacement(ft, ReplacementType.Remove)
 
   private[rewrite] def replaceToken(
       text: String,
-      owner: Option[Tree] = None
+      owner: Option[Tree] = None,
+      claim: Iterable[Int] = Nil
   )(tok: T)(implicit ft: FormatToken): Replacement = {
     val mOld = ft.meta.right
     val mNew = mOld.copy(text = text, owner = owner.getOrElse(mOld.owner))
-    Right(ft.copy(right = tok, meta = ft.meta.copy(right = mNew)))
+    val ftNew = ft.copy(right = tok, meta = ft.meta.copy(right = mNew))
+    new Replacement(ftNew, ReplacementType.Replace, claim)
   }
 
   private[rewrite] def replaceTokenBy(
       text: String,
-      owner: Option[Tree] = None
+      owner: Option[Tree] = None,
+      claim: Iterable[Int] = Nil
   )(f: T => T)(implicit ft: FormatToken): Replacement =
-    replaceToken(text, owner)(f(ft.right))
+    replaceToken(text, owner, claim)(f(ft.right))
 
   private[rewrite] def replaceTokenIdent(text: String, t: T)(implicit
       ft: FormatToken
@@ -296,6 +312,40 @@ object FormatTokensRewrite {
         }
       }
     }
+  }
+
+  private def onReplacement(repl: Replacement, rule: Rule)(implicit
+      claimed: mutable.HashMap[Int, Rule],
+      tokens: mutable.ArrayBuffer[Replacement]
+  ): Unit = {
+    repl.claim.foreach { claimed.getOrElseUpdate(_, rule) }
+    tokens.append(repl)
+  }
+
+  private def applyRule(rule: Rule)(implicit
+      ft: FormatToken,
+      style: ScalafmtConfig,
+      claimed: mutable.HashMap[Int, Rule],
+      tokens: mutable.ArrayBuffer[Replacement]
+  ): Boolean =
+    rule.enabled && {
+      val res = rule.onToken
+      res.foreach(onReplacement(_, rule))
+      res.isDefined
+    }
+
+  private def applyRules(rules: Seq[Rule])(implicit
+      ft: FormatToken,
+      style: ScalafmtConfig,
+      claimed: mutable.HashMap[Int, Rule],
+      tokens: mutable.ArrayBuffer[Replacement]
+  ): Option[Rule] = {
+    @tailrec
+    def iter(remainingRules: Seq[Rule]): Option[Rule] = remainingRules match {
+      case r +: rs => if (applyRule(r)) Some(r) else iter(rs)
+      case _ => None
+    }
+    iter(rules)
   }
 
 }

@@ -4,7 +4,7 @@ import java.util.regex.Pattern
 
 import scala.annotation.tailrec
 import scala.meta.tokens.Token
-import scala.meta.{Term, Tree}
+import scala.meta._
 
 import org.scalafmt.config.{Comments, Indents, ScalafmtConfig}
 import org.scalafmt.util.TreeOps._
@@ -218,7 +218,7 @@ final case class State(
   private def getLineStartOwner(isComment: Boolean)(implicit
       style: ScalafmtConfig,
       tokens: FormatTokens
-  ): Option[(FormatToken, meta.Tree)] = {
+  ): Option[(FormatToken, Tree)] = {
     val ft = tokens(depth)
     if (ft.meta.left.hasNL) None
     else if (!split.isNL) {
@@ -226,9 +226,9 @@ final case class State(
         State.allowSplitForLineStart(split, ft, isComment)
       if (ok) prev.getLineStartOwner(isComment) else None
     } else {
-      def startsWithLeft(tree: meta.Tree): Boolean =
+      def startsWithLeft(tree: Tree): Boolean =
         tokens.getHeadOpt(tree).contains(ft)
-      def optionIfStartsWithLeft(tree: meta.Tree): Option[meta.Tree] =
+      def optionIfStartsWithLeft(tree: Tree): Option[Tree] =
         Some(tree).filter(startsWithLeft)
       val owner = optionIfStartsWithLeft(ft.meta.rightOwner)
         .orElse(optionIfStartsWithLeft(ft.meta.leftOwner))
@@ -254,7 +254,11 @@ final case class State(
       val ok = {
         // comment could be preceded by a comma
         isComment && ft.left.is[Token.Comma] &&
-        (tokens.prev(ft).meta.leftOwner eq lineOwner)
+        (tokens.prev(ft).meta.leftOwner match {
+          case `lineOwner` => true
+          case t: Member.SyntaxValuesClause => t.parent.contains(lineOwner)
+          case _ => false
+        })
       } ||
         findTreeOrParentSimple(ft.meta.leftOwner)(_ eq lineOwner).isDefined
       if (ok) Some(lineFt) else None
@@ -291,7 +295,7 @@ final case class State(
     val tok = tokens(depth)
     val right = tok.right
     if (allowed.isEmpty) None
-    else if (right.is[Token.Comment]) Some(right.end)
+    else if (!isNL && right.is[Token.Comment]) Some(right.end)
     else
       indentEnd(tok, isNL) {
         val earlierState = prev.prevNonCommentSameLine
@@ -495,11 +499,11 @@ object State {
   }
 
   @inline
-  private def isInterpolation(tree: meta.Tree): Boolean =
-    tree.is[meta.Term.Interpolate]
+  private def isInterpolation(tree: Tree): Boolean =
+    tree.is[Term.Interpolate]
 
   @inline
-  private def isWithinInterpolation(tree: meta.Tree): Boolean =
+  private def isWithinInterpolation(tree: Tree): Boolean =
     findTreeOrParentSimple(tree)(isInterpolation).isDefined
 
 }

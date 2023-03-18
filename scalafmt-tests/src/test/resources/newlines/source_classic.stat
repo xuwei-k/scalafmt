@@ -1857,6 +1857,70 @@ for {
   else
     mean * mean / x
 }
+<<< 7.8: for-yield partially enclosed in parens
+for {
+  nu <- rand.gaussian(0, 1)
+  y = nu * nu
+  x = (mean
+        + mean * mean * y * 0.5 / shape) -
+        0.5 * mean / shape * math
+          .sqrt(4 * mean * shape * y + mean * mean * y * y)
+  z <- rand.uniform
+} yield {
+  if (z <= mean / (mean + x))
+    x
+  else
+    mean * mean / x
+}
+>>>
+for {
+  nu <- rand.gaussian(0, 1)
+  y = nu * nu
+  x = (mean
+    + mean * mean * y * 0.5 / shape) -
+    0.5 * mean / shape * math
+      .sqrt(
+        4 * mean * shape * y + mean * mean * y * y
+      )
+  z <- rand.uniform
+} yield {
+  if (z <= mean / (mean + x))
+    x
+  else
+    mean * mean / x
+}
+<<< 7.9: for-yield fully and partially enclosed in parens
+for {
+  nu <- rand.gaussian(0, 1)
+  y = nu * nu
+  x = ((mean
+        + mean * mean * y * 0.5 / shape) -
+        0.5 * mean / shape * math
+          .sqrt(4 * mean * shape * y + mean * mean * y * y))
+  z <- rand.uniform
+} yield {
+  if (z <= mean / (mean + x))
+    x
+  else
+    mean * mean / x
+}
+>>>
+for {
+  nu <- rand.gaussian(0, 1)
+  y = nu * nu
+  x = ((mean
+    + mean * mean * y * 0.5 / shape) -
+    0.5 * mean / shape * math
+      .sqrt(
+        4 * mean * shape * y + mean * mean * y * y
+      ))
+  z <- rand.uniform
+} yield {
+  if (z <= mean / (mean + x))
+    x
+  else
+    mean * mean / x
+}
 <<< 8.1: infix with longer left ||
 indent.main = 4
 ===
@@ -6086,4 +6150,1295 @@ object A {
           case _ => 0
         }
     }
+}
+<<< #3369
+binPack.unsafeDefnSite = always
+===
+object Test {
+  private def streamProbesWithOffsetFactory(
+      committerSettings: CommitterSettings
+  ): (TestPublisher.Probe[Committable],
+      Consumer.Control,
+      TestSubscriber.Probe[CommittableOffsetBatch],
+      TestOffsetFactory) = {
+    val (source, control, sink) = streamProbes(committerSettings)
+    val factory = TestOffsetFactory(new TestBatchCommitter(committerSettings))
+    (source, control, sink, factory)
+  }
+}
+>>>
+object Test {
+  private def streamProbesWithOffsetFactory(
+      committerSettings: CommitterSettings
+  ): (TestPublisher.Probe[Committable],
+      Consumer.Control,
+      TestSubscriber.Probe[
+        CommittableOffsetBatch
+      ], TestOffsetFactory) = {
+    val (source, control, sink) =
+      streamProbes(committerSettings)
+    val factory = TestOffsetFactory(
+      new TestBatchCommitter(
+        committerSettings
+      )
+    )
+    (source, control, sink, factory)
+  }
+}
+<<< SM 4.7.0: 1
+object a {
+  @volatile private var _foo: Bar =
+    _ // This must be volatile since it isn't protected by the mailbox status
+}
+>>>
+object a {
+  @volatile private var _foo: Bar =
+    _ // This must be volatile since it isn't protected by the mailbox status
+}
+<<< SM 4.7.0: 2
+object a {
+  private[this] var _mailboxDoNotCallMeDirectly
+      : Bar =
+    _
+}
+>>>
+object a {
+  private[this] var _mailboxDoNotCallMeDirectly
+      : Bar =
+    _
+}
+<<< SM 4.7.0: 3
+object a {
+  if ((a > b && c > 0)) {
+    true // Allow messages larger than capacity through, it will be recorded as negative tokens
+  }
+}
+>>>
+object a {
+  if ((a > b && c > 0)) {
+    true // Allow messages larger than capacity through, it will be recorded as negative tokens
+  }
+}
+<<< SM 4.7.0: 4
+object a {
+  (
+    registry ⇒
+      Props(classOf[TcpOutgoingConnection], tcp, registry, commander, c)
+  )
+}
+>>>
+object a {
+  (
+      registry ⇒
+        Props(
+          classOf[
+            TcpOutgoingConnection
+          ],
+          tcp,
+          registry,
+          commander,
+          c
+        )
+  )
+}
+<<< SM 4.7.0: 5
+object a {
+  ((
+    server,
+    serverSet.join(
+      server.address,
+      Map[String, InetSocketAddress](),
+      shardId)))
+}
+>>>
+object a {
+  (
+    (
+      server,
+      serverSet.join(
+        server.address,
+        Map[
+          String,
+          InetSocketAddress
+        ](),
+        shardId
+      )
+    )
+  )
+}
+<<< SM 4.7.0: 6
+object a {
+  val expected = Map(
+    "foos" -> ((
+      "xyz",
+      "1"
+    )), // the "cas unique" values are predictable from a fresh memcached
+    a -> b)
+}
+>>>
+object a {
+  val expected = Map(
+    "foos" -> ((
+      "xyz",
+      "1"
+    )), // the "cas unique" values are predictable from a fresh memcached
+    a -> b
+  )
+}
+<<< SM 4.7.0: 7
+maxColumn = 100
+===
+object a {
+  foo match {
+    case f: Float if f == 42f => (<float>perfect</float>: Elem)
+    case f: Float if f == 0f  => (<float>zero</float>: Node)
+    case f: Float if f > 0f   => (<float>positive</float>: NodeSeq)
+    case f: Float if f < 0f   => (<float>negative</float>: Seq[Node])
+  }
+}
+>>>
+object a {
+  foo match {
+    case f: Float if f == 42f => (<float>perfect</float>: Elem)
+    case f: Float if f == 0f => (<float>zero</float>: Node)
+    case f: Float if f > 0f => (<float>positive</float>: NodeSeq)
+    case f: Float if f < 0f => (<float>negative</float>: Seq[Node])
+  }
+}
+<<< SM 4.7.0: 8
+maxColumn = 80
+===
+foo match {
+      case (exp: ScReferenceExpression) childOf ((_: ScGenericCall) childOf (_: ScMethodCall)) =>
+}
+>>>
+foo match {
+  case (exp: ScReferenceExpression) childOf ((_: ScGenericCall) childOf (_: ScMethodCall)) =>
+}
+<<< SM 4.7.0: 9
+maxColumn = 100
+===
+object a {
+    val ui = LiftRules.jsArtifacts
+    (<span>{
+      rs % ("onclick" -> (ui.hide(sid).cmd &
+        ui.showAndFocus(hid).cmd & JsRaw("return false;")))
+    }</span>)
+}
+>>>
+object a {
+  val ui = LiftRules.jsArtifacts
+  (<span>{
+    rs % ("onclick" -> (ui.hide(sid).cmd &
+      ui.showAndFocus(hid).cmd & JsRaw("return false;")))
+  }</span>)
+}
+<<< SM 4.7.0: 10
+object a {
+  XhtmlResponse(
+    (<html> <body>Exception occured while processing {r.uri}<pre>{
+      showException(e)
+    }</pre> </body> </html>),
+    foo
+  )
+}
+>>>
+object a {
+  XhtmlResponse(
+    (<html> <body>Exception occured while processing {
+      r.uri
+    }<pre>{
+      showException(e)
+    }</pre> </body> </html>),
+    foo
+  )
+}
+<<< SM 4.7.0: 11
+foo match {
+    case ScWhileStmt(
+          Some(
+            ScInfixExpr(
+              (ref: ScReferenceExpression) && (ResolvesTo(
+                target @ Parent(Parent(entity: ScVariable))
+              )),
+              ElementText(operator),
+              _
+            )
+          ),
+          Some(body)
+        ) =>
+}
+>>>
+foo match {
+  case ScWhileStmt(
+        Some(
+          ScInfixExpr(
+            (ref: ScReferenceExpression) && (ResolvesTo(
+              target @ Parent(
+                Parent(
+                  entity: ScVariable
+                )
+              )
+            )),
+            ElementText(operator),
+            _
+          )
+        ),
+        Some(body)
+      ) =>
+}
+<<< SM 4.7.0: 12
+object a {
+  case class MaxReusableBufferSize(maxReusableBufferSize: Int)
+  implicit
+  object MaxReusableBufferSize extends Stack.Param[MaxReusableBufferSize] {
+  }
+}
+>>>
+object a {
+  case class MaxReusableBufferSize(
+      maxReusableBufferSize: Int
+  )
+  implicit object MaxReusableBufferSize
+      extends Stack.Param[
+        MaxReusableBufferSize
+      ] {}
+}
+<<< SM 4.7.0: 13
+runner.parser = source
+===
+/*ref*/be()
+/*
+import scala.collection.immutable
+
+immutable.HashSet
+*/
+>>>
+/*ref*/
+be()
+/*
+import scala.collection.immutable
+
+immutable.HashSet
+ */
+<<< SM 4.7.0: 14
+maxColumn = 100
+===
+object a {
+ foldedTopics + shortStringLength(topic) + 4 + /* partition count */
+   partitionFetchInfos.size *
+   (4 + /* partition id */
+     8 + /* offset */
+     4 /* fetch size */
+   )
+}
+>>>
+object a {
+  foldedTopics + shortStringLength(topic) + 4 + /* partition count */
+    partitionFetchInfos.size *
+    (4 + /* partition id */
+      8 + /* offset */
+      4 /* fetch size */
+    )
+}
+<<< SM 4.7.0: 15
+class a {
+  def this(x: Int) {
+    this()
+    class Q
+    trait R
+    object S
+    new T {}
+    (() => () => "5")
+  }
+}
+>>>
+class a {
+  def this(x: Int) {
+    this()
+    class Q
+    trait R
+    object S
+    new T {}
+    (() => () => "5")
+  }
+}
+<<< SM 4.7.0: 16
+maxColumn = 80
+===
+object a {
+  jID =
+    new SerializableWritable[JobID](SparkHadoopWriter.createJobID(now, jobid))
+}
+>>>
+object a {
+  jID =
+    new SerializableWritable[JobID](SparkHadoopWriter.createJobID(now, jobid))
+}
+<<< SM 4.7.0: 17
+object a {
+  info(
+    "ZKConsumerConnector shutdown completed in " +
+     (System.nanoTime() - startTime) / 1000000 + " ms"
+  )
+}
+>>>
+object a {
+  info(
+    "ZKConsumerConnector shutdown completed in " +
+      (System
+        .nanoTime() - startTime) / 1000000 + " ms"
+  )
+}
+<<< SM 4.7.0: 18
+maxColumn = 80
+===
+object a {
+  @(SourceAnnotation @getter)("http://apple.com")
+  val x = 0
+}
+>>>
+object a {
+  @(SourceAnnotation @getter)("http://apple.com")
+  val x = 0
+}
+<<< SM 4.7.0: 19
+maxColumn = 80
+===
+object a {
+  val d = foo.< ref > pal (42) ("abc")
+}
+>>>
+object a {
+  val d = foo.< ref > pal (42)("abc")
+}
+<<< SM 4.7.0: 20
+maxColumn = 80
+===
+object a {
+  def step: (Input[I] => IterateeT[I, F, A]) => (
+    Input[O] => IterateeT[O, F, StepT[I, F, A]]
+  ) = ???
+}
+>>>
+object a {
+  def step: (Input[I] => IterateeT[I, F, A]) => (
+      Input[O] => IterateeT[O, F, StepT[I, F, A]]
+  ) = ???
+}
+<<< SM 4.7.0: 21
+maxColumn = 50
+===
+object a {
+  avgMem.add(
+    heapUsed.used / nrOfActors
+  ) // average actor size, over nrOfRepeats
+}
+>>>
+object a {
+  avgMem.add(
+    heapUsed.used / nrOfActors
+  ) // average actor size, over nrOfRepeats
+}
+<<< SM 4.7.0: 22
+maxColumn = 60
+===
+object CapabilityFlag {
+  def on(): CapabilityFlag =
+    new CapabilityFlag { override def value = true }
+}
+>>>
+object CapabilityFlag {
+  def on(): CapabilityFlag =
+    new CapabilityFlag { override def value = true }
+}
+<<< SM 4.7.0: 23
+val boss = system.actorOf(Props(new Supervisor(
+  OneForOneStrategy()(List(classOf[Exception]))
+)))
+>>>
+val boss = system.actorOf(
+  Props(
+    new Supervisor(
+      OneForOneStrategy()(
+        List(classOf[Exception])
+      )
+    )
+  )
+)
+<<< SM 4.7.0: 24.1
+maxColumn = 80
+optIn.annotationNewlines = true
+===
+def using(@foo @bar('nextStateDate) nextStateData: D): State[S, D] = {
+  copy(stateData = nextStateData)
+}
+>>>
+def using(@foo @bar('nextStateDate) nextStateData: D): State[S, D] = {
+  copy(stateData = nextStateData)
+}
+<<< SM 4.7.0: 24.2
+maxColumn = 80
+optIn.annotationNewlines = false
+===
+def using(@foo @bar('nextStateDate) nextStateData: D): State[S, D] = {
+  copy(stateData = nextStateData)
+}
+>>>
+def using(@foo @bar('nextStateDate) nextStateData: D): State[S, D] = {
+  copy(stateData = nextStateData)
+}
+<<< SM 4.7.0: 25
+maxColumn = 80
+===
+if (
+  settings.fuzzingMode && !system.settings.config.hasPath(
+    "akka.stream.secret-test-fuzzing-warning-disable"
+  )
+) {
+  //
+}
+>>>
+if (
+  settings.fuzzingMode && !system.settings.config.hasPath(
+    "akka.stream.secret-test-fuzzing-warning-disable"
+  )
+) {
+  //
+}
+<<< SM 4.7.0: 26
+maxColumn = 80
+===
+assert((-9223372036854775807L - 1L ==
+  (bytesToInt64(ba(0), ba(1), ba(2), ba(3), ba(4), ba(5), ba(6), ba(7)))))
+>>>
+assert(
+  (-9223372036854775807L - 1L ==
+    (bytesToInt64(ba(0), ba(1), ba(2), ba(3), ba(4), ba(5), ba(6), ba(7))))
+)
+<<< SM 4.7.0: 27
+maxColumn = 80
+===
+object a {
+  sb.append((if (msb < 10) ('0' + msb).asInstanceOf[Char]
+             else ('a' + (msb - 10)).asInstanceOf[Char]))
+  sb.append((if (lsb < 10) ('0' + lsb).asInstanceOf[Char]
+             else ('a' + (lsb - 10)).asInstanceOf[Char]))
+}
+>>>
+object a {
+  sb.append(
+    (if (msb < 10) ('0' + msb).asInstanceOf[Char]
+     else ('a' + (msb - 10)).asInstanceOf[Char])
+  )
+  sb.append(
+    (if (lsb < 10) ('0' + lsb).asInstanceOf[Char]
+     else ('a' + (lsb - 10)).asInstanceOf[Char])
+  )
+}
+<<< SM 4.7.0: 28
+maxColumn = 80
+===
+object a {
+  val pebblesAndBammBammsParents = Person.findAll(("childId" ->
+    ("$in" -> List(pebblesId, bammbammId))))
+}
+>>>
+object a {
+  val pebblesAndBammBammsParents = Person.findAll(
+    ("childId" ->
+      ("$in" -> List(pebblesId, bammbammId)))
+  )
+}
+<<< SM 4.7.0: 29.1
+maxColumn = 75
+===
+object a {
+  buffer.append((
+    if (!fetchContent) {
+      DiffInfo(
+        changeType = ChangeType.ADD,
+        oldPath = null,
+        newPath = null,
+        oldContent = None,
+        newContent = None,
+        oldIsImage = false,
+        newIsImage = newIsImage,
+        oldObjectId = None,
+        newObjectId = Option(treeWalk.getObjectId(0)).map(_.name),
+        tooSmall = false,
+        tooLarge = false
+      )
+    } else {
+      DiffInfo(
+        changeType = ChangeType.ADD,
+        oldPath = null,
+        newPath = null,
+        oldIsImage = false,
+        newIsImage = newIsImage,
+        oldContent = None,
+        newContent = JGitUtil
+          .getContentFromId(git, treeWalk.getObjectId(0), false)
+          .filter(FileUtil.isText).map(convertFromByteArray),
+        oldObjectId = None,
+        newObjectId = Option(treeWalk.getObjectId(0)).map(_.name),
+        tooSmall = false,
+        tooLarge = false
+      )
+    }
+  ))
+}
+>>>
+object a {
+  buffer.append(
+    (
+      if (!fetchContent) {
+        DiffInfo(
+          changeType = ChangeType.ADD,
+          oldPath = null,
+          newPath = null,
+          oldContent = None,
+          newContent = None,
+          oldIsImage = false,
+          newIsImage = newIsImage,
+          oldObjectId = None,
+          newObjectId = Option(treeWalk.getObjectId(0)).map(_.name),
+          tooSmall = false,
+          tooLarge = false
+        )
+      } else {
+        DiffInfo(
+          changeType = ChangeType.ADD,
+          oldPath = null,
+          newPath = null,
+          oldIsImage = false,
+          newIsImage = newIsImage,
+          oldContent = None,
+          newContent = JGitUtil
+            .getContentFromId(git, treeWalk.getObjectId(0), false)
+            .filter(FileUtil.isText)
+            .map(convertFromByteArray),
+          oldObjectId = None,
+          newObjectId = Option(treeWalk.getObjectId(0)).map(_.name),
+          tooSmall = false,
+          tooLarge = false
+        )
+      }
+    )
+  )
+}
+<<< SM 4.7.0: 29.2
+maxColumn = 75
+===
+object a {
+  buffer.append((
+    if (!fetchContent) {
+      DiffInfo(
+        changeType = ChangeType.ADD,
+        newContent = None,
+        newObjectId = Option(treeWalk.getObjectId(0)).map(_.name),
+        tooLarge = false
+      )
+    } else {
+      DiffInfo(
+        changeType = ChangeType.ADD,
+        newContent = JGitUtil
+          .getContentFromId(git, treeWalk.getObjectId(0), false)
+          .filter(FileUtil.isText).map(convertFromByteArray),
+        newObjectId = Option(treeWalk.getObjectId(0)).map(_.name),
+        tooLarge = false
+      )
+    }
+  ))
+}
+>>>
+object a {
+  buffer.append(
+    (
+      if (!fetchContent) {
+        DiffInfo(
+          changeType = ChangeType.ADD,
+          newContent = None,
+          newObjectId = Option(treeWalk.getObjectId(0)).map(_.name),
+          tooLarge = false
+        )
+      } else {
+        DiffInfo(
+          changeType = ChangeType.ADD,
+          newContent = JGitUtil
+            .getContentFromId(git, treeWalk.getObjectId(0), false)
+            .filter(FileUtil.isText)
+            .map(convertFromByteArray),
+          newObjectId = Option(treeWalk.getObjectId(0)).map(_.name),
+          tooLarge = false
+        )
+      }
+    )
+  )
+}
+<<< SM 4.7.0: 29.3
+maxColumn = 75
+===
+object a {
+  buffer.append(
+    if (!fetchContent) {
+      DiffInfo(
+        changeType = ChangeType.ADD,
+        newContent = None,
+        newObjectId = Option(treeWalk.getObjectId(0)).map(_.name),
+        tooLarge = false
+      )
+    } else {
+      DiffInfo(
+        changeType = ChangeType.ADD,
+        newContent = JGitUtil
+          .getContentFromId(git, treeWalk.getObjectId(0), false)
+          .filter(FileUtil.isText).map(convertFromByteArray),
+        newObjectId = Option(treeWalk.getObjectId(0)).map(_.name),
+        tooLarge = false
+      )
+    }
+  )
+}
+>>>
+object a {
+  buffer.append(
+    if (!fetchContent) {
+      DiffInfo(
+        changeType = ChangeType.ADD,
+        newContent = None,
+        newObjectId = Option(treeWalk.getObjectId(0)).map(_.name),
+        tooLarge = false
+      )
+    } else {
+      DiffInfo(
+        changeType = ChangeType.ADD,
+        newContent = JGitUtil
+          .getContentFromId(git, treeWalk.getObjectId(0), false)
+          .filter(FileUtil.isText)
+          .map(convertFromByteArray),
+        newObjectId = Option(treeWalk.getObjectId(0)).map(_.name),
+        tooLarge = false
+      )
+    }
+  )
+}
+<<< SM 7.4.0: 30
+maxColumn = 80
+===
+object Test { (tree: Tree) =>
+  tree match { case LetL(CharLit) => ??? }
+(tree: Tree) => tree match { case LetL(CharLit) => ??? }
+(tree: Tree) => tree match { case LetL(CharLit) => ??? }
+(tree: Tree) => tree match { case LetL(CharLit) => ??? }
+(tree: Tree) => tree match { case LetL(CharLit) => ??? }
+(tree: Tree) => tree match { case LetL(CharLit) => ??? }
+}
+>>>
+object Test {
+  (tree: Tree) =>
+    tree match { case LetL(CharLit) => ??? }
+  (tree: Tree) => tree match { case LetL(CharLit) => ??? }
+  (tree: Tree) => tree match { case LetL(CharLit) => ??? }
+  (tree: Tree) => tree match { case LetL(CharLit) => ??? }
+  (tree: Tree) => tree match { case LetL(CharLit) => ??? }
+  (tree: Tree) => tree match { case LetL(CharLit) => ??? }
+}
+<<< SM 7.4.0: 31
+maxColumn = 80
+===
+object a {
+  licenses +=
+    (
+      "BSD New",
+      url("https://github.com/scala-js/scala-js/blob/master/LICENSE")
+    )
+}
+>>>
+object a {
+  licenses +=
+    (
+      "BSD New",
+      url("https://github.com/scala-js/scala-js/blob/master/LICENSE")
+    )
+}
+<<< SM 7.4.0: 32
+maxColumn = 80
+===
+object a {
+  val acceptableMimeTypes =
+    ((Seq(ApplicationJson, XJsonStream, TextCSV)
+      .map { mt => mt -> (mt, mt) }) ++ Seq(
+          AnyMimeType -> (XJsonStream, XJsonStream),
+          OctetStream -> (XJsonStream, OctetStream)
+        )).toMap
+}
+>>>
+object a {
+  val acceptableMimeTypes =
+    ((Seq(ApplicationJson, XJsonStream, TextCSV)
+      .map { mt => mt -> (mt, mt) }) ++ Seq(
+      AnyMimeType -> (XJsonStream, XJsonStream),
+      OctetStream -> (XJsonStream, OctetStream)
+    )).toMap
+}
+<<< SM 7.4.0: 33
+maxColumn = 80
+===
+object a {
+  val acceptableMimeTypes =
+    ((Seq(ApplicationJson, XJsonStream, TextCSV)
+      .map { mt => mt -> (mt, mt) }) ++ Seq(
+          AnyMimeType -> (XJsonStream, XJsonStream),
+          OctetStream -> (XJsonStream, OctetStream)
+        )).toMap
+}
+>>>
+object a {
+  val acceptableMimeTypes =
+    ((Seq(ApplicationJson, XJsonStream, TextCSV)
+      .map { mt => mt -> (mt, mt) }) ++ Seq(
+      AnyMimeType -> (XJsonStream, XJsonStream),
+      OctetStream -> (XJsonStream, OctetStream)
+    )).toMap
+}
+<<< SM 7.4.0: 34.1
+maxColumn = 80
+===
+object a {
+  val default = methodSym newValueParameter
+    (
+      newTermName("default"), tree.pos.focus,
+      SYNTHETIC
+    ) setInfo functionType(List(A1.tpe), B1.tpe)
+}
+>>>
+object a {
+  val default = methodSym newValueParameter
+    (
+      newTermName("default"), tree.pos.focus,
+      SYNTHETIC
+    ) setInfo functionType(List(A1.tpe), B1.tpe)
+}
+<<< SM 7.4.0: 34.2
+maxColumn = 60
+===
+object a {
+  val default = methodSym newValueParameter
+    (
+      newTermName("default"), tree.pos.focus,
+      SYNTHETIC
+    ) setInfo functionType(List(A1.tpe), B1.tpe)
+}
+>>>
+object a {
+  val default = methodSym newValueParameter
+    (
+      newTermName("default"), tree.pos.focus,
+      SYNTHETIC
+    ) setInfo functionType(List(A1.tpe), B1.tpe)
+}
+<<< SM 7.4.0: 35
+maxColumn = 76
+===
+object a {
+  ECNotUsed(ec =>
+    f.onFailure({ case _ =>
+      fail("onFailure should not have been called")
+    })(ec)
+  )
+}
+>>>
+object a {
+  ECNotUsed(ec =>
+    f.onFailure({ case _ =>
+      fail("onFailure should not have been called")
+    })(ec)
+  )
+}
+<<< SM 7.4.0: 36
+maxColumn = 76
+===
+object a {
+  foo match {
+    case _ => buildConditions(
+        names.tail,
+        ((
+          node: AbstractTestProxy
+        ) => node.getName == names.head && !node.isLeaf) :: acc
+    )
+  }
+}
+>>>
+object a {
+  foo match {
+    case _ =>
+      buildConditions(
+        names.tail,
+        (
+            (
+              node: AbstractTestProxy
+            ) => node.getName == names.head && !node.isLeaf
+        ) :: acc
+      )
+  }
+}
+<<< SM 7.4.0: 37
+maxColumn = 76
+===
+object a {
+  var sessionCheckFuncs
+      : List[(Map[String, SessionInfo], SessionInfo => Unit) => Unit] =
+    (
+        (
+            ses: Map[String, SessionInfo],
+            destroyer: SessionInfo => Unit
+        ) => {
+          foo
+        }
+    ) :: Nil
+}
+>>>
+object a {
+  var sessionCheckFuncs
+      : List[(Map[String, SessionInfo], SessionInfo => Unit) => Unit] =
+    (
+        (
+            ses: Map[String, SessionInfo],
+            destroyer: SessionInfo => Unit
+        ) => {
+          foo
+        }
+    ) :: Nil
+}
+<<< SM 7.4.0: 38
+maxColumn = 76
+===
+object a {
+  private def test_sort_on_comparables[T <: AnyRef with Comparable[
+    T
+  ]: ClassTag](
+      factory: ListFactory,
+      toElem: Int => T,
+      absoluteOrder: Boolean = true
+  ): Unit = {
+    foo
+  }
+}
+>>>
+object a {
+  private def test_sort_on_comparables[T <: AnyRef with Comparable[
+    T
+  ]: ClassTag](
+      factory: ListFactory,
+      toElem: Int => T,
+      absoluteOrder: Boolean = true
+  ): Unit = {
+    foo
+  }
+}
+<<< SM 7.4.0: 39
+maxColumn = 76
+===
+object a {
+  def curried: T1 => T2 => T3 => T4 => T5 => T6 => R = { (x1: T1) =>
+    (
+        (
+            x2: T2,
+            x3: T3,
+            x4: T4,
+            x5: T5,
+            x6: T6
+        ) => self.apply(x1, x2, x3, x4, x5, x6)
+    ).curried
+  }
+}
+>>>
+object a {
+  def curried: T1 => T2 => T3 => T4 => T5 => T6 => R = { (x1: T1) =>
+    (
+        (
+            x2: T2,
+            x3: T3,
+            x4: T4,
+            x5: T5,
+            x6: T6
+        ) => self.apply(x1, x2, x3, x4, x5, x6)
+    ).curried
+  }
+}
+<<< SM 7.4.0: 40.1
+maxColumn = 76
+===
+object a {
+  override def !(message: Any)(implicit
+      sender: ActorRef = Actor.noSender
+  ): Unit = ()
+}
+>>>
+object a {
+  override def !(message: Any)(implicit
+      sender: ActorRef = Actor.noSender
+  ): Unit = ()
+}
+<<< SM 7.4.0: 40.1
+maxColumn = 76
+===
+object a {
+  implicit def convertToScala[J](j: J)(implicit
+      mapping: J2SMapping[J]
+  ): mapping.S = mapping.toScala(j)
+}
+>>>
+object a {
+  implicit def convertToScala[J](j: J)(implicit
+      mapping: J2SMapping[J]
+  ): mapping.S = mapping.toScala(j)
+}
+<<< SM 7.4.0: 41
+maxColumn = 76
+===
+object a {
+    (
+        (a: A) => {
+          class N extends M[a.C] {
+            def m(x: a.C) = true
+          }
+          new N: M[Null]
+        }
+    ).apply(a).m(null) // NPE, missing bridge
+}
+>>>
+object a {
+  (
+      (a: A) => {
+        class N extends M[a.C] {
+          def m(x: a.C) = true
+        }
+        new N: M[Null]
+      }
+  ).apply(a).m(null) // NPE, missing bridge
+}
+<<< SM 7.4.0: 42.1
+maxColumn = 76
+===
+object a {
+  def flatMap[S <: RBound[S], RContainer[x <: RBound[x]], RBound[_], Result[
+      x <: RBound[x]
+  ] <: Monad[x, RContainer, RBound]](f: T => Result[S]): Result[S]
+}
+>>>
+object a {
+  def flatMap[S <: RBound[S], RContainer[x <: RBound[x]], RBound[_], Result[
+      x <: RBound[x]
+  ] <: Monad[x, RContainer, RBound]](f: T => Result[S]): Result[S]
+}
+<<< SM 7.4.0: 42.2
+maxColumn = 76
+===
+object a {
+  def flatMap[S <: RBound[S], RContainer[x <: RBound[x]], RBound[_], Result[
+      x <: RBound[x]
+  ] <: Monad[x, RContainer, RBound]](f: T => Result[S], foo: String): Result[S]
+}
+>>>
+object a {
+  def flatMap[S <: RBound[S], RContainer[x <: RBound[x]], RBound[_], Result[
+      x <: RBound[x]
+  ] <: Monad[x, RContainer, RBound]](
+      f: T => Result[S],
+      foo: String
+  ): Result[S]
+}
+<<< SM 7.4.0: 42.3
+maxColumn = 76
+===
+object a {
+  def span[a, s <: Seq[
+    a
+  ] { type MyType /*look ma, no type parameters!*/ <: s }](xs: s): s = xs f
+}
+>>>
+object a {
+  def span[a, s <: Seq[
+    a
+  ] { type MyType /*look ma, no type parameters!*/ <: s }](xs: s): s = xs f
+}
+<<< SM 7.4.0: 43
+maxColumn = 76
+===
+object a {
+    assert(
+      t21 ==
+        (
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21
+        )
+    )
+}
+>>>
+object a {
+  assert(
+    t21 ==
+      (
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21
+      )
+  )
+}
+<<< SM 7.4.0: 44
+maxColumn = 76
+===
+object a {
+  private val capturedStack =
+    (new Throwable().getStackTrace)
+      .filter(_.getMethodName.startsWith("supports"))
+      .find { el ⇒
+        val clazz = Class.forName(el.getClassName)
+        clazz
+          .getDeclaredMethod(el.getMethodName)
+          .getReturnType == classOf[CapabilityFlag]
+      } map { _.getMethodName } getOrElse "[unknown]"
+}
+>>>
+object a {
+  private val capturedStack =
+    (new Throwable().getStackTrace)
+      .filter(_.getMethodName.startsWith("supports"))
+      .find { el ⇒
+        val clazz = Class.forName(el.getClassName)
+        clazz
+          .getDeclaredMethod(el.getMethodName)
+          .getReturnType == classOf[CapabilityFlag]
+      } map { _.getMethodName } getOrElse "[unknown]"
+}
+<<< SM 7.4.0: 45
+maxColumn = 76
+===
+object a {
+  protected override def newAppended[B >: A](
+      that: GenTraversable[B]
+  ): Transformed[B] = new { val rest = that } with AbstractTransformed[B]
+    with Appended[B]
+}
+>>>
+object a {
+  protected override def newAppended[B >: A](
+      that: GenTraversable[B]
+  ): Transformed[B] = new { val rest = that }
+    with AbstractTransformed[B] with Appended[B]
+}
+<<< SM 7.4.0: 46
+maxColumn = 76
+===
+object a {
+  slice match {
+    case (xs, from, until) ⇒
+      likeVector(xs)({ _.drop(from).take(until - from) })
+  }
+}
+>>>
+object a {
+  slice match {
+    case (xs, from, until) ⇒
+      likeVector(xs)({ _.drop(from).take(until - from) })
+  }
+}
+<<< SM 7.4.0: 47.1
+maxColumn = 76
+===
+class a {
+  def this(settings: Settings, eventStream: EventStream) = this(() ⇒
+    eventStream.logLevel
+  )
+}
+>>>
+class a {
+  def this(settings: Settings, eventStream: EventStream) = this(() ⇒
+    eventStream.logLevel
+  )
+}
+<<< SM 7.4.0: 47.2
+maxColumn = 76
+===
+class a {
+  def thiz(settings: Settings, eventStream: EventStream) = thiz(() ⇒
+    eventStream.logLevel
+  )
+}
+>>>
+class a {
+  def thiz(settings: Settings, eventStream: EventStream) =
+    thiz(() ⇒ eventStream.logLevel)
+}
+<<< SM 7.4.0: 48
+maxColumn = 76
+===
+class a {
+  val ipv4: immutable.Seq[Inet4Address] = addresses
+    .collect({ case a: Inet4Address ⇒ a })(breakOut)
+}
+>>>
+class a {
+  val ipv4: immutable.Seq[Inet4Address] = addresses
+    .collect({ case a: Inet4Address ⇒ a })(breakOut)
+}
+<<< SM 7.4.0: 49
+maxColumn = 76
+===
+class a {
+  def this(
+    trapExit: Array[Class[_ <: Throwable]],
+    maxNrOfRetries: Int,
+    withinTimeRange: Int
+  ) = this(
+    trapExit.toList,
+    if (maxNrOfRetries < 0) None else Some(maxNrOfRetries),
+    if (withinTimeRange < 0) None else Some(withinTimeRange)
+  )
+}
+>>>
+class a {
+  def this(
+      trapExit: Array[Class[_ <: Throwable]],
+      maxNrOfRetries: Int,
+      withinTimeRange: Int
+  ) = this(
+    trapExit.toList,
+    if (maxNrOfRetries < 0) None else Some(maxNrOfRetries),
+    if (withinTimeRange < 0) None else Some(withinTimeRange)
+  )
+}
+<<< SM 7.4.0: 50
+maxColumn = 70
+===
+class a {
+  def step(
+      inner: Iteratee[E, A]
+  )(in: Input[E]): Iteratee[E, Iteratee[E, A]] = in match {
+    case Input.El(e) => Iteratee.flatten(
+        Future(p(e))(pec).map(b =>
+          if (b) Done(inner, in)
+          else stepNoBreak(inner)(in)
+        )(dec)
+      )
+    case _ => stepNoBreak(inner)(in)
+  }
+}
+>>>
+class a {
+  def step(
+      inner: Iteratee[E, A]
+  )(in: Input[E]): Iteratee[E, Iteratee[E, A]] = in match {
+    case Input.El(e) =>
+      Iteratee.flatten(
+        Future(p(e))(pec).map(b =>
+          if (b) Done(inner, in)
+          else stepNoBreak(inner)(in)
+        )(dec)
+      )
+    case _ => stepNoBreak(inner)(in)
+  }
+}
+<<< SM 7.4.0: 51
+maxColumn = 76
+===
+class a {
+  atPos(body.pos)(casegen.one(substitution(
+    body
+  ))) // since SubstOnly treemakers are dropped, need to do it here
+}
+>>>
+class a {
+  atPos(body.pos)(
+    casegen.one(
+      substitution(
+        body
+      )
+    )
+  ) // since SubstOnly treemakers are dropped, need to do it here
+}
+<<< SM 7.4.0: 52
+maxColumn = 76
+===
+class a {
+  val o2 =
+    v1.changes
+      .register(Witness({ i =>
+        result = result * i * i
+      })) // result = 2 * 2 * 2 = 8
+}
+>>>
+class a {
+  val o2 =
+    v1.changes
+      .register(Witness({ i =>
+        result = result * i * i
+      })) // result = 2 * 2 * 2 = 8
+}
+<<< SM 7.4.0: 53
+maxColumn = 76
+===
+object a {
+  def toJsCmd = """var x=document.getElementById(""" + select.encJs + """);
+    if (x) {
+    while (x.length > 0) {x.remove(0);}
+    var y = null;
+  """ + opts.map { case (value, text) =>
+    "y=document.createElement('option'); " + "y.text = " + text.encJs + "; " +
+      "y.value = " + value.encJs + "; " +
+      (if (Full(value) == dflt) "y.selected = true; " else "") +
+      " try {x.add(y, null);} catch(e) {if (typeof(e) == 'object' && typeof(e.number) == 'number' && (e.number & 0xFFFF) == 5){ x.add(y,x.options.length); } } "
+  }
+}
+>>>
+object a {
+  def toJsCmd = """var x=document.getElementById(""" + select.encJs + """);
+    if (x) {
+    while (x.length > 0) {x.remove(0);}
+    var y = null;
+  """ + opts.map { case (value, text) =>
+    "y=document.createElement('option'); " + "y.text = " + text.encJs + "; " +
+      "y.value = " + value.encJs + "; " +
+      (if (Full(value) == dflt) "y.selected = true; " else "") +
+      " try {x.add(y, null);} catch(e) {if (typeof(e) == 'object' && typeof(e.number) == 'number' && (e.number & 0xFFFF) == 5){ x.add(y,x.options.length); } } "
+  }
 }

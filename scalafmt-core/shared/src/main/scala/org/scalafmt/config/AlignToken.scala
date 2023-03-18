@@ -6,6 +6,7 @@ import metaconfig.Configured.Ok
 import metaconfig._
 import metaconfig.annotation.DeprecatedName
 import metaconfig.generic.Surface
+import org.scalafmt.util.ParamClauseParent
 
 /** Configuration option for aligning tokens.
   *
@@ -89,7 +90,14 @@ object AlignToken {
   class Matcher(val owner: Option[jurPattern], val parents: Seq[jurPattern]) {
     def matches(tree: meta.Tree): Boolean =
       owner.forall(check(tree)) &&
-        (parents.isEmpty || tree.parent.exists(x => parents.forall(check(x))))
+        (parents.isEmpty || tree.parent.exists { p =>
+          parents.forall(check(p)) || (p match {
+            case ParamClauseParent(pp) => parents.forall(check(pp))
+            case _: meta.Member.SyntaxValuesClause =>
+              p.parent.exists { pp => parents.forall(check(pp)) }
+            case _ => false
+          })
+        })
   }
 
   @inline

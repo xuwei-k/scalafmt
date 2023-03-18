@@ -11,7 +11,8 @@ def format_![T <: Tree](
   foo: Int
 )(f: A => B,
   k: D
-)(implicit ev: Parse[T],
+)(implicit
+  ev: Parse[T],
   ev2: EC
 ): String
 <<< #1462
@@ -60,4 +61,26 @@ object a {
   ) extends DIResource.LiftF(
         F.mkRef(Map.empty[Key, Item]).map(new Dummy.Impl(_))
       )
+}
+<<< #3509 1
+verticalMultiline.arityThreshold = 5
+verticalMultiline.newlineAfterOpenParen = true
+===
+object Log {
+  def redactIds(s: String): String = s.replaceAll("\\d{5,}", "<redacted>")
+}
+>>>
+object Log {
+  def redactIds(s: String): String = s.replaceAll("\\d{5,}", "<redacted>")
+}
+<<< #3509 2
+verticalMultiline.arityThreshold = 5
+verticalMultiline.newlineAfterOpenParen = false
+===
+object Log {
+  def redactIds(s: String): String = s.replaceAll("\\d{5,}", "<redacted>")
+}
+>>>
+object Log {
+  def redactIds(s: String): String = s.replaceAll("\\d{5,}", "<redacted>")
 }
