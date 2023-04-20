@@ -1726,12 +1726,13 @@ class Router(formatOps: FormatOps) {
         val expire = getLastEnclosedToken(expireTree)
         val indentLen = style.indent.main
 
+        def checkFewerBraces(tree: Tree) = tree match {
+          case p: Term.Apply => isFewerBraces(p)
+          case p: Term.Match => !tokenBefore(p.cases).left.is[T.LeftBrace]
+          case _ => false
+        }
         val nextDotIfSig = nextSelect.flatMap { ns =>
-          val ok = ns.qual match {
-            case p: Term.Apply => isFewerBraces(p)
-            case p: Term.Match => !tokenBefore(p.cases).left.is[T.LeftBrace]
-            case _ => false
-          }
+          val ok = checkFewerBraces(ns.qual)
           if (ok) Some(tokenBefore(ns.nameToken)) else None
         }
         def forcedBreakOnNextDotPolicy = nextSelect.map { selectLike =>
@@ -1898,18 +1899,20 @@ class Router(formatOps: FormatOps) {
         }
 
         // trigger indent only on the first newline
-        val nlIndent = Indent(indentLen, expire, After)
+        val noIndent =
+          checkFewerBraces(thisSelect.qual)
+        val nlIndent =
+          if (noIndent) Indent.Empty else Indent(indentLen, expire, After)
+        val spcPolicy = delayedBreakPolicyOpt
+        val nlPolicy = if (noIndent) spcPolicy else None
         val splits =
           if (nextNonCommentSameLine(tokens(t, 2)).right.is[T.Comment])
-            baseSplits.map(_.withIndent(nlIndent)) // will break
+            // will break
+            baseSplits.map(_.withIndent(nlIndent).andFirstPolicyOpt(nlPolicy))
           else {
-            val spcIndent = nextDotIfSig.fold(Indent.empty) { x =>
-              Indent(indentLen, x.left, ExpiresOn.Before)
-            }
             baseSplits.map { s =>
-              if (s.isNL) s.withIndent(nlIndent)
-              else
-                s.andFirstPolicyOpt(delayedBreakPolicyOpt).withIndent(spcIndent)
+              if (s.isNL) s.withIndent(nlIndent).andFirstPolicyOpt(nlPolicy)
+              else s.andFirstPolicyOpt(spcPolicy)
             }
           }
 
@@ -2429,7 +2432,7 @@ class Router(formatOps: FormatOps) {
         val spaceSplit = Split(Space, 0)
           .notIf(style.newlines.forceAfterImplicitParamListModifier)
           .withPolicy(
-            SingleLineBlock(params.last.tokens.last),
+            SingleLineBlock(params.tokens.last),
             style.newlines.notPreferAfterImplicitParamListModifier
           )
         Seq(

@@ -1301,9 +1301,9 @@ class FormatOps(
       val rightIsImplicit = r.is[soft.ImplicitOrUsing]
       val implicitNL = rightIsImplicit &&
         style.newlines.forceBeforeImplicitParamListModifier
-      val implicitParams =
-        if (!rightIsImplicit) Nil
-        else getImplicitParamList(ft.meta.rightOwner).getOrElse(Nil)
+      val implicitParams = if (rightIsImplicit) {
+        getImplicitParamList(ft.meta.rightOwner).fold(Nil: List[Tree])(_.values)
+      } else Nil
       val noSlb = implicitNL || aboveArityThreshold || ft.hasBreak &&
         !style.newlines.sourceIgnored && style.optIn.configStyleArguments ||
         implicitParams.nonEmpty &&
@@ -2076,28 +2076,17 @@ class FormatOps(
                 .withSingleLine(opt)
                 .andPolicy(decideNewlinesOnlyAfterToken(opt))
             }
-            val indent = t.parent match {
-              case Some(p: Term.Apply) =>
-                @tailrec
-                def isSelect(ma: Member.Apply): Boolean = ma.fun match {
-                  case x: Member.Apply => isSelect(x)
-                  case x => x.is[Term.Select]
-                }
-                if (isSelect(p)) None // select is taken care off elsewhere
-                else Some(style.indent.main + style.indent.getSignificant)
-              case _ => None
-            }
             Some(new OptionalBracesRegion {
               def owner = t.parent
               def splits = Some(t.values match {
                 case (tf: Term.FunctionTerm) :: Nil
                     if !style.newlines.alwaysBeforeCurlyLambdaParams &&
                       t.parent.exists(_.is[Term.Apply]) =>
-                  getSplits(ft, t, forceNL = false, indentOpt = indent) match {
+                  getSplits(ft, t, forceNL = false) match {
                     case s +: rs if !s.isNL => funcSplit(tf)(s.fileLine) +: rs
                     case ss => ss
                   }
-                case _ => getSplits(ft, t, forceNL = true, indentOpt = indent)
+                case _ => getSplits(ft, t, forceNL = true)
               })
               def rightBrace = treeLast(t)
             })

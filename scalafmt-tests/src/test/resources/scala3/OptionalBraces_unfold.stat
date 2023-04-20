@@ -3741,7 +3741,7 @@ indent.main = 4
 object a:
   def f(): Unit =
     List(1, 2, 3).foldLeft(1):
-      case (a, b) => a + b
+          case (a, b) => a + b
 >>>
 object a:
    def f(): Unit =
@@ -3921,8 +3921,8 @@ def test(): String =
 >>>
 def test(): String =
   Block:
-       2 + 2
-    .toString
+     2 + 2
+  .toString
 <<< #3448 2
 indent.significant = 1
 ===
@@ -3933,8 +3933,8 @@ def test(): String =
 >>>
 def test(): String =
   Block:
-     2 + 2
-    .toString
+   2 + 2
+  .toString
 <<< #3448 3
 indent.significant = 1
 ===
@@ -3960,8 +3960,8 @@ def test(): String =
     3 + 3
 >>>
 def test(): String = bar:
-   2 + 2
-  .baz
+ 2 + 2
+.baz
   .qux:
    3 + 3
 <<< #3448 5
@@ -3975,8 +3975,8 @@ class test:
 >>>
 class test:
  bar:
-    2 + 2
-   .baz
+  2 + 2
+ .baz
    .qux:
     3 + 3
 <<< #3489 1
@@ -3986,7 +3986,7 @@ class test:
 >>>
 class test:
    bar:
-        2 + 2
+      2 + 2
 <<< #3489 2
 class test:
   baz.qux:
@@ -4000,22 +4000,26 @@ class test:
   foo.bar:
     2 + 2
   .baz
+  .qux
 >>>
 class test:
    foo
      .bar:
         2 + 2
      .baz
+     .qux
 <<< #3489 4
 class test:
   bar:
      2 + 2
     .baz
+  .qux
 >>>
 class test:
    bar:
-        2 + 2
-     .baz
+      2 + 2
+   .baz
+     .qux
 <<< #3489 5
 class test:
   bar:
@@ -4025,20 +4029,21 @@ class test:
 >>>
 class test:
    bar:
-        2 + 2
-     .baz:
-        3 + 3
+      2 + 2
+   .baz:
+      3 + 3
 <<< #3489 6
 class test:
   bar:
      2 + 2
-    .baz.qux:
+    .baz
+    .qux:
        3 + 3
 >>>
 class test:
    bar:
-        2 + 2
-     .baz
+      2 + 2
+   .baz
      .qux:
         3 + 3
 <<< #3489 7
