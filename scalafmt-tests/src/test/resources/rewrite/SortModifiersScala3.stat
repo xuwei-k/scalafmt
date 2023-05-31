@@ -54,3 +54,11 @@ inline transparent def choose(b: Boolean): A = {
   if (b) { new A }
   else { new B }
 }
+<<< #3546
+rewrite.sortModifiers.order = [ "private" ]
+===
+final class Test[F[_]](using private val F: Concurrent[F]) extends AnyVal:
+  def both[A](fa1: F[A], fa2: F[A]): F[(A, A)] = F.both(fa1, fa2)
+>>>
+final class Test[F[_]](using private val F: Concurrent[F]) extends AnyVal:
+  def both[A](fa1: F[A], fa2: F[A]): F[(A, A)] = F.both(fa1, fa2)

@@ -4649,3 +4649,42 @@ extension (s: String)
    /** ... */
    def foo(): Unit = ???
    def bar(): Unit = ???
+<<< #3527
+def foo(xs: List[Int]) =
+  xs.map: x =>
+    x + 1
+  .toSet
+  .filter: x =>
+    x > 0
+  .toList
+>>>
+def foo(xs: List[Int]) =
+  xs.map: x =>
+     x + 1
+  .toSet
+    .filter: x =>
+       x > 0
+    .toList
+<<< #3537 1
+rewrite.scala3.convertToNewSyntax = yes
+rewrite.scala3.removeOptionalBraces = yes
+===
+object A:
+  new Foo("xyz") {
+    print("msg")
+  }.bar()
+>>>
+object A:
+   new Foo("xyz"):
+      print("msg")
+   .bar()
+<<< #3537 2
+object A:
+  new Foo("xyz"):
+    print("msg")
+  .bar()
+>>>
+object A:
+   new Foo("xyz"):
+      print("msg")
+   .bar()
