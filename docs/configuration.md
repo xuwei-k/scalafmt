@@ -25,7 +25,7 @@ maxColumn
   regular resolution.
 - GitHub mobile view only shows 80 characters and sometimes you might review
   code on your phone.
-- Consider refactoring your code before of choosing a value above 100.
+- Consider refactoring your code before choosing a value above 100.
 
 ### `assumeStandardLibraryStripMargin`
 
@@ -90,6 +90,9 @@ If the version requested is different from the version of the installed
 formatter, the correct release will be downloaded dynamically.
 
 > Since v3.1.0, the `version` parameter is required to be specified explicitly.
+
+Since that requires access to artifact repositories, please see more on that on the
+[Installation](installation.md#using-custom-repositories-with-cli) page.
 
 ## Scala Dialects
 
@@ -589,6 +592,83 @@ foo // c1
 }
 ```
 
+#### `indent.fewerBraces`
+
+This parameter controls whether extra `indent.main` is added
+to the sole argument of a method call using the "fewer braces"
+syntax. The following values are supported:
+
+- `always`: always applies extra indent
+- `never`: doesn't apply any extra indent
+- `beforeSelect`: applies extra indent only to fewer-braces
+  expressions followed by a `.select`
+
+```scala mdoc:defaults
+indent.fewerBraces
+```
+
+> In Scala 3.3.0, only `never` provides compiler-compatible code.
+> Other options will work in 3.3.1-RC1 and later
+> (see [Parser section](https://github.com/lampepfl/dotty/releases/tag/3.3.1-RC1)).
+> Also, `never` is implicitly forced if indentation width is less than 2.
+
+```scala mdoc:scalafmt
+runner.dialect = Scala3
+indent.significant = 3
+indent.fewerBraces = always
+---
+bar:
+  2 + 2
+
+foo.bar:
+  2 + 2
+
+foo:
+  2 + 2
+.bar:
+  3 + 3
+.baz // c
+.qux
+```
+
+```scala mdoc:scalafmt
+runner.dialect = Scala3
+indent.significant = 3
+indent.fewerBraces = never
+---
+bar:
+  2 + 2
+
+foo.bar:
+  2 + 2
+
+foo:
+  2 + 2
+.bar:
+  3 + 3
+.baz // c
+.qux
+```
+
+```scala mdoc:scalafmt
+runner.dialect = Scala3
+indent.significant = 3
+indent.fewerBraces = beforeSelect
+---
+bar:
+  2 + 2
+
+foo.bar:
+  2 + 2
+
+foo:
+  2 + 2
+.bar:
+  3 + 3
+.baz // c
+.qux
+```
+
 ### Indent for `binPack.unsafeCallSite`
 
 Normally, even when binpacking, there's a new level of indentation added for
@@ -871,9 +951,12 @@ Apart from a few special cases, the way alignment works is as follows:
   - both owners belong to the same "statement container"; this is determined
     internally and usually selects the nearest containing block, template,
     match, argument or parameter group.
-- if two tokens match:
-  - if there's a space before them, they themselves will be aligned on the right
-  - if there's a space after them, the next tokens will be aligned on the left
+- for each token that has matches in the surrounding lines:
+  - we'll determine the amount of extra space needed to be added _before_
+    that token, to align it _on the right_ with matching tokens
+  - however, if there was no space before the token, and `align.delayUntilSpace`
+    is set, that extra space will be added to the next space on its line, thus
+    aligning subsequent token _on the left_.
 
 Align has several nested fields, which you can customize. However, it comes with
 four possible presets: none, some, more, & most.
@@ -1362,6 +1445,48 @@ object a {
 }
 ```
 
+### `align.delayUntilSpace`
+
+If this flag is set, the formatter will not forcefully pull apart two successive
+non-whitespace tokens that would otherwise be formatted without a space between
+them.
+
+Instead, the extra alignment spaces will be added to the next space on the same line.
+
+> Since v3.7.13. Prior to that, this behaviour was always enabled.
+
+```scala mdoc:defaults
+align.delayUntilSpace
+```
+
+```scala mdoc:scalafmt
+align.preset = more
+align.delayUntilSpace = true
+align.tokens."+" = [ { code = ":" }, { code = "(" }, { code = ")" }, { code = "=" } ]
+---
+object a {
+  def meeethod1(pram1: AnyRef): Any = ???
+  def methd2(paaaaaram2: Any): Any = ???
+  def meth3(param333333: Any): Any = ???
+  def md4(param4: Any): Any = ???
+}
+```
+
+vs
+
+```scala mdoc:scalafmt
+align.preset = more
+align.delayUntilSpace = false
+align.tokens."+" = [ { code = ":" }, { code = "(" }, { code = ")" }, { code = "=" } ]
+---
+object a {
+  def meeethod1(pram1: AnyRef): Any = ???
+  def methd2(paaaaaram2: Any): Any = ???
+  def meth3(param333333: Any): Any = ???
+  def md4(param4: Any): Any = ???
+}
+```
+
 ## Newlines
 
 The `newlines.*` options are used to configure when and where `scalafmt` should
@@ -1378,10 +1503,6 @@ This parameter controls the general approach to line breaks, and whether to take
 into account existing newlines in the source. The default value (if the
 parameter is not specified) is the _classic_, original way. Below are the
 alternatives.
-
-> These alternatives are EXPERIMENTAL and might change in the future without
-> regard to any `edition` settings, until fully released (and this message
-> deleted).
 
 #### `newlines.source=keep`
 
@@ -2457,6 +2578,44 @@ newlines.inInterpolation
     because this option doesn't allow breaking right after `${`
 - `avoid`: attemps to avoid breaks within the spliced code, regardless of line overflow
 - `oneline`: formats the splice on a single line, or breaks after `${` if overflows
+
+### `newlines.ignoreInSyntax`
+
+The formatter frequently chooses between adding a newline and continuing the
+same line but either prohibiting or heavily discouraging subsequent newlines
+_between_ tokens, to fit the rest of the expression on the same line.
+
+However, in many cases and, for historical reasons, intentionally, newlines
+_within_ tokens have been frequently ignored, leading to "single-line" blocks
+which actually span multiple lines.
+
+This boolean parameter now allows controlling whether to ignore newlines found
+in syntax of strings or other possibly multi-line tokens when newlines are
+otherwise prohibited or undesirable (such as for single-line formatting).
+
+```scala mdoc:defaults
+newlines.ignoreInSyntax
+```
+
+> Since v3.7.13. Prior to that, this behaviour was always enabled.
+
+```scala mdoc:scalafmt
+newlines.ignoreInSyntax = true
+---
+// ignores newline in string, pretends everything fits on one line
+println(s"""${1}
+    """.stripMargin
+)
+```
+
+```scala mdoc:scalafmt
+newlines.ignoreInSyntax = false
+---
+// detects newline in string, forces proper multi-line formatting
+println(s"""${1}
+    """.stripMargin
+)
+```
 
 ### `optIn.annotationNewlines`
 
@@ -4223,6 +4382,71 @@ spaces.afterSymbolicDefs
 spaces.afterSymbolicDefs=true
 ---
 def +++(a: A): F[A]
+```
+
+### `spaces.beforeXxxArgInParens`
+
+> Since v3.7.13.
+
+These parameters control whether a space should be added before an argument of
+a function call or infix expression, if the argument is enclosed in parentheses.
+
+They take the following values:
+
+- `Never`: no space is added
+- `Always`: space is added
+- `AfterSymbolic`: space is added if the infix operator or function name is
+  symbolic (doesn't start with a letter or underscore)
+
+Please note that these parameters will not affect spacing after an
+[unary operator](https://docs.scala-lang.org/scala3/reference/changed-features/operators.html#unary-operators)
+(i.e., one of `+`, `-`, `!`, `~`), as it's neither a function call nor an infix.
+
+Also, `spaces.beforeApplyArgInParens` generalizes the special-case parameter
+`spaces.afterTripleEquals` which only applies to a `===` function call.
+
+```scala mdoc:defaults
+spaces.beforeApplyArgInParens
+spaces.beforeInfixArgInParens
+```
+
+```scala mdoc:scalafmt
+spaces.beforeApplyArgInParens = Always
+spaces.beforeInfixArgInParens = Always
+---
++(baz)
+===(baz)
+bar(baz)
+
+foo +(baz)
+foo ===(baz)
+foo bar(baz)
+```
+
+```scala mdoc:scalafmt
+spaces.beforeApplyArgInParens = Never
+spaces.beforeInfixArgInParens = Never
+---
++ (baz)
+=== (baz)
+bar (baz)
+
+foo + (baz)
+foo === (baz)
+foo bar (baz)
+```
+
+```scala mdoc:scalafmt
+spaces.beforeApplyArgInParens = AfterSymbolic
+spaces.beforeInfixArgInParens = AfterSymbolic
+---
++ (baz)
+===(baz)
+bar (baz)
+
+foo +(baz)
+foo ===(baz)
+foo bar (baz)
 ```
 
 ## Literals

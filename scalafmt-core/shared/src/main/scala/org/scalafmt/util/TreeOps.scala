@@ -323,12 +323,6 @@ object TreeOps {
   )(implicit classifier: Classifier[Tree, A]): Boolean =
     findTreeWithParentOfType[A](tree).isDefined
 
-  def isDefDef(tree: Tree): Boolean =
-    tree match {
-      case _: Decl.Def | _: Defn.Def | _: Defn.Macro => true
-      case _ => false
-    }
-
   @tailrec
   def defDefBody(tree: Tree): Option[Tree] =
     tree match {
@@ -350,7 +344,7 @@ object TreeOps {
   }
 
   @tailrec
-  def defDefReturnType(tree: Tree): Option[Type] =
+  private def defDefReturnTypeImpl(tree: Tree): Option[Type] =
     tree match {
       case d: Decl.Def => Some(d.decltpe)
       case d: Defn.Def => d.decltpe
@@ -363,11 +357,14 @@ object TreeOps {
       case _: Pat.Var | _: Term.Name | _: Member.ParamClause |
           _: Member.ParamClauseGroup =>
         tree.parent match {
-          case Some(p) => defDefReturnType(p)
+          case Some(p) => defDefReturnTypeImpl(p)
           case _ => None
         }
       case _ => None
     }
+  def defDefReturnType(tree: Tree): Option[Type] =
+    defDefReturnTypeImpl(tree).filter(!_.pos.isEmpty)
+
   val DefDefReturnTypeLeft =
     new FormatToken.ExtractFromMeta(x => defDefReturnType(x.leftOwner))
   val DefDefReturnTypeRight =

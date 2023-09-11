@@ -9,8 +9,8 @@ def parseTagVersion: String = {
 def localSnapshotVersion: String = s"$parseTagVersion-SNAPSHOT"
 def isCI = System.getenv("CI") != null
 
-def scala212 = "2.12.17"
-def scala213 = "2.13.10"
+def scala212 = "2.12.18"
+def scala213 = "2.13.11"
 
 inThisBuild(
   List(
@@ -260,7 +260,7 @@ lazy val tests = project
     publish / skip := true,
     libraryDependencies ++= Seq(
       // Test dependencies
-      "com.lihaoyi" %% "scalatags" % "0.11.1",
+      "com.lihaoyi" %% "scalatags" % "0.12.0",
       scalametaTestkit,
       munit.value
     ),

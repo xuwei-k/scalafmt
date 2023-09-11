@@ -464,7 +464,7 @@ class A {
       )
     }.f("f")
 }
-<<< #1969
+<<< #1969 empty body
 object a {
   And("foo") { () =>
     // bar
@@ -473,6 +473,20 @@ object a {
 >>>
 object a {
   And("foo") { () =>
+    // bar
+  }
+}
+<<< #1969 non-empty body
+object a {
+  And("foo") { () =>
+    baz
+    // bar
+  }
+}
+>>>
+object a {
+  And("foo") { () =>
+    baz
     // bar
   }
 }

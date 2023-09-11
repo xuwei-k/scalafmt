@@ -133,7 +133,7 @@ version = @STABLE_VERSION@
 ### Task keys
 
 - `myproject/scalafmt`: Format main sources of `myproject` project
-- `myproject/test:scalafmt`: Format test sources of `myproject` project
+- `myproject/Test/scalafmt`: Format test sources of `myproject` project
 - `scalafmtCheck`: Check if the scala sources under the project have been
   formatted.
 - `scalafmtSbt`: Format `*.sbt` and `project/*.scala` files.
@@ -378,6 +378,34 @@ println(website.plaintext(org.scalafmt.cli.CliArgParser.buildInfo))
 println(website.plaintext(org.scalafmt.cli.CliArgParser.scoptParser.usage))
 ```
 
+### Using custom repositories with CLI
+
+Under the hood, `scalafmt` uses the `scalafmt-dynamic` library and, in turn,
+`coursier`, to download the version (of `scalafmt-core`) specified in
+`.scalafmt.conf` file.
+
+By default, coursier will download from a few standard repositories (including
+sonatype, both public and snapshot). However, if you'd like to use instead some
+custom repositories within your environment, please specify them using the
+`COURSIER_REPOSITORIES` environment variable.
+
+#### Repository credentials
+
+Additionally, if your repositories require credentials, please specify them
+in the [`COURSIER_CREDENTIALS`](https://get-coursier.io/docs/other-credentials)
+environment variable.
+
+Keep in mind that `coursier` credential format is not the same as, say, `sbt`,
+and since multiple entries are allowed and expected, each requires a unique
+prefix of your choosing.
+
+Others have also reported needing to include in their credentials settings such as
+
+```
+<prefix>.pass-on-redirect=true
+<prefix>.auto=true
+```
+
 ## Gradle
 
 It is possible to use scalafmt in gradle with the following externally
@@ -497,6 +525,39 @@ By default, `scalafmt` only formats files that match the
 ```scala mdoc:silent
 val scalafmtThatIgnoresProjectSettings = scalafmt.withRespectProjectFilters(false)
 ```
+
+### Alternate repositories and credentials
+
+`scalafmt` uses some default repositories to download the version specified in
+`.scalafmt.conf`; these repositories could be hardcoded or potentially specified
+via the environment variables.
+
+In order to specify explicit repositories as well, one could use
+
+```scala mdoc:silent
+val scalafmtWithRepos = scalafmt.withMavenRepositories(
+  "https://repo-1/snapshots",
+  "https://repo-2/public"
+)
+```
+
+In addition, if some of the default or custom repositories require access credentials,
+they could be specified via
+
+```scala mdoc:silent
+import org.scalafmt.interfaces._
+
+val scalafmtWithCreds = scalafmtWithRepos match {
+  case x: RepositoryCredential.ScalafmtExtension =>
+    x.withRepositoryCredentials(
+      new RepositoryCredential("repo-1", "username", "password")
+    )
+  case x => x
+}
+```
+
+This capability was added to the public interface as an extension method, accessible
+via a separate sub-interface.
 
 ### Clearing resources
 

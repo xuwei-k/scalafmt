@@ -266,6 +266,10 @@ case class ScalafmtConfig(
 
   def formatInfix(tree: => Tree): Boolean =
     breakAfterInfix(tree) ne Newlines.AfterInfix.keep
+
+  def getFewerBraces(): Indents.FewerBraces =
+    if (indent.getSignificant < 2) Indents.FewerBraces.never
+    else indent.fewerBraces
 }
 
 object ScalafmtConfig {
@@ -396,8 +400,9 @@ object ScalafmtConfig {
       }
       docstrings.validate
       if (errors.nonEmpty) {
-        val prefix = s"newlines.source=${newlines.source} and ["
-        allErrors += errors.mkString(prefix, ",", "]")
+        allErrors += s"newlines.source=${newlines.source} and ["
+        errors.foreach(x => allErrors += "\t" + x)
+        allErrors += "]"
       }
     }
     locally {

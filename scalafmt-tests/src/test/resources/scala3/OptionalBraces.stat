@@ -876,6 +876,48 @@ object a:
             stat4
          end if
       end cond
+<<< remove optional braces within if-cond
+rewrite.scala3.removeOptionalBraces = yes
+===
+private def mtd: Res =
+  if {
+     bar &&
+     baz
+  } then
+     foo
+>>>
+private def mtd: Res =
+  if bar &&
+     baz
+  then foo
+<<< remove optional braces within else-if
+rewrite.scala3.removeOptionalBraces = yes
+===
+private def mtd: Res =
+  if foo then fooBody
+  else {
+    if bar then
+      barBody
+    else bazBody
+  }
+>>>
+private def mtd: Res =
+  if foo then fooBody
+  else if bar then barBody
+  else bazBody
+<<< remove optional braces within else-if 2
+rewrite.scala3.removeOptionalBraces = yes
+===
+private def mtd: Res =
+  if foo then fooBody
+  else {
+    if bar then barBody else bazBody
+  }
+>>>
+private def mtd: Res =
+  if foo then fooBody
+  else if bar then barBody
+  else bazBody
 <<< rewrite with given-with
 rewrite.scala3.removeOptionalBraces = oldSyntaxToo
 ===
@@ -3850,7 +3892,156 @@ class test:
   2 + 2
  .baz.qux:
   3 + 3
-<<< #3489 1
+<<< #3489 1 fewerBraces = always
+indent.fewerBraces = always
+===
+class test:
+  bar:
+    2 + 2
+>>>
+class test:
+   bar:
+        2 + 2
+<<< #3489 2 fewerBraces = always
+indent.fewerBraces = always
+===
+class test:
+  baz.qux:
+    2 + 2
+>>>
+class test:
+   baz.qux:
+        2 + 2
+<<< #3489 3 fewerBraces = always
+indent.fewerBraces = always
+===
+class test:
+  foo.bar:
+    2 + 2
+  .baz
+>>>
+class test:
+   foo
+     .bar:
+        2 + 2
+     .baz
+<<< #3489 4 fewerBraces = always
+indent.fewerBraces = always
+===
+class test:
+  bar:
+     2 + 2
+    .baz
+>>>
+class test:
+   bar:
+        2 + 2
+     .baz
+<<< #3489 5 fewerBraces = always
+indent.fewerBraces = always
+===
+class test:
+  bar:
+     2 + 2
+    .baz:
+       3 + 3
+>>>
+class test:
+   bar:
+        2 + 2
+     .baz:
+        3 + 3
+<<< #3489 6 fewerBraces = always
+indent.fewerBraces = always
+===
+class test:
+  bar:
+     2 + 2
+    .baz.qux:
+       3 + 3
+>>>
+class test:
+   bar:
+        2 + 2
+     .baz.qux:
+        3 + 3
+<<< #3489 7 fewerBraces = always
+indent.fewerBraces = always
+===
+class test:
+  bar (
+     2 + 2
+     )
+    .baz.qux:
+       3 + 3
+>>>
+class test:
+   bar(
+     2 + 2
+   ).baz.qux:
+        3 + 3
+<<< #3489 8 fewerBraces = always
+indent.fewerBraces = always
+===
+class test:
+  bar.baz:
+     2 + 2
+    .qux:
+       3 + 3
+>>>
+class test:
+   bar
+     .baz:
+        2 + 2
+     .qux:
+        3 + 3
+<<< #3489 9 fewerBraces = always
+indent.fewerBraces = always
+===
+class test:
+  foo.match
+     case bar => ""
+     case baz => ""
+>>>
+class test:
+   foo.match
+        case bar => ""
+        case baz => ""
+<<< #3489 10 fewerBraces = always
+indent.fewerBraces = always
+===
+class test:
+  foo.match
+     case bar => ""
+     case baz => ""
+  .qux
+>>>
+class test:
+   foo
+     .match
+        case bar => ""
+        case baz => ""
+     .qux
+<<< #3489 11 fewerBraces = always
+indent.fewerBraces = always
+===
+class test:
+  foo.match
+     case bar => ""
+     case baz => ""
+  .qux:
+       3 + 3
+>>>
+class test:
+   foo
+     .match
+        case bar => ""
+        case baz => ""
+     .qux:
+        3 + 3
+<<< #3489 1 fewerBraces = beforeSelect
+indent.fewerBraces = beforeSelect
+===
 class test:
   bar:
     2 + 2
@@ -3858,7 +4049,9 @@ class test:
 class test:
    bar:
       2 + 2
-<<< #3489 2
+<<< #3489 2 fewerBraces = beforeSelect
+indent.fewerBraces = beforeSelect
+===
 class test:
   baz.qux:
     2 + 2
@@ -3866,7 +4059,156 @@ class test:
 class test:
    baz.qux:
       2 + 2
-<<< #3489 3
+<<< #3489 3 fewerBraces = beforeSelect
+indent.fewerBraces = beforeSelect
+===
+class test:
+  foo.bar:
+    2 + 2
+  .baz
+>>>
+class test:
+   foo
+     .bar:
+        2 + 2
+     .baz
+<<< #3489 4 fewerBraces = beforeSelect
+indent.fewerBraces = beforeSelect
+===
+class test:
+  bar:
+     2 + 2
+    .baz
+>>>
+class test:
+   bar:
+        2 + 2
+     .baz
+<<< #3489 5 fewerBraces = beforeSelect
+indent.fewerBraces = beforeSelect
+===
+class test:
+  bar:
+     2 + 2
+    .baz:
+       3 + 3
+>>>
+class test:
+   bar:
+        2 + 2
+     .baz:
+        3 + 3
+<<< #3489 6 fewerBraces = beforeSelect
+indent.fewerBraces = beforeSelect
+===
+class test:
+  bar:
+     2 + 2
+    .baz.qux:
+       3 + 3
+>>>
+class test:
+   bar:
+        2 + 2
+     .baz.qux:
+        3 + 3
+<<< #3489 7 fewerBraces = beforeSelect
+indent.fewerBraces = beforeSelect
+===
+class test:
+  bar (
+     2 + 2
+     )
+    .baz.qux:
+       3 + 3
+>>>
+class test:
+   bar(
+     2 + 2
+   ).baz.qux:
+      3 + 3
+<<< #3489 8 fewerBraces = beforeSelect
+indent.fewerBraces = beforeSelect
+===
+class test:
+  bar.baz:
+     2 + 2
+    .qux:
+       3 + 3
+>>>
+class test:
+   bar
+     .baz:
+        2 + 2
+     .qux:
+        3 + 3
+<<< #3489 9 fewerBraces = beforeSelect
+indent.fewerBraces = beforeSelect
+===
+class test:
+  foo.match
+     case bar => ""
+     case baz => ""
+>>>
+class test:
+   foo.match
+      case bar => ""
+      case baz => ""
+<<< #3489 10 fewerBraces = beforeSelect
+indent.fewerBraces = beforeSelect
+===
+class test:
+  foo.match
+     case bar => ""
+     case baz => ""
+  .qux
+>>>
+class test:
+   foo
+     .match
+        case bar => ""
+        case baz => ""
+     .qux
+<<< #3489 11 fewerBraces = beforeSelect
+indent.fewerBraces = beforeSelect
+===
+class test:
+  foo.match
+     case bar => ""
+     case baz => ""
+  .qux:
+       3 + 3
+>>>
+class test:
+   foo
+     .match
+        case bar => ""
+        case baz => ""
+     .qux:
+        3 + 3
+<<< #3489 1 fewerBraces = never
+indent.fewerBraces = never
+===
+class test:
+  bar:
+    2 + 2
+>>>
+class test:
+   bar:
+      2 + 2
+<<< #3489 2 fewerBraces = never
+indent.fewerBraces = never
+===
+class test:
+  baz.qux:
+    2 + 2
+>>>
+class test:
+   baz.qux:
+      2 + 2
+<<< #3489 3 fewerBraces = never
+indent.fewerBraces = never
+===
 class test:
   foo.bar:
     2 + 2
@@ -3879,7 +4221,9 @@ class test:
         2 + 2
      .baz
      .qux
-<<< #3489 4
+<<< #3489 4 fewerBraces = never
+indent.fewerBraces = never
+===
 class test:
   bar:
      2 + 2
@@ -3890,7 +4234,9 @@ class test:
    bar:
       2 + 2
    .baz.qux
-<<< #3489 5
+<<< #3489 5 fewerBraces = never
+indent.fewerBraces = never
+===
 class test:
   bar:
      2 + 2
@@ -3902,7 +4248,9 @@ class test:
       2 + 2
    .baz:
       3 + 3
-<<< #3489 6
+<<< #3489 6 fewerBraces = never
+indent.fewerBraces = never
+===
 class test:
   bar:
      2 + 2
@@ -3916,7 +4264,9 @@ class test:
    .baz
      .qux:
         3 + 3
-<<< #3489 7
+<<< #3489 7 fewerBraces = never
+indent.fewerBraces = never
+===
 class test:
   bar (
      2 + 2
@@ -3929,7 +4279,9 @@ class test:
      2 + 2
    ).baz.qux:
       3 + 3
-<<< #3489 8
+<<< #3489 8 fewerBraces = never
+indent.fewerBraces = never
+===
 class test:
   bar.baz:
      2 + 2
@@ -3942,7 +4294,9 @@ class test:
         2 + 2
      .qux:
         3 + 3
-<<< #3489 9
+<<< #3489 9 fewerBraces = never
+indent.fewerBraces = never
+===
 class test:
   foo.match
      case bar => ""
@@ -3952,7 +4306,9 @@ class test:
    foo.match
       case bar => ""
       case baz => ""
-<<< #3489 10
+<<< #3489 10 fewerBraces = never
+indent.fewerBraces = never
+===
 class test:
   foo.match
      case bar => ""
@@ -3965,7 +4321,9 @@ class test:
         case bar => ""
         case baz => ""
      .qux
-<<< #3489 11
+<<< #3489 11 fewerBraces = never
+indent.fewerBraces = never
+===
 class test:
   foo.match
      case bar => ""
@@ -4611,7 +4969,45 @@ extension (s: String)
    /** ... */
    def foo(): Unit = ???
    def bar(): Unit = ???
-<<< #3527
+<<< #3527 fewerBraces = always
+indent.fewerBraces = always
+===
+def foo(xs: List[Int]) =
+  xs.map: x =>
+    x + 1
+  .toSet
+  .filter: x =>
+    x > 0
+  .toList
+>>>
+def foo(xs: List[Int]) =
+  xs.map: x =>
+       x + 1
+    .toSet
+    .filter: x =>
+       x > 0
+    .toList
+<<< #3527 fewerBraces = beforeSelect
+indent.fewerBraces = beforeSelect
+===
+def foo(xs: List[Int]) =
+  xs.map: x =>
+    x + 1
+  .toSet
+  .filter: x =>
+    x > 0
+  .toList
+>>>
+def foo(xs: List[Int]) =
+  xs.map: x =>
+       x + 1
+    .toSet
+    .filter: x =>
+       x > 0
+    .toList
+<<< #3527 fewerBraces = never
+indent.fewerBraces = never
+===
 def foo(xs: List[Int]) =
   xs.map: x =>
     x + 1
@@ -4650,3 +5046,137 @@ object A:
    new Foo("xyz"):
       print("msg")
    .bar()
+<<< match inside infix chain, with rewrite
+rewrite.scala3.removeOptionalBraces = yes
+===
+object a {
+  withEval.so(evalComment so { c =>
+    s"($c) "
+  }) +
+  this.match {
+    case MateAdvice(seq, _, _, _) => seq.desc
+    case CpAdvice(judgment, _, _) => judgment.toString
+  } + "."
+}
+>>>
+object a:
+   withEval.so(evalComment so { c =>
+     s"($c) "
+   }) +
+     this.match {
+       case MateAdvice(seq, _, _, _) => seq.desc
+       case CpAdvice(judgment, _, _) => judgment.toString
+     } + "."
+<<< match as infix lhs, with rewrite
+rewrite.scala3.removeOptionalBraces = yes
+===
+def foo(url: String) = {
+  url match {
+    case "foo" => Some("")
+    case _ => None
+  } map { img =>
+    Html(s"""<img class="embed" src="$img" alt="$url"/>""")
+  }
+}
+>>>
+def foo(url: String) =
+  url match {
+    case "foo" => Some("")
+    case _     => None
+  } map { img =>
+    Html(s"""<img class="embed" src="$img" alt="$url"/>""")
+  }
+<<< match as select lhs, with rewrite
+rewrite.scala3.removeOptionalBraces = yes
+===
+def foo(url: String) = {
+  url.match {
+    case "foo" => Some("")
+    case _ => None
+  }.map { img =>
+    Html(s"""<img class="embed" src="$img" alt="$url"/>""")
+  }
+}
+>>>
+def foo(url: String) =
+  url
+    .match
+       case "foo" => Some("")
+       case _     => None
+    .map { img =>
+      Html(s"""<img class="embed" src="$img" alt="$url"/>""")
+    }
+<<< new anon as infix lhs, with rewrite
+rewrite.scala3.removeOptionalBraces = yes
+===
+object a {
+  new AdapterLike[Study] {
+    def query                           = Query(text take 100, me.map(_.id))
+    def nbResults                       = api count query
+    def slice(offset: Int, length: Int) = api.search(query, From(offset), Size(length))
+  } mapFutureList pager.withChaptersAndLiking(me)
+}
+>>>
+object a:
+   new AdapterLike[Study] {
+     def query = Query(text take 100, me.map(_.id))
+     def nbResults = api count query
+     def slice(offset: Int, length: Int) =
+       api.search(query, From(offset), Size(length))
+   } mapFutureList pager.withChaptersAndLiking(me)
+<<< new anon as postfix lhs, with rewrite
+rewrite.scala3.removeOptionalBraces = yes
+===
+object a {
+  new AdapterLike[Study] {
+    def query                           = Query(text take 100, me.map(_.id))
+    def nbResults                       = api count query
+    def slice(offset: Int, length: Int) = api.search(query, From(offset), Size(length))
+  } mapFutureList
+}
+>>>
+object a:
+   new AdapterLike[Study] {
+     def query = Query(text take 100, me.map(_.id))
+     def nbResults = api count query
+     def slice(offset: Int, length: Int) =
+       api.search(query, From(offset), Size(length))
+   } mapFutureList
+<<< new anon as select lhs, with rewrite
+rewrite.scala3.removeOptionalBraces = yes
+===
+object a {
+  new AdapterLike[Study] {
+    def query                           = Query(text take 100, me.map(_.id))
+    def nbResults                       = api count query
+    def slice(offset: Int, length: Int) = api.search(query, From(offset), Size(length))
+  }.mapFutureList
+}
+>>>
+object a:
+   new AdapterLike[Study]:
+      def query = Query(text take 100, me.map(_.id))
+      def nbResults = api count query
+      def slice(offset: Int, length: Int) =
+        api.search(query, From(offset), Size(length))
+   .mapFutureList
+<<< #3623 beforeCurlyLambdaParams
+newlines.beforeCurlyLambdaParams = true
+===
+object a:
+  List(1, 2, 3) map: x =>
+    x + 1
+>>>
+object a:
+   List(1, 2, 3) map:
+      x => x + 1
+<<< #3623 !beforeCurlyLambdaParams
+newlines.beforeCurlyLambdaParams = false
+===
+object a:
+  List(1, 2, 3) map: x =>
+    x + 1
+>>>
+object a:
+   List(1, 2, 3) map: x =>
+     x + 1

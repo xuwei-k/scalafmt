@@ -1,7 +1,7 @@
 package org.scalafmt.internal
 
 import org.scalafmt.Error.UnexpectedTree
-import org.scalafmt.config.{Align, BinPack}
+import org.scalafmt.config.{Align, BinPack, Indents}
 import org.scalafmt.config.{ImportSelectors, Newlines, ScalafmtConfig, Spaces}
 import org.scalafmt.internal.ExpiresOn.{After, Before}
 import org.scalafmt.internal.Length.{Num, StateColumn}
@@ -300,15 +300,14 @@ class Router(formatOps: FormatOps) {
                 else Some(false)
               (arrow, Some(arrow.left), 0, nlOnly)
             case _ =>
-              selfAnnotationLast match {
-                case Some(anno) =>
-                  val arrow = leftOwner.tokens.find(_.is[T.RightArrow])
-                  val expire = arrow.getOrElse(anno)
-                  val indent = style.indent.main
-                  (tokens(expire), arrow, indent, Some(isSelfAnnotationNL))
-                case _ =>
-                  (null, None, 0, None)
+              val annoOpt = selfAnnotationLast.map { anno =>
+                val indent = style.indent.main
+                val annoFT = tokens(anno)
+                val arrow = annoFT.left.is[T.RightArrow]
+                val expire = if (arrow) annoFT else next(nextNonComment(annoFT))
+                (expire, Some(expire.left), indent, Some(isSelfAnnotationNL))
               }
+              annoOpt.getOrElse { (null, None, 0, None) }
           }
         val lambdaPolicy =
           if (lambdaExpire == null) null
@@ -421,7 +420,11 @@ class Router(formatOps: FormatOps) {
             StartsStatementRight(stmt)
           ) if leftOwner.isInstanceOf[Term.FunctionTerm] =>
         val leftFuncBody = leftOwner.asInstanceOf[Term.FunctionTerm].body
-        val endOfFunction = getLastNonTrivialToken(leftFuncBody)
+        val endOfFunction = getLastNonTrivial(leftFuncBody)
+        val endIndent = leftOwner.parent match {
+          case Some(Term.Block(_ :: Nil)) => nextNonComment(endOfFunction).left
+          case _ => endOfFunction.left
+        }
         val canBeSpace = stmt.isInstanceOf[Term.FunctionTerm]
         val (afterCurlySpace, afterCurlyNewlines) =
           getSpaceAndNewlineAfterCurlyLambda(newlines)
@@ -432,21 +435,24 @@ class Router(formatOps: FormatOps) {
             (!rightOwner.is[Defn] || style.newlines.source.eq(Newlines.fold))
           )
             Split(Space, 0).withSingleLineNoOptimal(
-              getOptimalTokenFor(endOfFunction),
+              getOptimalTokenFor(endOfFunction.left),
               noSyntaxNL = true
             )
           else Split.ignored
         Seq(
           spaceSplit,
           Split(afterCurlyNewlines, 1)
-            .withIndent(style.indent.main, endOfFunction, After)
+            .withIndent(style.indent.main, endIndent, After)
         )
 
-      case FormatToken(T.RightArrow() | T.ContextArrow(), right, _)
-          if leftOwner.is[Term.FunctionTerm] ||
-            leftOwner.is[Term.PolyFunction] ||
-            (leftOwner.is[Template] &&
-              leftOwner.parent.exists(_.is[Term.NewAnonymous])) =>
+      case FormatToken(_: T.RightArrow | _: T.ContextArrow, right, _)
+          if (leftOwner match {
+            case _: Term.FunctionTerm | _: Term.PolyFunction => true
+            case t: Template => t.parent.exists(_.is[Term.NewAnonymous])
+            case t: Self =>
+              t.parent.exists(_.parent.exists(_.is[Term.NewAnonymous]))
+            case _ => false
+          }) =>
         val (endOfFunction, expiresOn) = leftOwner match {
           case t: Term.FunctionTerm => functionExpire(t)
           case t => getLastNonTrivialToken(t) -> ExpiresOn.Before
@@ -665,24 +671,27 @@ class Router(formatOps: FormatOps) {
               case _ => false
             }
           } =>
-        def modification: Modification = leftOwner match {
-          case _: Mod => Space
+        def modification: Modification = Space(leftOwner match {
+          case _ if left.is[T.Comment] => true
+          case _: Mod => true
           // Add a space between constructor annotations and their parameter lists
           // see:
           // https://github.com/scalameta/scalafmt/pull/1516
           // https://github.com/scalameta/scalafmt/issues/1528
-          case init: Init if init.parent.forall(_.is[Mod.Annot]) => Space
-          case t: Term.Name
-              if style.spaces.afterTripleEquals && t.value == "===" =>
-            Space
-          case name: Term.Name
-              if style.spaces.afterSymbolicDefs &&
-                isSymbolicName(name.value) && name.parent.exists(isDefDef) =>
-            Space
-          case _: Defn.ExtensionGroup if left.is[soft.KwExtension] =>
-            Space(style.spaces.afterKeywordBeforeParen)
-          case _ => Space(left.is[T.Comment])
-        }
+          case t: Init => t.parent.forall(_.is[Mod.Annot])
+          case Term.Name(name) =>
+            style.spaces.afterTripleEquals && name == "===" ||
+            (rightOwner match {
+              case _: Term.ArgClause =>
+                style.spaces.beforeApplyArgInParens(name)
+              case _: Member.ParamClause =>
+                style.spaces.afterSymbolicDefs && isSymbolicName(name)
+              case _ => false
+            })
+          case _: Defn.ExtensionGroup =>
+            style.spaces.afterKeywordBeforeParen && left.is[soft.KwExtension]
+          case _ => false
+        })
         def baseNoSplit(implicit fileLine: FileLine) = Split(modification, 0)
         val defn = isParamClauseSite(rightOwner)
         val defRhs = if (defn) defDefBodyParent(rightOwner) else None
@@ -755,7 +764,7 @@ class Router(formatOps: FormatOps) {
               )
           }
           val argsOpt = if (isAlignFirstParen) lastSyntaxClause else None
-          argsOpt.flatMap(tokens.getLastOpt).map(_.left).fold(splits) { x =>
+          argsOpt.flatMap(getLastTokenOpt).fold(splits) { x =>
             val noSplitIndents = Seq(
               Indent(StateColumn, x, ExpiresOn.Before),
               Indent(-indentLen, x, ExpiresOn.Before)
@@ -813,14 +822,10 @@ class Router(formatOps: FormatOps) {
       case FormatToken(
             _: T.KwObject | _: T.KwClass | _: T.KwTrait | _: T.KwEnum,
             _,
-            _
+            WithTemplateOnLeft(template)
           ) =>
-        def expire = defnTemplate(leftOwner)
-          .flatMap {
-            getTemplateGroups(_).flatMap(
-              _.lastOption.flatMap(_.headOption.flatMap(_.tokens.headOption))
-            )
-          }
+        def expire = getTemplateGroups(template)
+          .flatMap(_.last.headOption.flatMap(_.tokens.headOption))
           .getOrElse(getLastToken(leftOwner))
         def forceNewlineBeforeExtends = Policy.before(expire) {
           case Decision(FormatToken(_, soft.ExtendsOrDerives(), m), s)
@@ -830,8 +835,8 @@ class Router(formatOps: FormatOps) {
         val policy =
           if (style.binPack.keepParentConstructors) None
           else
-            defnBeforeTemplate(leftOwner).map { x =>
-              val policyEnd = Policy.End.On(x.tokens.last)
+            template.tokens.headOption.map { head =>
+              val policyEnd = Policy.End.Before(head)
               delayedBreakPolicy(policyEnd)(forceNewlineBeforeExtends)
             }
         Seq(Split(Space, 0).withPolicyOpt(policy))
@@ -1770,11 +1775,18 @@ class Router(formatOps: FormatOps) {
         val baseSplits = style.newlines.getSelectChains match {
           case Newlines.classic =>
             def getNlMod = {
-              val endSelect = nextSelect.fold(expire) { x =>
-                nextDotIfSig.fold(getLastNonTrivialToken(x.qual))(_.left)
+              val endSelect = nextDotIfSig.fold {
+                nextSelect.fold {
+                  val ko = style.getFewerBraces() ==
+                    Indents.FewerBraces.always && checkFewerBraces(expireTree)
+                  if (ko) None else Some(expire)
+                } { ns => Some(getLastNonTrivialToken(ns.qual)) }
+              } { nd =>
+                val ok = style.getFewerBraces() == Indents.FewerBraces.never
+                if (ok) Some(nd.left) else None
               }
-              val altIndent = Indent(-indentLen, endSelect, After)
-              NewlineT(alt = Some(ModExt(NoSplit).withIndent(altIndent)))
+              val altIndent = endSelect.map(Indent(-indentLen, _, After))
+              NewlineT(alt = Some(ModExt(NoSplit).withIndentOpt(altIndent)))
             }
 
             val prevChain = inSelectChain(prevSelect, thisSelect, expireTree)
@@ -1902,8 +1914,8 @@ class Router(formatOps: FormatOps) {
         }
 
         // trigger indent only on the first newline
-        val noIndent =
-          checkFewerBraces(thisSelect.qual)
+        val fbIndent = style.getFewerBraces() != Indents.FewerBraces.never
+        val noIndent = !fbIndent && checkFewerBraces(thisSelect.qual)
         val nlIndent =
           if (noIndent) Indent.Empty else Indent(indentLen, expire, After)
         val spcPolicy = delayedBreakPolicyOpt
@@ -1913,9 +1925,16 @@ class Router(formatOps: FormatOps) {
             // will break
             baseSplits.map(_.withIndent(nlIndent).andFirstPolicyOpt(nlPolicy))
           else {
+            val spcIndent = nextDotIfSig.fold {
+              val ok = style.getFewerBraces() == Indents.FewerBraces.always &&
+                nextSelect.isEmpty && checkFewerBraces(expireTree)
+              if (ok) nlIndent else Indent.empty
+            } { x =>
+              if (fbIndent) Indent(indentLen, x.left, Before) else Indent.Empty
+            }
             baseSplits.map { s =>
               if (s.isNL) s.withIndent(nlIndent).andFirstPolicyOpt(nlPolicy)
-              else s.andFirstPolicyOpt(spcPolicy)
+              else s.withIndent(spcIndent).andFirstPolicyOpt(spcPolicy)
             }
           }
 
@@ -1927,7 +1946,7 @@ class Router(formatOps: FormatOps) {
         Seq(
           Split(NoSplit, 0)
         )
-      case FormatToken(op @ T.Ident(_), right, _) if leftOwner.parent.exists {
+      case FormatToken(op: T.Ident, right, _) if leftOwner.parent.exists {
             case unary: Term.ApplyUnary =>
               unary.op.tokens.head == op
             case _ => false
@@ -1964,22 +1983,17 @@ class Router(formatOps: FormatOps) {
         )
 
       // Template
-      case FormatToken(_, soft.ExtendsOrDerives(), _) =>
-        val template = defnTemplate(rightOwner)
-        def lastToken = template.fold(getLastNonTrivialToken(rightOwner)) { x =>
-          templateDerivesOrCurlyOrLastNonTrivial(x)
-        }
+      case FormatToken(_, soft.ExtendsOrDerives(), TemplateOnRight(template)) =>
+        def lastToken = templateDerivesOrCurlyOrLastNonTrivial(template)
 
         binPackParentConstructorSplits(
           true,
-          template.toSet,
-          template.flatMap(findTemplateGroupOnRight(_.superType)),
+          Set(template),
+          findTemplateGroupOnRight(_.superType)(template),
           lastToken,
           style.indent.extendSite,
-          template.exists(x =>
-            if (x.early.nonEmpty) x.inits.nonEmpty
-            else x.inits.lengthCompare(1) > 0
-          )
+          if (template.early.nonEmpty) template.inits.nonEmpty
+          else template.inits.lengthCompare(1) > 0
         )
 
       // trait A extends B, C, D, E
@@ -2155,7 +2169,14 @@ class Router(formatOps: FormatOps) {
           Seq(Split(Newline, 0))
       // Last else branch
       case FormatToken(_: T.KwElse, _, _) if (leftOwner match {
-            case t: Term.If => !t.elsep.is[Term.If]
+            case t: Term.If =>
+              t.elsep match {
+                case _: Term.If => false
+                case b @ Term.Block(List(_: Term.If)) =>
+                  matchingOpt(nextNonComment(formatToken).right)
+                    .exists(_.end >= b.pos.end)
+                case _ => true
+              }
             case x => throw new UnexpectedTree[Term.If](x)
           }) =>
         val body = leftOwner.asInstanceOf[Term.If].elsep
