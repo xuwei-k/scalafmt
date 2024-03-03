@@ -13,9 +13,21 @@ case class RewriteSettings(
     imports: Imports.Settings = Imports.Settings(),
     preferCurlyFors: PreferCurlyFors.Settings = PreferCurlyFors.Settings(),
     trailingCommas: TrailingCommas = TrailingCommas(),
-    allowInfixPlaceholderArg: Boolean = true,
-    neverInfix: Pattern = Pattern.neverInfix
+    @annotation.DeprecatedName(
+      "allowInfixPlaceholderArg",
+      "Use `avoidInfix.excludePlaceholderArg` instead",
+      "3.8.0"
+    )
+    private val allowInfixPlaceholderArg: Boolean = true,
+    @annotation.ExtraName("neverInfix")
+    avoidInfix: AvoidInfixSettings = AvoidInfixSettings.default
 ) {
+  def isAllowInfixPlaceholderArg: Boolean =
+    avoidInfix.excludePlaceholderArg.getOrElse(allowInfixPlaceholderArg)
+
+  def withoutRewrites: RewriteSettings =
+    copy(rules = Nil, trailingCommas = trailingCommas.withoutRewrites)
+
   def rewriteFactoryRules: Seq[RewriteFactory] =
     rules.collect { case x: RewriteFactory => x }
 
@@ -29,8 +41,14 @@ case class RewriteSettings(
       .filter(_.nonEmpty)
   }
 
-  private[config] def forSbt: RewriteSettings =
-    neverInfix.forSbt.fold(this)(x => copy(neverInfix = x))
+  private[config] def forSbtOpt: Option[RewriteSettings] =
+    avoidInfix.forSbtOpt.map(x => copy(avoidInfix = x))
+
+  private[config] def forMainOpt: Option[RewriteSettings] =
+    avoidInfix.forMainOpt.map(x => copy(avoidInfix = x))
+
+  private[config] def forTestOpt: Option[RewriteSettings] =
+    avoidInfix.forTestOpt.map(x => copy(avoidInfix = x))
 }
 
 object RewriteSettings {

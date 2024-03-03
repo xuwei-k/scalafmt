@@ -83,13 +83,14 @@ lazy val dynamic = project
     buildInfoObject := "BuildInfo",
     libraryDependencies ++= List(
       "io.get-coursier" % "interface" % "0.0.17",
-      "com.typesafe" % "config" % "1.4.2",
+      "com.typesafe" % "config" % "1.4.3",
       munit.value % Test,
       scalametaTestkit % Test
     ),
     scalacOptions ++= scalacJvmOptions.value
   )
   .dependsOn(interfaces)
+  .dependsOn(core.jvm % "test")
   .enablePlugins(BuildInfoPlugin)
 
 lazy val interfaces = project
@@ -164,6 +165,7 @@ lazy val core = crossProject(JVMPlatform, JSPlatform)
     libraryDependencies ++= Seq(
       metaconfig.value,
       scalameta.value,
+      "org.scalameta" %% "mdoc-parser" % mdocV,
       // scala-reflect is an undeclared dependency of fansi, see #1252.
       // Scalafmt itself does not require scala-reflect.
       "org.scala-lang" % "scala-reflect" % scalaVersion.value
@@ -199,7 +201,6 @@ import sbtassembly.AssemblyPlugin.defaultUniversalScript
 
 val scalacJvmOptions = Def.setting {
   val cross = CrossVersion.partialVersion(scalaVersion.value) match {
-    case Some((2, 11)) => Seq("-target:jvm-1.8")
     case Some((2, 13)) =>
       Seq(
         "-Ymacro-annotations",

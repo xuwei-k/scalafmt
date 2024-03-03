@@ -6,7 +6,6 @@ import scala.annotation.tailrec
 import scala.meta.Dialect
 import scala.meta.dialects
 
-import org.scalafmt.CompatCollections.JavaConverters._
 import org.scalafmt.sysops.AbsoluteFile
 import org.scalafmt.sysops.OsSpecific._
 
@@ -64,7 +63,16 @@ object ProjectFiles {
     private def regex(seq: Seq[String]) = create(seq, new Regex(_))
 
     private final class Regex(regex: String) extends PathMatcher {
-      private val pattern = java.util.regex.Pattern.compile(regex)
+      private val pattern =
+        try { java.util.regex.Pattern.compile(regex) }
+        catch {
+          case e: java.util.regex.PatternSyntaxException =>
+            throw new ScalafmtConfigException(
+              s"""|Illegal regex in configuration: $regex
+                |reason: ${e.getMessage()}""".stripMargin
+            )
+        }
+
       def matches(path: file.Path): Boolean =
         pattern.matcher(path.toString).find()
     }
@@ -77,32 +85,47 @@ object ProjectFiles {
       matchesPath(file.path)
   }
 
+  case class FileInfo(lang: String, isTest: Boolean)
+
   sealed abstract class Layout {
-    def getLang(path: AbsoluteFile): Option[String]
-    def getDialectByLang(lang: String)(implicit
+    def getInfo(path: AbsoluteFile): Option[FileInfo]
+    protected[config] def getDialectByLang(lang: String)(implicit
         dialect: Dialect
     ): Option[NamedDialect]
+    final def getLang(path: AbsoluteFile): Option[String] =
+      getInfo(path).map(_.lang)
+    final def withLang(lang: String, style: ScalafmtConfig): ScalafmtConfig =
+      style.withDialect(getDialectByLang(lang)(style.dialect))
   }
 
   object Layout {
 
     case object StandardConvention extends Layout {
-      private val phaseLabels = Seq("main", "test", "it")
+      private val mainLabels = Seq("main")
+      private val testLabels = Seq("test", "it")
 
-      override def getLang(path: AbsoluteFile): Option[String] = {
-        val dirsIter = path.path.getParent.iterator().asScala
-        val dirs = dirsIter.map(_.toString).toArray
-        getLang(dirs, dirs.length)
+      override def getInfo(af: AbsoluteFile): Option[FileInfo] = {
+        val parent = af.path.getParent
+        val depth = parent.getNameCount()
+        val dirs = new Array[String](depth)
+        for (i <- 0 until depth) dirs(i) = parent.getName(i).toString
+        getInfo(dirs, depth)
       }
 
       @tailrec
-      private def getLang(dirs: Array[String], len: Int): Option[String] = {
+      private def getInfo(
+          dirs: Array[String],
+          len: Int
+      ): Option[FileInfo] = {
+        // src/phase/lang
         val srcIdx = dirs.lastIndexOf("src", len - 3)
         if (srcIdx < 0) None
         else {
-          val langIdx = srcIdx + 2
-          val found = phaseLabels.contains(dirs(srcIdx + 1))
-          if (found) Some(dirs(langIdx)) else getLang(dirs, langIdx)
+          val phase = dirs(srcIdx + 1)
+          def lang = dirs(srcIdx + 2)
+          if (mainLabels.contains(phase)) Some(FileInfo(lang, false))
+          else if (testLabels.contains(phase)) Some(FileInfo(lang, true))
+          else getInfo(dirs, srcIdx)
         }
       }
 
@@ -115,15 +138,15 @@ object ProjectFiles {
       @inline private def is3(implicit dialect: Dialect) =
         dialect.allowSignificantIndentation
 
-      @inline private def nd(text: sourcecode.Text[Dialect]) =
+      @inline private[config] def nd(text: sourcecode.Text[Dialect]) =
         Some(NamedDialect(text))
-      private val s210 = nd(dialects.Scala210)
-      private val s211 = nd(dialects.Scala211)
-      private val s212 = nd(NamedDialect.scala212)
-      private val s213 = nd(NamedDialect.scala213)
-      private val s3 = nd(NamedDialect.scala3)
+      private[config] val s210 = nd(dialects.Scala210)
+      private[config] val s211 = nd(dialects.Scala211)
+      private[config] val s212 = nd(NamedDialect.scala212)
+      private[config] val s213 = nd(NamedDialect.scala213)
+      private[config] val s3 = nd(NamedDialect.scala3)
 
-      override def getDialectByLang(lang: String)(implicit
+      protected[config] override def getDialectByLang(lang: String)(implicit
           dialect: Dialect
       ): Option[NamedDialect] = lang match {
         case "scala-2.10" if is211 => s210

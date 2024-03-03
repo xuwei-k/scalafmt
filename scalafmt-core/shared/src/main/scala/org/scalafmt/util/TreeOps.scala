@@ -48,23 +48,47 @@ object TreeOps {
     ret.result()
   }
 
+  object SingleArgInBraces {
+    def unapply(tree: Tree): Option[Term] = tree match {
+      case t: Term.ArgClause => unapply(t)
+      case _ => None
+    }
+    def unapply(tree: Term.ArgClause): Option[Term] = tree.values match {
+      case arg :: Nil if inBraces(tree) => Some(arg)
+      case _ => None
+    }
+    @inline def inBraces(tree: Term.ArgClause): Boolean =
+      tree.tokens.head.is[LeftBrace]
+
+    def orBlock(tree: Tree): Option[Tree] = tree match {
+      case t: Term.ArgClause => unapply(t)
+      case Term.Block(arg :: Nil) => Some(arg)
+      case _ => None
+    }
+
+    object OrBlock {
+      def unapply(tree: Tree): Option[Tree] = orBlock(tree)
+    }
+  }
+
   @tailrec
   def isBlockFunction(fun: Term.FunctionTerm): Boolean =
     fun.parent match {
-      case Some(Term.Block(`fun` :: Nil)) => true
-      case Some(next: Term.FunctionTerm) => isBlockFunction(next)
-      case _ => false
+      case Some(p: Term.FunctionTerm) => isBlockFunction(p)
+      case Some(p) => isExprWithParentInBraces(fun)(p)
+      case None => false
     }
 
-  def isFunctionWithBraces(fun: Term.Function): Boolean =
-    fun.parent match {
-      case Some(Term.Block(`fun` :: Nil)) => true
-      case _ => false
-    }
+  def isFunctionWithBraces(fun: Term.FunctionTerm): Boolean =
+    fun.parent.exists(isExprWithParentInBraces(fun))
+
+  def isExprWithParentInBraces(expr: Tree)(parent: Tree): Boolean =
+    SingleArgInBraces.orBlock(parent).contains(expr)
 
   def extractStatementsIfAny(tree: Tree): Seq[Tree] =
     tree match {
       case b: Term.Block => b.stats
+      case SingleArgInBraces(fun: Term.FunctionTerm) => fun :: Nil
       case b: Term.FunctionTerm if isBlockFunction(b) => b.body :: Nil
       case t: Pkg => t.stats
       // TODO(olafur) would be nice to have an abstract "For" superclass.
@@ -77,8 +101,8 @@ object TreeOps {
       case t: Type.Refine => t.stats
       case t: Source => t.stats
       case t: Template => t.stats
-      case t: CaseTree if t.body.tokens.nonEmpty => Seq(t.body)
-      case _ => Seq.empty[Tree]
+      case t: CaseTree if t.body.tokens.nonEmpty => t.body :: Nil
+      case _ => Nil
     }
 
   def getStatementStarts(
@@ -154,13 +178,11 @@ object TreeOps {
         case t @ Term.Block(arg :: Nil) // single-stat block
             if t.tokens.headOption // see if opening brace was removed
               .exists(x => x.is[Token.LeftBrace] && ftoks(x).left.ne(x)) =>
-          if (arg.is[Term.Function]) {
+          if (arg.is[Term.FunctionTerm]) {
             // handle rewritten apply { { x => b } } to a { x => b }
             val parentApply = findTreeWithParent(t) {
               case Term.Block(_) => None
-              case p @ Term.ArgClause(_ :: Nil, _)
-                  if p.parent.exists(_.is[Term.Apply]) =>
-                Some(true)
+              case p @ Term.ArgClause(_ :: Nil, _) => Some(isParentAnApply(p))
               case _ => Some(false)
             }
             if (parentApply.isDefined) addOne(arg)
@@ -169,9 +191,10 @@ object TreeOps {
         case t: Term.Apply =>
           val ac = t.argClause
           ac.values match {
-            case (f: Term.Function) :: Nil if ac.tokens.lastOption.exists { x =>
-                  x.is[Token.RightParen] && // see if closing paren is now brace
-                  ftoks.prevNonComment(ftoks(x)).left.is[Token.RightBrace]
+            case (f: Term.FunctionTerm) :: Nil if ac.tokens.lastOption.exists {
+                  x => // see if closing paren is now brace
+                    x.is[Token.RightParen] &&
+                    ftoks.prevNonComment(ftoks(x)).left.is[Token.RightBrace]
                 } =>
               addOne(f)
             case _ =>
@@ -569,6 +592,17 @@ object TreeOps {
     case _ => false
   }
 
+  @tailrec
+  def isTreeSingleExpr(tree: Tree): Boolean = tree match {
+    case t: Term.Block =>
+      t.stats match {
+        case stat :: Nil => isTreeSingleExpr(stat)
+        case _ => false
+      }
+    case _: Defn => false
+    case _ => true
+  }
+
   /* An end marker is really more like a closing brace for formatting purposes
    * (but not when rewriting) so we should ignore it when considering whether a
    * block contains only a single statement. NB: in FormatWriter, when choosing
@@ -815,8 +849,8 @@ object TreeOps {
     case Some(_: Term.Select) => true
     case Some(p: Member.Infix) => p.lhs.eq(tree) || followedBySelectOrApply(p)
     case Some(p: Member.Apply) if p.fun eq tree =>
-      p.argClause.values match {
-        case (_: Term.Block | _: Term.PartialFunction) :: Nil => false
+      p.argClause match {
+        case SingleArgInBraces(_) => false
         case _ => true
       }
     case _ => false
@@ -833,11 +867,12 @@ object TreeOps {
   // try to add them in the TrainingCommas.always branch.
   def rightIsCloseDelimForTrailingComma(
       left: Token,
-      ft: FormatToken
+      ft: FormatToken,
+      whenNL: Boolean = true
   )(implicit style: ScalafmtConfig): Boolean = {
     def owner = ft.meta.rightOwner
     def isArgOrParamClauseSite(tree: Tree) =
-      isArgClauseSite(tree) || isParamClauseSite(tree)
+      !whenNL || isArgClauseSite(tree) || isParamClauseSite(tree)
     // skip empty parens/braces/brackets
     ft.right match {
       case _: Token.RightBrace =>
@@ -885,7 +920,7 @@ object TreeOps {
     @inline def setOwner(tok: Token, tree: Tree): Unit =
       ownersMap += hash(tok) -> tree
 
-    val allTokens = topSourceTree.tokens(baseStyle.dialect)
+    val allTokens = topSourceTree.tokens
     var prevParens: List[Token] = Nil
 
     def treeAt(elemIdx: Int, elem: Tree, outerPrevLPs: Int): Int = {
@@ -921,6 +956,7 @@ object TreeOps {
           var children = rest
           var prevChild: Tree = null
           var prevLPs = outerPrevLPs
+          var prevComma: Token = null
 
           @tailrec
           def tokenAt(idx: Int): Int = {
@@ -942,6 +978,7 @@ object TreeOps {
                     children = rest
                     nextChildStart = start
                 }
+                prevComma = null
                 tokenAt(nextIdx)
               } else {
                 def excludeRightParen: Boolean = elem match {
@@ -963,12 +1000,19 @@ object TreeOps {
                   else {
                     setOwner(tok, prevChild)
                     setOwner(prevParens.head, prevChild)
+                    if (prevComma != null)
+                      setOwner(prevComma, prevChild)
                   }
                   prevLPs -= 1
                   prevParens = prevParens.tail
+                  prevComma = null
+                } else if (tok.is[Comma]) {
+                  prevComma = tok
+                  setOwner(tok, elem)
                 } else {
                   setOwner(tok, elem)
                   if (!tok.is[Trivia] && tokStart != tok.end) {
+                    prevComma = null
                     prevChild = null
                     if (tok.is[LeftParen]) {
                       prevLPs += 1
@@ -1007,5 +1051,20 @@ object TreeOps {
 
   def isFewerBraces(tree: Term.Apply)(implicit dialect: Dialect): Boolean =
     dialect.allowFewerBraces && tree.argClause.tokens.head.is[Colon]
+
+  @tailrec
+  def endsWithFewerBraces(tree: Tree)(implicit dialect: Dialect): Boolean =
+    tree match {
+      case t: Term.Apply => isFewerBraces(t)
+      case t: Term.ApplyInfix =>
+        t.argClause.values match {
+          case arg :: Nil => endsWithFewerBraces(arg)
+          case _ => false
+        }
+      case _ => false
+    }
+
+  def isParentAnApply(t: Tree): Boolean =
+    t.parent.exists(_.is[Term.Apply])
 
 }

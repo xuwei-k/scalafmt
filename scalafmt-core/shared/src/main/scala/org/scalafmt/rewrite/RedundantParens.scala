@@ -71,6 +71,7 @@ class RedundantParens(ftoks: FormatTokens) extends FormatTokensRewrite.Rule {
 
   override def onToken(implicit
       ft: FormatToken,
+      session: Session,
       style: ScalafmtConfig
   ): Option[Replacement] =
     ft.right match {
@@ -83,10 +84,15 @@ class RedundantParens(ftoks: FormatTokens) extends FormatTokensRewrite.Rule {
 
   override def onRight(left: Replacement, hasFormatOff: Boolean)(implicit
       ft: FormatToken,
+      session: Session,
       style: ScalafmtConfig
   ): Option[(Replacement, Replacement)] =
     ft.right match {
-      case _: Token.RightParen if left.how eq ReplacementType.Remove =>
+      case _: Token.RightParen if (left.how eq ReplacementType.Remove) && {
+            val maybeCommaFt = ftoks.prevNonComment(ft)
+            !maybeCommaFt.left.is[Token.Comma] ||
+            session.claimedRule(ftoks.prev(maybeCommaFt)).isDefined
+          } /* check for trailing comma */ =>
         Some((left, removeToken))
       case _ => None
     }

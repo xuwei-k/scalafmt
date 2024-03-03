@@ -1133,8 +1133,8 @@ rewrite.scala3.removeOptionalBraces = yes
 ===
 object a {
   val a = {
-    if (a) { // scalafmt: { rewrite.scala3.convertToNewSyntax = false }
-      if (aa) {  // scalafmt: { rewrite.scala3.convertToNewSyntax = true }
+    if (a) { // scalafmt: { rewrite.scala3.newSyntax.control = false }
+      if (aa) {  // scalafmt: { rewrite.scala3.newSyntax.control = true }
         aaa
       } // c1
     } else {
@@ -1161,10 +1161,10 @@ object a {
 >>>
 object a:
    val a =
-     if a then // scalafmt: { rewrite.scala3.convertToNewSyntax = false }
-        if (aa) { // scalafmt: { rewrite.scala3.convertToNewSyntax = true }
+     if a then // scalafmt: { rewrite.scala3.newSyntax.control = false }
+        if (aa) // scalafmt: { rewrite.scala3.newSyntax.control = true }
           aaa
-        } // c1
+        // c1
      else b
    val a =
       if a then // scalafmt: { rewrite.scala3.convertToNewSyntax = false }
@@ -1197,11 +1197,25 @@ object a {
       foo
     }
   }
+  // scalafmt: { rewrite.scala3.newSyntax.control = false }
+  while (a > 0) {
+    while (a > 0) do {
+      foo
+    }
+  }
+  // scalafmt: { rewrite.scala3.newSyntax.control = true }
   for (a <- b) {
     for (a <- b) do {
       foo
     }
   }
+  // scalafmt: { rewrite.scala3.newSyntax.control = false }
+  for (a <- b) do {
+    for (a <- b) {
+      foo
+    }
+  }
+  // scalafmt: { rewrite.scala3.newSyntax.control = true }
   for {a <- b} {
     for {a <- b} do {
       foo
@@ -1212,8 +1226,15 @@ object a {
 object a:
    for (a <- b) yield for a <- b yield foo
    while a > 0 do while a > 0 do foo
+   // scalafmt: { rewrite.scala3.newSyntax.control = false }
+   while (a > 0) while a > 0 do foo
+   // scalafmt: { rewrite.scala3.newSyntax.control = true }
    for a <- b do for a <- b do foo
+   // scalafmt: { rewrite.scala3.newSyntax.control = false }
+   for (a <- b) do for (a <- b) foo
+   // scalafmt: { rewrite.scala3.newSyntax.control = true }
    for a <- b do for a <- b do foo
+end a
 <<< rewrite to new syntax with for-do, multiple
 runner.parser = source
 rewrite.scala3.insertEndMarkerMinLines = 6
@@ -1308,6 +1329,8 @@ object a:
  import scala.{annotation => ann}
  import java as j
  import Predef.{augmentString => _}
+ // scalafmt: { rewrite.scala3.newSyntax.deprecated = false }
+ import Predef.{augmentString => _}
 >>>
 object a:
    import A.{min as minimum, `*` as multiply}
@@ -1315,6 +1338,8 @@ object a:
    import scala.{annotation as ann}
    import java as j
    import Predef.{augmentString as _}
+   // scalafmt: { rewrite.scala3.newSyntax.deprecated = false }
+   import Predef.{augmentString => _}
 <<< rewrite to new syntax, imports, scala2-source3
 rewrite.scala3.convertToNewSyntax = true
 rewrite.scala3.removeOptionalBraces = yes
@@ -2295,6 +2320,126 @@ def update(tpf: Float): Unit =
    end while
    while (true) scene.updateLogicalState(tpf, scene.updateLogicalState(tpf))
    end while
+<<< #3731 exclude leading multiline comment, one shorter
+rewrite.scala3.insertEndMarkerMinLines = 2
+rewrite.scala3.removeEndMarkerMaxLines = 1
+===
+object a:
+  /**
+     * c */
+  def foo() =
+    require(bar)
+    bar
+  /**
+     * c */
+  def foo() =
+    require(bar)
+    bar
+  end foo
+>>>
+object a:
+   /** c
+     */
+   def foo() =
+      require(bar)
+      bar
+   end foo
+
+   /** c
+     */
+   def foo() =
+      require(bar)
+      bar
+   end foo
+<<< #3731 exclude leading multiline comment, body length
+rewrite.scala3.insertEndMarkerMinLines = 3
+rewrite.scala3.removeEndMarkerMaxLines = 2
+===
+object a:
+  /**
+     * c */
+  def foo() =
+    require(bar)
+    bar
+  /**
+     * c */
+  def foo() =
+    require(bar)
+    bar
+  end foo
+>>>
+object a:
+   /** c
+     */
+   def foo() =
+      require(bar)
+      bar
+   end foo
+
+   /** c
+     */
+   def foo() =
+      require(bar)
+      bar
+   end foo
+<<< #3731 exclude leading multiline comment, one longer
+rewrite.scala3.insertEndMarkerMinLines = 4
+rewrite.scala3.removeEndMarkerMaxLines = 3
+===
+object a:
+  /**
+     * c */
+  def foo() =
+    require(bar)
+    bar
+  /**
+     * c */
+  def foo() =
+    require(bar)
+    bar
+  end foo
+>>>
+object a:
+   /** c
+     */
+   def foo() =
+      require(bar)
+      bar
+
+   /** c
+     */
+   def foo() =
+      require(bar)
+      bar
+<<< #3731 exclude leading multiline comment, body + comment length
+rewrite.scala3.insertEndMarkerMinLines = 5
+rewrite.scala3.removeEndMarkerMaxLines = 4
+===
+object a:
+  /**
+     * c */
+  def foo() =
+    require(bar)
+    bar
+  /**
+     * c */
+  def foo() =
+    require(bar)
+    bar
+  end foo
+>>>
+object a:
+   /** c
+     */
+   def foo() =
+      require(bar)
+      bar
+
+   /** c
+     */
+   def foo() =
+      require(bar)
+      bar
 <<< TryWithHandler: newline after catch
 object a {
   def foo = try
@@ -4947,3 +5092,45 @@ object a:
 object a:
    List(1, 2, 3) map: x =>
      x + 1
+<<< #3653 try
+object a:
+  try
+    val x = 3 / 0
+  catch
+    case e: Throwable =>
+>>>
+object a:
+   try
+      val x = 3 / 0
+   catch case e: Throwable =>
+<<< #3653 try-finally
+object a:
+  try
+    val x = 3 / 0
+  catch
+    case e: Throwable =>
+  finally
+    val _ = 5
+>>>
+object a:
+   try
+      val x = 3 / 0
+   catch case e: Throwable =>
+   finally
+      val _ = 5
+<<< #3653 if-!then
+object a:
+  if (true)
+    val x = 3 / 0
+>>>
+object a:
+   if (true)
+      val x = 3 / 0
+<<< #3653 for-!do
+object a:
+  for (a <- b)
+    val x = 3 / 0
+>>>
+object a:
+   for (a <- b)
+      val x = 3 / 0

@@ -9,7 +9,6 @@ import scala.meta.tokens.Token.LeftParen
 import scala.meta.tokens.Token.RightParen
 
 import org.scalafmt.config.BinPack
-import org.scalafmt.config.Config
 import org.scalafmt.config.FilterMatcher
 import org.scalafmt.config.ScalafmtConfig
 import org.scalafmt.internal.FormatToken
@@ -23,7 +22,7 @@ class StyleMap(
 ) {
   import StyleMap._
   val literalR: FilterMatcher = init.binPack.literalsRegex
-  private val prefix = "\\s*scalafmt: ".r
+  private val prefix = "\\s*scalafmt: ".r.pattern
   val forcedBinPack: mutable.Set[Tree] = mutable.Set.empty
   private val (
     starts: Array[Int],
@@ -49,8 +48,9 @@ class StyleMap(
         }
       }
       tok.left match {
-        case Comment(c) if prefix.findFirstIn(c).isDefined =>
-          val configured = Config.fromHoconString(c, init, Some("scalafmt"))
+        case Comment(c) if prefix.matcher(c).find() =>
+          val configured =
+            ScalafmtConfig.fromHoconString(c, init, Some("scalafmt"))
           // TODO(olafur) report error via callback
           configured.foreach(logger.elem(_)) { style =>
             init.rewrite.rulesChanged(style.rewrite).foreach { x =>

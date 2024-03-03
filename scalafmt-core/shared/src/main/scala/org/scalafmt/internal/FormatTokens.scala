@@ -163,6 +163,10 @@ class FormatTokens(leftTok2tok: Map[TokenOps.TokenHash, Int])(
   final def prevNonCommentBefore(curr: FormatToken): FormatToken =
     prevNonComment(prev(curr))
 
+  @inline
+  final def prevNonCommentSameLineBefore(curr: FormatToken): FormatToken =
+    prevNonCommentSameLine(prev(curr))
+
   @tailrec
   final def getOnOrBeforeOwned(ft: FormatToken, tree: Tree): FormatToken = {
     val prevFt = prevNonCommentBefore(ft)
@@ -314,7 +318,7 @@ object FormatTokens {
     val tokCnt = arr.length
     while (tokIdx < tokCnt)
       arr(tokIdx) match {
-        case Whitespace() => tokIdx += 1
+        case _: Token.Whitespace => tokIdx += 1
         case right =>
           process(right)
           tokIdx += 1

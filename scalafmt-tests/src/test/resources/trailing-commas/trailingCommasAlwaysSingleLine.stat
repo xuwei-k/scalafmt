@@ -15,3 +15,26 @@ foo(
 )
 >>>
 foo(a)
+<<< #3663 tuple
+val x = (
+  "a", 
+  "b",
+)
+>>>
+val x = ("a", "b")
+<<< #3663 enclosed literal
+val x = ( "a", 
+)
+>>>
+val x = ("a")
+<<< #3663 enclosed lambda
+val x = ( x => x + 1,
+)
+>>>
+val x = (x => x + 1)
+<<< #3663 enclosed lambda 1
+val x = (
+ x => x + 1,
+)
+>>>
+val x = (x => x + 1)

@@ -1,6 +1,7 @@
 package org.scalafmt.config
 
-import java.nio.file
+import java.nio.file.FileSystems
+import java.nio.file.Path
 
 import scala.collection.mutable
 import scala.io.Codec
@@ -14,10 +15,10 @@ import org.scalafmt.config.RewriteScala3Settings._
 import org.scalafmt.rewrite.FormatTokensRewrite
 import org.scalafmt.rewrite.RedundantBraces
 import org.scalafmt.sysops.AbsoluteFile
-import org.scalafmt.sysops.FileOps
 import org.scalafmt.sysops.OsSpecific._
 import org.scalafmt.util.LoggerOps
 import org.scalafmt.util.ValidationOps
+import org.scalafmt.Versions
 
 /** Configuration options for scalafmt.
   *
@@ -176,8 +177,15 @@ case class ScalafmtConfig(
     NamedDialect.getName(dialect).getOrElse("unknown dialect")
   )
 
+  private lazy val forMain: ScalafmtConfig =
+    if (project.layout.isEmpty) forTest
+    else rewrite.forMainOpt.fold(this)(x => copy(rewrite = x))
+
+  private lazy val forTest: ScalafmtConfig =
+    rewrite.forTestOpt.fold(this)(x => copy(rewrite = x))
+
   def forSbt: ScalafmtConfig =
-    copy(rewrite = rewrite.forSbt)
+    rewrite.forSbtOpt.fold(this)(x => copy(rewrite = x))
 
   private lazy val expandedFileOverride = Try {
     val langPrefix = "lang:"
@@ -190,15 +198,15 @@ case class ScalafmtConfig(
       val cfg = conf match {
         case x: Conf.Str => withDialect(NamedDialect.codec.read(None, x).get)
         case x =>
-          val dialectOpt = eitherPat.left.toOption.flatMap { lang =>
-            project.layout.flatMap(_.getDialectByLang(lang)(dialect))
+          val styleOpt = eitherPat.left.toOption.flatMap { lang =>
+            project.layout.map(_.withLang(lang, this))
           }
-          decoder.read(Some(withDialect(dialectOpt)), x).get
+          decoder.read(styleOpt.orElse(Some(this)), x).get
       }
       eitherPat -> cfg
     }
     val langResult = patStyles.collect { case (Left(lang), cfg) => lang -> cfg }
-    val fs = file.FileSystems.getDefault
+    val fs = FileSystems.getDefault
     val pmResult = patStyles.collect { case (Right(pat), cfg) =>
       val pattern = if (pat(0) == '.') "glob:**" + pat else pat.asFilename
       fs.getPathMatcher(pattern) -> cfg
@@ -206,28 +214,33 @@ case class ScalafmtConfig(
     (langResult, pmResult)
   }
 
-  def getConfigFor(filename: String): Try[ScalafmtConfig] = {
-    val absfile = AbsoluteFile(FileOps.getFile(filename))
-    @inline def otherDialect(style: ScalafmtConfig): Boolean =
-      !style.dialect.isEquivalentTo(dialect)
-    def onLang[A](f: (ProjectFiles.Layout, String) => A): Option[A] =
-      project.layout.flatMap { layout =>
-        layout.getLang(absfile).map { lang => f(layout, lang) }
+  private def getConfigViaLayoutInfoFor(absfile: AbsoluteFile)(
+      f: (ProjectFiles.Layout, String) => ScalafmtConfig
+  ): Option[ScalafmtConfig] =
+    project.layout.flatMap { layout =>
+      layout.getInfo(absfile).map { info =>
+        val style = f(layout, info.lang)
+        if (info.isTest) style.forTest else style.forMain
       }
+    }
+
+  def getConfigFor(filename: String): Try[ScalafmtConfig] = {
+    val absfile = AbsoluteFile(filename)
     expandedFileOverride.map { case (langStyles, pmStyles) =>
-      def langStyle = onLang { (layout, lang) =>
+      def langStyle = getConfigViaLayoutInfoFor(absfile) { (layout, lang) =>
         val style = langStyles.collectFirst { case (`lang`, x) => x }
-        style.getOrElse(withDialect(layout.getDialectByLang(lang)(dialect)))
+        style.getOrElse(layout.withLang(lang, this))
       }
       val pmStyle = pmStyles.collectFirst {
         case (pm, style) if pm.matches(absfile.path) =>
-          if (otherDialect(style)) style
-          else
-            style.withDialect(onLang {
-              _.getDialectByLang(_)(style.dialect)
-            }.flatten)
+          style
+            .getConfigViaLayoutInfoFor(absfile) { (layout, lang) =>
+              val sameDialect = style.dialect.isEquivalentTo(dialect)
+              if (sameDialect) layout.withLang(lang, style) else style
+            }
+            .getOrElse(style)
       }
-      pmStyle.orElse(langStyle).getOrElse(this)
+      pmStyle.orElse(langStyle).getOrElse(forTest)
     }
   }
 
@@ -250,7 +263,8 @@ case class ScalafmtConfig(
   // used in ScalafmtReflectConfig
   def withoutRewrites: ScalafmtConfig = copy(
     trailingCommas = None,
-    rewrite = RewriteSettings.default
+    docstrings = docstrings.withoutRewrites,
+    rewrite = rewrite.withoutRewrites
   )
 
   lazy val forceNewlineBeforeDocstring: Boolean =
@@ -490,5 +504,20 @@ object ScalafmtConfig {
         }
         .andThen(validate)
     }
+
+  def fromHoconString(
+      string: String,
+      default: ScalafmtConfig = ScalafmtConfig.default,
+      path: Option[String] = None
+  ): Configured[ScalafmtConfig] =
+    Configured(default)
+
+  /** Read ScalafmtConfig from String contents from an optional HOCON path. */
+  def fromHoconFile(
+      file: Path,
+      default: ScalafmtConfig = ScalafmtConfig.default,
+      path: Option[String] = None
+  ): Configured[ScalafmtConfig] =
+    Configured(default)
 
 }

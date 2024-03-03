@@ -10,8 +10,10 @@ Here is an example `.scalafmt.conf`:
 
 ```scala config
 align.preset = more    // For pretty alignment.
-maxColumn = 100 // For my wide 30" display.
+maxColumn = 1234
 ```
+
+> 🚧 Before using specific configuration make sure that your project agrees on the standards. Settings such as `maxColumn` could be a source of issues if different tools such as an IDE uses a different default value.
 
 ## Most popular
 
@@ -1005,6 +1007,7 @@ case object BB extends A
 #### `align.preset=more`
 
 ```scala mdoc:scalafmt
+maxColumn = 80
 align.preset = more
 ---
 val x = 2 // true for assignment
@@ -2850,19 +2853,32 @@ This rule replaces infix expressions `a op b` with proper method calls `a.op(b)`
 > NB: The rule currently does not support right-associative operators (i.e.,
 > those which end in `:`) which would have had to be rewritten as `b.op(a)`.
 
-The rule takes the following parameters:
+The rule takes the following parameters under `rewrite.avoidInfix`:
 
-- `rewrite.neverInfix` parameter group which consists of `includeFilters` and `excludeFilters`,
-  two lists of regular expressions, which determine which operators are eligible for this rewrite
-- (since 3.4.4) `rewrite.allowInfixPlaceholderArg` (default: `true`) will not rewrite infix
+- `includeFilters` and `excludeFilters`, two lists of regular expressions, which
+  determine which operators are eligible for this rewrite
+  - for this rule to be enabled (that is, for the rewrite to be applied), an infix
+    expression must match `includeFilters` and not match `excludeFilters`
+  - (since 3.8.0) if a regular expression contains `\\.`, matching will be against
+    not only the infix operator but also its left-hand-side expression (with the
+    non-empty operator part following the last `\\.` in the pattern)
+  - (before 3.8.0) these two parameters were nested under `rewrite.neverInfix`
+- `excludePlaceholderArg` (default: `true`) will not rewrite infix
   expressions if the argument is a solo placeholder (`_` or `(_: Type)`)
   - this parameter does not control any other cases with the infix argument containing a
     placeholder character; some of them will never be rewritten as adding parentheses will
     change their syntactic meaning, and others will be rewritten as usual
+  - (before 3.8.0 and since 3.4.4) this parameter was named
+    `rewrite.allowInfixPlaceholderArg`
+- (since 3.8.0) `excludeScalaTest` controls whether the standard set of
+  `scalatest` assert methods is added to `excludeFilters`
+  - if unspecified, and `project.layout` determines that the file being
+    formatted is not a test file, then these test assert methods will not
+    be excluded
 
 ```scala mdoc:scalafmt
 rewrite.rules = [AvoidInfix]
-rewrite.neverInfix.excludeFilters."+" = [ "map" ]
+rewrite.avoidInfix.excludeFilters."+" = [ "map" ]
 ---
 a success b
 a error (b, c)
@@ -2880,7 +2896,7 @@ future recover {
 
 ```scala mdoc:scalafmt
 rewrite.rules = [AvoidInfix]
-rewrite.allowInfixPlaceholderArg = false
+rewrite.avoidInfix.excludePlaceholderArg = false
 ---
 _ foo _
 _ bar (_: Int)
@@ -3594,18 +3610,29 @@ This section describes rules which are applied if the appropriate dialect (e.g.,
 
 ### `rewrite.scala3.convertToNewSyntax`
 
-If this flag is enabled, the following new syntax will be applied:
+If this flag is enabled, the following new syntax will be applied (also,
+**since 3.8.0**, if an appropriate flag under `rewrite.scala.newSyntax` is not
+set to `false`, see below):
 
 - [control syntax](https://dotty.epfl.ch/docs/reference/other-new-features/control-syntax.html)
   - if dialect sets `allowSignificantIndentation`
+    (any scala3 dialect) and `...newSyntax.control` is set
+    - `if (...)` to `if ... then`
+    - `while (...)` to `while ... do`
+    - `for (...)` to `for ... do` (or `for (...) yield` to `for ... yield`)
 - [vararg splices](https://dotty.epfl.ch/docs/reference/changed-features/vararg-splices.html)
   - vararg `: _*` or `@ _*` to `*` if dialect sets `allowPostfixStarVarargSplices`
+    (any scala3, or scala2xxSource3) and `...newSyntax.deprecated` is set
 - [imports](https://dotty.epfl.ch/docs/reference/changed-features/imports.html)
   - import wildcard `_` to `*` if dialect sets `allowStarWildcardImport`
+    (any scala3, or scala2xxSource3) and `...newSyntax.deprecated` is set
   - import rename `=>` to `as` if dialect sets `allowAsForImportRename`
+    (any scala3, or scala2xxSource3) and `...newSyntax.deprecated` is set
 - [wildcards](https://docs.scala-lang.org/scala3/reference/changed-features/wildcards.html)
   - type wildcard `_` to `?` if dialect sets `allowQuestionMarkAsTypeWildcard`
+    (scala212 and later) and `...newSyntax.deprecated` is set
   - anonymous type param `*` to `_` if dialect sets `allowUnderscoreAsTypePlaceholder`
+    (scala3Future only) and `...newSyntax.deprecated` is set
 
 NB: You could control these rules individually by
 [overriding dialect properties](#runnerdialectoverride).

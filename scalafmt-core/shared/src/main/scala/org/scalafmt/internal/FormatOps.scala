@@ -485,7 +485,8 @@ class FormatOps(
             case x => !isEnclosedInParens(x)
           })
         val afterInfix = style.breakAfterInfix(t)
-        if (afterInfix ne Newlines.AfterInfix.keep) {
+        if (isBeforeOp && endsWithFewerBraces(app.lhs)) Seq(Split(Newline, 0))
+        else if (afterInfix ne Newlines.AfterInfix.keep) {
           if (isBeforeOp) Seq(Split(Space, 0))
           else {
             val spaceMod = Space(useSpace)
@@ -604,8 +605,7 @@ class FormatOps(
             if fullInfix.parent.contains(prevOwner) && !(prevOwner match {
               case po: Member.ArgClause => po.parent.exists(isInfixApp)
               case po => isInfixApp(po)
-            }) && Option(getArgs(prevOwner, orNull = true))
-              .exists(isSeqSingle) =>
+            }) && isSeqSingle(getArgs(prevOwner, orNil = true)) =>
           Some(getLastToken(fullInfix))
         case _ => None
       }
@@ -624,8 +624,9 @@ class FormatOps(
       }
       def isOldTopLevel(child: Tree) = child.parent.exists {
         case _: Term.Block | _: Term.If | _: Term.While | _: Source => true
-        case fun: Term.FunctionTerm if isBlockFunction(fun) => true
+        case fun: Term.FunctionTerm => isBlockFunction(fun)
         case t: Case => t.pat.eq(child) || t.body.eq(child)
+        case SingleArgInBraces(arg) => child eq arg
         case _ => false
       }
       def isAloneEnclosed(child: Tree) = child.parent.exists {
@@ -921,7 +922,7 @@ class FormatOps(
 
   def isEmptyFunctionBody(tree: Tree): Boolean =
     tree match {
-      case function: Term.Function =>
+      case function: Term.FunctionTerm =>
         function.body match {
           case b: Term.Block => b.stats.isEmpty
           case _ => false
@@ -931,11 +932,11 @@ class FormatOps(
 
   def functionExpire(function: Term.FunctionTerm): (T, ExpiresOn) = {
     def dropWS(rtoks: Seq[T]): Seq[T] =
-      rtoks.dropWhile(_.is[Whitespace])
+      rtoks.dropWhile(_.is[T.Whitespace])
     def orElse(rtoks: Seq[T]) = {
       val last = rtoks.head
       if (last.is[T.RightParen] && matchingOpt(last).contains(rtoks.last))
-        rtoks.tail.find(!_.is[Whitespace]).get -> ExpiresOn.After
+        rtoks.tail.find(!_.is[T.Whitespace]).get -> ExpiresOn.After
       else
         last -> ExpiresOn.After
     }
@@ -944,8 +945,8 @@ class FormatOps(
 
     def getRToks = dropWS(function.tokens.reverse)
     function.parent match {
-      case Some(b @ Term.Block(_ :: Nil)) =>
-        getLastToken(b) -> ExpiresOn.Before
+      case Some(p @ SingleArgInBraces.OrBlock(_)) =>
+        p.tokens.last -> ExpiresOn.Before
       case Some(Case(_, _, `function`)) =>
         orElse(dropComment(getRToks))
       case _ =>
@@ -979,40 +980,30 @@ class FormatOps(
 
   def mustUseConfigStyle(
       ft: FormatToken,
+      beforeCloseFt: => FormatToken,
       allowForce: => Boolean = true
   )(implicit style: ScalafmtConfig): Boolean =
-    style.optIn.configStyleArguments && couldUseConfigStyle(ft, allowForce)
+    style.optIn.configStyleArguments &&
+      couldUseConfigStyle(ft, beforeCloseFt, allowForce)
 
   def couldUseConfigStyle(
       ft: FormatToken,
+      beforeCloseFt: => FormatToken,
       allowForce: => Boolean = true
-  )(implicit style: ScalafmtConfig): Boolean =
-    opensConfigStyle(ft) || allowForce && forceConfigStyle(hash(ft.left))
-
-  def opensConfigStyle(
-      ft: => FormatToken,
-      whenSourceIgnored: Boolean = false
-  )(implicit style: ScalafmtConfig): Boolean =
-    if (style.newlines.sourceIgnored) whenSourceIgnored
-    else opensConfigStyleClassic(ft)
-
-  private def opensConfigStyleClassic(
-      ft: FormatToken
   )(implicit style: ScalafmtConfig): Boolean = {
-    def opensImplicit =
-      (style.newlines.forceAfterImplicitParamListModifier ||
-        next(ft).hasBreak) && opensConfigStyleImplicitParamList(ft)
-    (ft.hasBreak || opensImplicit) && {
-      val close = matching(ft.left)
-      tokens(close, -1).hasBreak
-    }
+    def opensImplicit = (next(ft).hasBreak ||
+      style.newlines.forceAfterImplicitParamListModifier) &&
+      opensConfigStyleImplicitParamList(ft)
+    val opensConfigStyle = !style.newlines.sourceIgnored && // classic
+      (ft.hasBreak || opensImplicit) && beforeCloseFt.hasBreak
+    opensConfigStyle || allowForce && forceConfigStyle(hash(ft.left))
   }
 
   /** Works for `using` as well */
   def opensConfigStyleImplicitParamList(
       formatToken: FormatToken
   )(implicit style: ScalafmtConfig): Boolean =
-    formatToken.right.is[soft.ImplicitOrUsing] &&
+    soft.ImplicitOrUsing.unapply(formatToken.right) &&
       style.newlines.notBeforeImplicitParamListModifier &&
       hasImplicitParamList(formatToken.meta.rightOwner)
 
@@ -1332,7 +1323,7 @@ class FormatOps(
       val nlSplit = Split(Newline, 1, policy = policy).withIndent(firstIndent)
       Seq(slbSplit, noSplit.andPolicy(noSlbPolicy), nlSplit)
     } else {
-      val rightIsImplicit = r.is[soft.ImplicitOrUsing]
+      val rightIsImplicit = soft.ImplicitOrUsing.unapply(r)
       val implicitNL = rightIsImplicit &&
         style.newlines.forceBeforeImplicitParamListModifier
       val implicitParams = if (rightIsImplicit) {
@@ -1372,7 +1363,7 @@ class FormatOps(
   final def leadingComment(ft: FormatToken): FormatToken =
     if (ft.hasBlankLine || !ft.left.is[T.Comment]) ft
     else {
-      val pft = tokens.prevNonCommentSameLine(prev(ft))
+      val pft = tokens.prevNonCommentSameLineBefore(ft)
       if (pft.noBreak) ft else leadingComment(pft)
     }
 
@@ -1457,14 +1448,14 @@ class FormatOps(
     else next(nextNonComment(maybeArrow))
   }
 
-  def getArgs(owner: Tree, orNull: Boolean = false): Seq[Tree] =
+  def getArgs(owner: Tree, orNil: Boolean = false): Seq[Tree] =
     owner match {
       case _: Lit.Unit => Nil
       case t: Term.Super => t.superp :: Nil
       case Member.Tuple(v) => v
       case Member.SyntaxValuesClause(v) => v
       case t: Member.Function => t.paramClause.values
-      case _ if orNull => null
+      case _ if orNil => Nil
       case t =>
         logger.debug(
           s"""getApplyArgs: unknown tree
@@ -1904,7 +1895,13 @@ class FormatOps(
         style: ScalafmtConfig
     ): Split =
       asInfixApp(body).fold {
-        val expire = tokens.nextNonCommentSameLine(tokens.getLast(body)).left
+        val lastFt = tokens.getLast(body)
+        val right = nextNonComment(ft).right
+        val rpOpt = if (right.is[T.LeftParen]) matchingOpt(right) else None
+        val expireFt = rpOpt.fold(lastFt) { rp =>
+          if (rp.end >= lastFt.left.end) tokens.before(rp) else lastFt
+        }
+        val expire = tokens.nextNonCommentSameLine(expireFt).left
         nlSplit.withIndent(Num(style.indent.main), expire, ExpiresOn.After)
       }(app => InfixSplits.withNLIndent(nlSplit)(app, ft))
 
@@ -2130,7 +2127,14 @@ class FormatOps(
               def owner = t.parent
               def splits = Some(t.values match {
                 case (tf: Term.FunctionTerm) :: Nil
-                    if !style.newlines.alwaysBeforeCurlyLambdaParams =>
+                    if !style.newlines.alwaysBeforeCurlyLambdaParams &&
+                      // https://dotty.epfl.ch/docs/internals/syntax.html
+                      (tf.paramClause match { // LambdaStart
+                        case tpc @ Term.ParamClause(tp :: Nil, mod) =>
+                          (mod.isEmpty && tp.mods.isEmpty &&
+                            tp.decltpe.isEmpty) || isEnclosedInParens(tpc)
+                        case _ => true // multiple params are always in parens
+                      }) =>
                   getSplits(ft, t, forceNL = false, indentOpt = indent) match {
                     case s +: rs if !s.isNL => funcSplit(tf)(s.fileLine) +: rs
                     case ss => ss
@@ -2174,7 +2178,7 @@ class FormatOps(
               def rightBrace = blockLast(t.body)
             })
           case t: Term.If if !nft.right.is[T.KwThen] && {
-                isTreeMultiStatBlock(t.thenp) || !ifWithoutElse(t) &&
+                !isTreeSingleExpr(t.thenp) || !ifWithoutElse(t) &&
                 (isElsePWithOptionalBraces(t) ||
                   existsBlockIfWithoutElse(t.thenp, false))
               } =>
@@ -2187,7 +2191,7 @@ class FormatOps(
             Some(new OptionalBracesRegion {
               def owner = Some(t)
               def splits =
-                if (!isTreeMultiStatBlock(b)) None
+                if (isTreeSingleExpr(b)) None
                 else Some(getSplits(ft, b, true))
               def rightBrace = blockLast(b)
             })
@@ -2195,7 +2199,7 @@ class FormatOps(
             Some(new OptionalBracesRegion {
               def owner = Some(t)
               def splits =
-                if (!isTreeMultiStatBlock(b)) None
+                if (isTreeSingleExpr(b)) None
                 else Some(getSplits(ft, b, true))
               def rightBrace = blockLast(b)
             })
@@ -2308,7 +2312,7 @@ class FormatOps(
           style: ScalafmtConfig
       ): Option[OptionalBracesRegion] = {
         def trySplits(expr: Term, finallyp: Option[Term], usesOB: => Boolean) =
-          if (isTreeMultiStatBlock(expr)) Some(getSplits(ft, expr, true))
+          if (!isTreeSingleExpr(expr)) Some(getSplits(ft, expr, true))
           else if (finallyp.exists(isTreeUsingOptionalBraces) || usesOB)
             Some(getSplits(ft, expr, shouldBreakInOptionalBraces(nft)))
           else None
@@ -2353,31 +2357,25 @@ class FormatOps(
       def create(ft: FormatToken, nft: FormatToken)(implicit
           style: ScalafmtConfig
       ): Option[OptionalBracesRegion] = {
-        val forceNL = shouldBreakInOptionalBraces(nft)
-        ft.meta.leftOwner match {
+        val lo = ft.meta.leftOwner
+        def createImpl(usingOB: => Boolean)(finallyExpr: Tree) = {
+          val isMulti = !isTreeSingleExpr(finallyExpr)
+          def usesOB = isMulti || usingOB
+          def forceNL = isMulti || shouldBreakInOptionalBraces(nft)
+          new OptionalBracesRegion {
+            def owner = Some(lo)
+            def splits =
+              if (usesOB) Some(getSplits(ft, finallyExpr, forceNL)) else None
+            def rightBrace = blockLast(finallyExpr)
+          }
+        }
+        lo match {
           case t: Term.Try =>
-            t.finallyp.map { x =>
-              val usesOB = isTreeMultiStatBlock(x) ||
-                isCatchUsingOptionalBraces(t) ||
-                isTreeUsingOptionalBraces(t.expr)
-              new OptionalBracesRegion {
-                def owner = Some(t)
-                def splits =
-                  if (usesOB) Some(getSplits(ft, x, forceNL)) else None
-                def rightBrace = blockLast(x)
-              }
-            }
+            t.finallyp.map(createImpl {
+              isCatchUsingOptionalBraces(t) || isTreeUsingOptionalBraces(t.expr)
+            })
           case t: Term.TryWithHandler =>
-            t.finallyp.map { x =>
-              val usesOB = isTreeMultiStatBlock(x) ||
-                isTreeUsingOptionalBraces(t.expr)
-              new OptionalBracesRegion {
-                def owner = Some(t)
-                def splits =
-                  if (usesOB) Some(getSplits(ft, x, forceNL)) else None
-                def rightBrace = blockLast(x)
-              }
-            }
+            t.finallyp.map(createImpl(isTreeUsingOptionalBraces(t.expr)))
           case _ => None
         }
       }
@@ -2460,7 +2458,7 @@ class FormatOps(
           case t: Term.If =>
             (t.elsep match {
               case _: Term.If => None
-              case x if isTreeMultiStatBlock(x) => Some(true)
+              case x if !isTreeSingleExpr(x) => Some(true)
               case b @ Term.Block(List(_: Term.If))
                   if (matchingOpt(nft.right) match {
                     case Some(t) => t.end < b.pos.end
@@ -2544,7 +2542,7 @@ class FormatOps(
         case _: T.KwThen => true
         case _: T.LeftBrace => false
         case _ =>
-          isTreeMultiStatBlock(thenp) && (!before.right.is[T.LeftBrace] ||
+          !isTreeSingleExpr(thenp) && (!before.right.is[T.LeftBrace] ||
             matchingOpt(before.right).exists(rb => rb.end < thenp.pos.end))
       }
     }
@@ -2559,7 +2557,7 @@ class FormatOps(
         case Term.Block(List(t: Term.If)) =>
           isThenPWithOptionalBraces(t) ||
           !ifWithoutElse(t) && isElsePWithOptionalBraces(t)
-        case t => isTreeMultiStatBlock(t)
+        case t => !isTreeSingleExpr(t)
       })
     }
 
@@ -2573,7 +2571,7 @@ class FormatOps(
       }
 
     private def isTreeUsingOptionalBraces(tree: Tree): Boolean =
-      isTreeMultiStatBlock(tree) && !tokenBefore(tree).left.is[T.LeftBrace]
+      !isTreeSingleExpr(tree) && !tokenBefore(tree).left.is[T.LeftBrace]
 
     private def isBlockStart(tree: Term.Block, ft: FormatToken): Boolean =
       tokens.tokenJustBeforeOpt(tree.stats).contains(ft)
@@ -2676,8 +2674,8 @@ class FormatOps(
     private object RightArrowImpl extends Factory {
       def getBlocks(ft: FormatToken, nft: FormatToken, all: Boolean): Result =
         ft.meta.leftOwner match {
-          case t: Term.Function =>
-            val skip = t.parent.exists(_.is[Term.Block])
+          case t: Term.FunctionTerm =>
+            val skip = t.parent.exists(TreeOps.isExprWithParentInBraces(t))
             if (skip) None else Some((t.body, seq(all, t.paramClause.values)))
           case _ => None
         }
@@ -2821,7 +2819,7 @@ class FormatOps(
     ft.meta.rightOwner match {
       case x: Importer => x.importees.lengthCompare(1) > 0
       case x => // take last arg when multiple
-        getArgs(x).view.drop(1).lastOption match {
+        getArgs(x, orNil = true).view.drop(1).lastOption match {
           case None | Some(_: Term.Repeated) => false
           case Some(t: Term.Param) => !t.decltpe.exists(_.is[Type.Repeated])
           case _ => true
@@ -2844,11 +2842,6 @@ class FormatOps(
       case _ => false
     }
 
-  def getMustDangleForTrailingCommas(close: T)(implicit
-      style: ScalafmtConfig
-  ): Boolean =
-    getMustDangleForTrailingCommas(tokens.justBefore(close))
-
   def getMustDangleForTrailingCommas(getCloseFt: => FormatToken)(implicit
       style: ScalafmtConfig
   ): Boolean =
@@ -2857,7 +2850,7 @@ class FormatOps(
       val beforeClose =
         if (!closeFt.left.is[T.Comment]) Some(closeFt.left)
         else {
-          val tok = tokens.prevNonCommentSameLine(prev(closeFt)).left
+          val tok = tokens.prevNonCommentSameLineBefore(closeFt).left
           if (tok.is[T.Comment]) None else Some(tok)
         }
       beforeClose.exists(rightIsCloseDelimToAddTrailingComma(_, closeFt))

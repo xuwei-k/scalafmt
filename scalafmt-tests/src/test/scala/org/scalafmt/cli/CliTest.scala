@@ -14,7 +14,7 @@ import munit.FunSuite
 import org.scalafmt.Error.NoMatchingFiles
 import org.scalafmt.Versions.{stable => stableVersion}
 import org.scalafmt.cli.FileTestOps._
-import org.scalafmt.config.{Config, ProjectFiles, ScalafmtConfig}
+import org.scalafmt.config.{ProjectFiles, ScalafmtConfig}
 import org.scalafmt.sysops.{AbsoluteFile, FileOps}
 import org.scalafmt.sysops.OsSpecific._
 
@@ -80,7 +80,7 @@ abstract class AbstractCliTest extends FunSuite {
       |""".stripMargin
 
   def gimmeConfig(string: String): ScalafmtConfig =
-    Config.fromHoconString(string).get
+    ScalafmtConfig.fromHoconString(string).get
 
   def noArgTest(
       input: AbsoluteFile,
@@ -798,6 +798,64 @@ class CliTest extends AbstractCliTest with CliTestBehavior {
   testCli("1.6.0-RC4") // test for runDynamic
   testCli(stableVersion) // test for runScalafmt
 
+  test(s"path-error") {
+    val input =
+      s"""|/.scalafmt.conf
+        |version = "${stableVersion}"
+        |project.excludePaths = [
+        |    "glob:**/src/main/scala/besom/rpc/**.scala",
+        |    "foo.scala"
+        |]
+        |/foo.scala
+        |object    A { foo( }
+        |""".stripMargin
+
+    noArgTest(
+      string2dir(input),
+      input,
+      Seq(Array("--test")),
+      ExitCode.UnexpectedError,
+      assertOut = out => {
+        assertContains(
+          out,
+          s"""Illegal pattern in configuration: foo.scala""".stripMargin
+        )
+      },
+      Some(ExitCode.UnexpectedError)
+    )
+
+  }
+
+  test(s"regex-error") {
+    val input =
+      s"""|/.scalafmt.conf
+        |version = "${stableVersion}"
+        |project.excludeFilters = [
+        |    ".*foo("
+        |]
+        |/foo.scala
+        |object    A { foo( }
+        |""".stripMargin
+
+    noArgTest(
+      string2dir(input),
+      input,
+      Seq(Array("--test")),
+      ExitCode.UnexpectedError,
+      assertOut = out => {
+        assertContains(
+          out,
+          """|Illegal regex in configuration: .*foo(
+            |reason: Unclosed group near index 6
+            |.*foo(
+            |""".stripMargin
+        )
+      },
+      Some(ExitCode.UnexpectedError)
+    )
+
+  }
+
   test("Fail if .scalafmt.conf is missing.") {
     val input =
       s"""|/foo.scala
@@ -1168,7 +1226,7 @@ class CliTest extends AbstractCliTest with CliTestBehavior {
   }
 
   // This test might need to change based on maintainer feedback/requirements
-  test(s"does not apply to .md files with indented fenced content ") {
+  test(s"does apply to .md files with indented fenced content ") {
     val input = string2dir(
       s"""|/foobar2.md
         | Intro text:
@@ -1181,7 +1239,7 @@ class CliTest extends AbstractCliTest with CliTestBehavior {
       s"""|/foobar2.md
         | Intro text:
         |  ```scala mdoc
-        |        object    A {      }
+        |  object A {}
         |  ```
         |""".stripMargin
     runArgs(

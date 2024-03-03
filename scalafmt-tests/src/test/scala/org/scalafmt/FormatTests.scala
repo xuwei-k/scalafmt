@@ -3,6 +3,9 @@ package org.scalafmt
 import java.io.File
 
 import munit.FunSuite
+import munit.internal.console.AnsiColors
+import munit.internal.difflib.Diff
+
 import org.scalafmt.Error.{Incomplete, SearchStateExploded}
 import org.scalafmt.rewrite.FormatTokensRewrite
 import org.scalafmt.sysops.FileOps
@@ -11,6 +14,7 @@ import org.scalafmt.util._
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
+import scala.meta.parsers.ParseException
 
 // TODO(olafur) property test: same solution without optimization or timeout.
 
@@ -44,25 +48,62 @@ class FormatTests extends FunSuite with CanRunTests with FormatAssertions {
       filename = t.filename
     )
     debug.printTest()
-    val obtained = result.formatted match {
-      case Formatted.Failure(e)
-          if t.style.onTestFailure.nonEmpty &&
-            e.getMessage.contains(t.style.onTestFailure) =>
-        t.expected
-      case Formatted.Failure(e: Incomplete) => e.formattedCode
-      case Formatted.Failure(e: SearchStateExploded) =>
-        logger.elem(e)
-        e.partialOutput
-      case Formatted.Failure(e) => throw FormatException(e, t.original)
-      case Formatted.Success(code) => code
+    val resultEither = result.formatted.toEither
+    val err = t.style.onTestFailure
+    val obtained = resultEither match {
+      case Left(e) if err.nonEmpty && e.getMessage.contains(err) => t.expected
+      case Left(e: Incomplete) => e.formattedCode
+      case Left(e: SearchStateExploded) => logger.elem(e); e.partialOutput
+      case Left(e) => throw FormatException(e, t.original)
+      case Right(code) => code
     }
+    def assertObtained(implicit loc: munit.Location) =
+      assertEquals(obtained, t.expected)
     debugResults += saveResult(t, obtained, debug)
+    if (resultEither.isLeft) {
+      assertObtained
+      return
+    }
+    val debug2 = new Debug(onlyOne)
+    val result2 = Scalafmt.formatCode(
+      obtained,
+      t.style.copy(runner = scalafmtRunner(runner, debug2)),
+      filename = t.filename
+    )
+    debug2.printTest()
+    val result2Either = result2.formatted.toEither
+    result2Either match {
+      case Left(e: ParseException) if !onlyManual =>
+        assertEquals(
+          "test does not parse: " + parseException2Message(e, obtained),
+          t.expected
+        )
+      case Left(e) => throw FormatException(e, obtained)
+      case Right(code) =>
+        if (onlyManual) {
+          assertEquals(code, obtained, "Idempotency violated")
+          assertObtained
+        } else if (code == obtained)
+          assertObtained
+        else {
+          val diff = new Diff(code, obtained)
+          if (diff.isEmpty) assertObtained
+          else {
+            val report = AnsiColors.filterAnsi(diff.createDiffOnlyReport())
+            val eol = if (report.last == '\n') "" else "\n"
+            val error = "Idempotency violated\n" + report + eol
+            if (error != t.expected)
+              failComparison(error, code, obtained)
+          }
+        }
+    }
     if (
+      result2Either.isRight &&
       t.style.rewrite.rules.isEmpty &&
       FormatTokensRewrite.getEnabledFactories(t.style).isEmpty &&
       !t.style.assumeStandardLibraryStripMargin &&
       !FileOps.isMarkdown(t.filename) &&
-      t.style.onTestFailure.isEmpty
+      err.isEmpty
     )
       assertFormatPreservesAst(
         t.filename,
@@ -70,21 +111,6 @@ class FormatTests extends FunSuite with CanRunTests with FormatAssertions {
         obtained,
         result.config.runner
       )
-    val debug2 = new Debug(onlyOne)
-    val result2 = Scalafmt.formatCode(
-      obtained,
-      t.style.copy(runner = scalafmtRunner(runner, debug2)),
-      filename = t.filename
-    )
-    val formattedAgain = result2.formatted match {
-      case Formatted.Failure(e) => throw FormatException(e, obtained)
-      case Formatted.Success(code) => code
-    }
-    debug2.printTest()
-    assertEquals(formattedAgain, obtained, "Idempotency violated")
-    if (!onlyManual) {
-      assertEquals(obtained, t.expected)
-    }
   }
 
   def testShouldRun(t: DiffTest): Boolean = !onlyOne || t.only

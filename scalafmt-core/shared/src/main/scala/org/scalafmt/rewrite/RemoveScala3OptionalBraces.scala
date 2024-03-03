@@ -36,6 +36,7 @@ private class RemoveScala3OptionalBraces(ftoks: FormatTokens)
 
   override def onToken(implicit
       ft: FormatToken,
+      session: Session,
       style: ScalafmtConfig
   ): Option[Replacement] = Option {
     ft.right match {
@@ -67,6 +68,7 @@ private class RemoveScala3OptionalBraces(ftoks: FormatTokens)
 
   override def onRight(left: Replacement, hasFormatOff: Boolean)(implicit
       ft: FormatToken,
+      session: Session,
       style: ScalafmtConfig
   ): Option[(Replacement, Replacement)] =
     ft.right match {
@@ -128,7 +130,7 @@ private class RemoveScala3OptionalBraces(ftoks: FormatTokens)
       case _: Term.Throw => removeToken
       case _: Term.Return => removeToken
       case _: Defn.ExtensionGroup => removeToken
-      case _: Term.Function => removeToken
+      case _: Term.FunctionTerm => removeToken
       case t: Defn.Def =>
         if (tree ne t.body) null
         else if (ftoks.prevNonComment(ft).left.is[Token.Equals]) removeToken
