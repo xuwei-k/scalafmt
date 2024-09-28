@@ -1,7 +1,5 @@
 package org.scalafmt.sysops
 
-import org.scalafmt.CompatCollections.JavaConverters._
-
 import java.net.URI
 import java.net.URL
 import java.nio.file.AccessDeniedException
@@ -69,16 +67,12 @@ object FileOps {
       file: Path,
       matches: (Path, BasicFileAttributes) => Boolean,
   ): Seq[Path] = {
-    val iter = Files.find(file, Integer.MAX_VALUE, (p, a) => matches(p, a))
-    try iter.iterator().asScala.toList
-    finally iter.close()
+    Nil
   }
 
   /** Reads file from file system or from http url */
   def readFile(filename: String)(implicit codec: Codec): String = {
-    val urlOpt =
-      if (PlatformCompat.isScalaNative) None
-      else Try(new URL(filename)).toOption
+    val urlOpt = Option.empty[URL]
     urlOpt.fold(readFile(getFile(filename)))(readFile)
   }
 

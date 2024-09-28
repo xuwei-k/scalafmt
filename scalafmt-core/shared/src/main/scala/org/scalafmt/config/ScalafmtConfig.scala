@@ -497,7 +497,7 @@ object ScalafmtConfig {
       default: ScalafmtConfig = ScalafmtConfig.default,
       path: Option[String] = None,
   ): Configured[ScalafmtConfig] =
-    fromConf(ConfParsed.fromString(string, path), default = default)
+    Configured(default)
 
   /** Read ScalafmtConfig from String contents from an optional HOCON path. */
   def fromHoconFile(
@@ -505,24 +505,6 @@ object ScalafmtConfig {
       default: ScalafmtConfig = ScalafmtConfig.default,
       path: Option[String] = None,
   ): Configured[ScalafmtConfig] =
-    fromConf(ConfParsed.fromPath(file, path), default = default)
-
-  def fromConf(
-      parsed: ConfParsed,
-      default: ScalafmtConfig,
-  ): Configured[ScalafmtConfig] =
-    ScalafmtConfig.decoder.read(Option(default), parsed.conf) match {
-      case Configured.Ok(x)
-          if default.version == null && x.version != Versions.stable &&
-            x.version != Versions.version =>
-        val version = Option(x.version).getOrElse("missing")
-        val expected = s"${Versions.stable} or ${Versions.version}"
-        Configured.error(s"version [expected $expected]: $version")
-      case Configured.Ok(x)
-          if default.eq(ScalafmtConfig.uncheckedDefault) &&
-            x.runner.isDefaultDialect =>
-        Configured.error(NamedDialect.getUnknownError)
-      case x => x
-    }
+    Configured(default)
 
 }

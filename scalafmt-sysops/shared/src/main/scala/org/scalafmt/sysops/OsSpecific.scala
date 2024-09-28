@@ -16,8 +16,7 @@ object OsSpecific {
       extends AnyVal {
     def asFilename: String = fixSeparatorsInPathPattern(string)
     def inPathMatcherForm: String =
-      if (PlatformCompat.isNativeOnWindows()) string.replace("\\\\", "/")
-      else fixSeparatorsInPathPattern(string)
+      fixSeparatorsInPathPattern(string)
 
   }
 }

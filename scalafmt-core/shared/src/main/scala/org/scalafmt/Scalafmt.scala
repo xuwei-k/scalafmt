@@ -9,7 +9,6 @@ import org.scalafmt.internal.FormatOps
 import org.scalafmt.internal.FormatWriter
 import org.scalafmt.rewrite.Rewrite
 import org.scalafmt.sysops.FileOps
-import org.scalafmt.util.MarkdownParser
 
 import scala.meta.Input
 import scala.meta.dialects
@@ -70,9 +69,7 @@ object Scalafmt {
         else sbtStyle.withDialect(NamedDialect(dialects.Sbt))
       } else style
     }
-    val styleTry =
-      if (filename == defaultFilename) Success(baseStyle)
-      else baseStyle.getConfigFor(filename).map(getStyleByFile)
+    val styleTry = Success(baseStyle)
     styleTry.fold(
       Formatted.Result(_, baseStyle),
       x => Formatted.Result(doFormat(code, x, filename, range), x),
@@ -85,9 +82,7 @@ object Scalafmt {
       file: String,
       range: Set[Range],
   ): Try[String] =
-    if (FileOps.isMarkdown(file)) MarkdownParser
-      .transformMdoc(code)(doFormatOne(_, style, file, range))
-    else doFormatOne(code, style, file, range)
+    doFormatOne(code, style, file, range)
 
   private[scalafmt] def toInput(code: String, file: String): Input = {
     val fileInput = Input.VirtualFile(file, code)

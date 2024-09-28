@@ -17,11 +17,27 @@ def scala212 = "2.12.20"
 def scala213 = "2.13.15"
 
 inThisBuild(List(
-  version ~= { dynVer =>
-    if (isCI) dynVer else localSnapshotVersion // only for local publishing
+  organization := "com.github.xuwei-k",
+  homepage := Some(url("https://github.com/xuwei-k/scalafmt")),
+  licenses := List(
+    "Apache-2.0" -> url("http://www.apache.org/licenses/LICENSE-2.0")
+  ),
+  scmInfo := Some(
+    ScmInfo(
+      url("https://github.com/xuwei-k/scalafmt"),
+      "git@github.com:xuwei-k/scalafmt.git"
+    )
+  ),
+  scalacOptions += {
+    val a = (LocalRootProject / baseDirectory).value.toURI.toString
+    val g =
+      "https://raw.githubusercontent.com/xuwei-k/scalafmt/" + sys.process
+        .Process("git rev-parse HEAD")
+        .lineStream_!
+        .head
+        .take(10)
+    s"-P:scalajs:mapSourceURI:$a->$g/"
   },
-  organization := "org.scalameta",
-  homepage := Some(url("https://github.com/scalameta/scalafmt")),
   licenses :=
     List("Apache-2.0" -> url("http://www.apache.org/licenses/LICENSE-2.0")),
   developers := List(Developer(
@@ -32,8 +48,6 @@ inThisBuild(List(
   )),
   scalaVersion := scala213,
   crossScalaVersions := List(scala213, scala212),
-  resolvers ++= Resolver.sonatypeOssRepos("releases"),
-  resolvers ++= Resolver.sonatypeOssRepos("snapshots"),
   testFrameworks += new TestFramework("munit.Framework"),
   // causes native image issues
   dependencyOverrides += "org.jline" % "jline" % "3.23.0",
@@ -97,7 +111,7 @@ lazy val interfaces = crossProject(JVMPlatform, NativePlatform)
     },
   )
 
-lazy val sysops = crossProject(JVMPlatform, NativePlatform)
+lazy val sysops = crossProject(JVMPlatform, NativePlatform, JSPlatform)
   .withoutSuffixFor(JVMPlatform).in(file("scalafmt-sysops")).settings(
     moduleName := "scalafmt-sysops",
     description := "Scalafmt systems operations",
@@ -127,12 +141,13 @@ lazy val config = crossProject(JVMPlatform, NativePlatform)
 //   )
 // )
 
-lazy val core = crossProject(JVMPlatform, NativePlatform)
+lazy val core = crossProject(JVMPlatform, NativePlatform, JSPlatform)
   .in(file("scalafmt-core")).settings(
     moduleName := "scalafmt-core",
     buildInfoSettings,
     scalacOptions ++= scalacJvmOptions.value,
-    libraryDependencies ++= Seq("org.scalameta" %%% "mdoc-parser" % mdocV),
+    libraryDependencies ++= Seq("org.scalameta" %% "mdoc-parser" % mdocV),
+    libraryDependencies += metaconfig.value,
     libraryDependencies ++= {
       CrossVersion.partialVersion(scalaVersion.value) match {
         case Some((2, 13)) => Seq()
@@ -148,12 +163,12 @@ lazy val core = crossProject(JVMPlatform, NativePlatform)
   //   )
   // )
   .nativeSettings(libraryDependencies += "com.lihaoyi" %%% "fastparse" % "3.1.1")
-  .jvmSettings(Test / run / fork := true).dependsOn(sysops, config, macros)
+  .jvmSettings(Test / run / fork := true).dependsOn(sysops, macros)
   .enablePlugins(BuildInfoPlugin)
 lazy val coreJVM = core.jvm
 // lazy val coreJS = core.js
 
-lazy val macros = crossProject(JVMPlatform, NativePlatform)
+lazy val macros = crossProject(JVMPlatform, NativePlatform, JSPlatform)
   .in(file("scalafmt-macros")).settings(
     moduleName := "scalafmt-macros",
     buildInfoSettings,
@@ -169,7 +184,7 @@ import sbtassembly.AssemblyPlugin.defaultUniversalScript
 val scalacJvmOptions = Def.setting {
   val cross = CrossVersion.partialVersion(scalaVersion.value) match {
     case Some((2, 13)) =>
-      Seq("-Ymacro-annotations", "-Xfatal-warnings", "-deprecation:false")
+      Seq("-Ymacro-annotations", "-deprecation:false")
     case _ => Seq.empty
   }
 
