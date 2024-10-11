@@ -163,8 +163,8 @@ class RedundantBraces(implicit val ftoks: FormatTokens)
     case ReplacementType.Remove =>
       val resOpt = getRightBraceBeforeRightParen(false).map { rb =>
         ft.meta.rightOwner match {
-          case ac: Term.ArgClause => ftoks.matchingOpt(rb.left)
-              .map(ftoks.justBefore).foreach { lb =>
+          case ac: Term.ArgClause => ftoks.matchingOpt(rb.left).map(ftoks.prev)
+              .foreach { lb =>
                 session.rule[RemoveScala3OptionalBraces].foreach { r =>
                   session.getClaimed(lb.meta.idx).foreach { case (leftIdx, _) =>
                     val repl = r.onLeftForArgClause(ac)(lb, left.style)
@@ -253,10 +253,17 @@ class RedundantBraces(implicit val ftoks: FormatTokens)
     owner match {
       case t: Term.FunctionTerm if t.tokens.last.is[Token.RightBrace] =>
         if (!okToRemoveFunctionInApplyOrInit(t)) null else removeToken
-      case t: Term.PartialFunction if t.parent.exists { p =>
-            SingleArgInBraces.orBlock(p).exists(_._2 eq t) &&
-            t.pos.start != p.pos.start
-          } => removeToken
+      case t: Term.PartialFunction => t.parent match {
+          case Some(SingleArgInBraces.OrBlock(lft, `t`, _))
+              if lft.left ne ft.right =>
+            val ok = ftoks.findTokenWith(lft, ftoks.prev) { xft =>
+              if (!xft.left.is[Token.LeftBrace]) Some(false)
+              else if (session.isRemovedOnLeft(xft, ok = true)) None
+              else Some(true)
+            }.contains(true)
+            if (ok) removeToken else null
+          case _ => null
+        }
       case t: Term.Block => t.parent match {
           case Some(f: Term.FunctionTerm)
               if okToReplaceFunctionInSingleArgApply(f) => removeToken
@@ -293,11 +300,19 @@ class RedundantBraces(implicit val ftoks: FormatTokens)
       session: Session,
       style: ScalafmtConfig,
   ): (Replacement, Replacement) = {
+    @tailrec
+    def okComment(xft: FormatToken): Boolean =
+      ftoks.prevNotTrailingComment(xft) match {
+        case Right(x) =>
+          if ((x eq xft) && x.hasBreak)
+            !ftoks.isAttachedCommentThenBreak(ftoks.next(ft))
+          else !session.isRemovedOnLeft(x, true) || okComment(ftoks.prev(x))
+        case _ => false
+      }
     val ok = ft.meta.rightOwner match {
-      case _: Term.Block => ftoks.prevNotTrailingComment(ft).isRight &&
-        !braceSeparatesTwoXmlTokens &&
+      case _: Term.Block => !braceSeparatesTwoXmlTokens &&
         (style.dialect.allowSignificantIndentation ||
-          !elseAfterRightBraceThenpOnLeft)
+          okComment(ft) && !elseAfterRightBraceThenpOnLeft)
       case _ => true
     }
     if (ok) (left, removeToken) else null
@@ -404,7 +419,7 @@ class RedundantBraces(implicit val ftoks: FormatTokens)
         nft.noBreak || style.formatInfix(p) && !nft.right.is[Token.Comment]
       }
       def checkClose = {
-        val nft = ftoks(ftoks.matching(ft.right), -1)
+        val nft = ftoks.prev(ftoks.matching(ft.right))
         nft.noBreak || style.formatInfix(p) && !nft.left.is[Token.Comment]
       }
       checkOpen && checkClose
@@ -510,7 +525,7 @@ class RedundantBraces(implicit val ftoks: FormatTokens)
         // inside exists, return true if rewrite is OK
         !stat.tokens.headOption.exists {
           case x: Token.LeftParen => ftoks.matchingOpt(x) match {
-              case Some(y) if y ne stat.tokens.last =>
+              case Some(y) if y.left ne stat.tokens.last =>
                 session.rule[RedundantParens].exists {
                   _.onToken(ftoks(x, -1), session, style).exists(_.isRemove)
                 }
@@ -519,8 +534,8 @@ class RedundantBraces(implicit val ftoks: FormatTokens)
               case _ => true
             }
           case x: Token.LeftBrace => ftoks.matchingOpt(x) match {
-              case Some(y) if y ne stat.tokens.last =>
-                findFirstTreeBetween(stat, x, y).exists {
+              case Some(y) if y.left ne stat.tokens.last =>
+                findFirstTreeBetween(stat, x, y.left).exists {
                   case z: Term.Block => okToRemoveBlock(z)
                   case _ => false
                 }
@@ -554,6 +569,15 @@ class RedundantBraces(implicit val ftoks: FormatTokens)
 
       case p: Term.Match => p.expr eq b
       case p: Type.Match => p.tpe eq b
+
+      case p: Term.ForClause if p.body eq b =>
+        @tailrec
+        def iter(t: Tree): Boolean = t match {
+          case _: Term.Do => true
+          case Term.Block(x :: Nil) => iter(x)
+          case _ => false
+        }
+        iter(stat)
 
       case parent => SyntacticGroupOps.groupNeedsParenthesis(
           TreeSyntacticGroup(parent),

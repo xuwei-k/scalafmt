@@ -1005,7 +1005,7 @@ object Foo:
     case a: A if a.someField.otherField.function().exists(SomeObjectLongName.isTrue) =>
       None
   )
->>>
+>>> { stateVisits = 790, stateVisits2 = 794 }
 object Foo:
    def bar = process(
      arg match
@@ -4899,7 +4899,7 @@ class test:
 <<< overflowing type
 object types:
   type GOutputStreamClass = CStruct21[GObjectClass, CFuncPtr5[Ptr[GOutputStream], Ptr[Byte], gsize, Ptr[GCancellable], Ptr[Ptr[GError]], gssize], CFuncPtr5[Ptr[GOutputStream], Ptr[GInputStream], GOutputStreamSpliceFlags, Ptr[GCancellable], Ptr[Ptr[GError]], gssize], CFuncPtr3[Ptr[GOutputStream], Ptr[GCancellable], Ptr[Ptr[GError]], gboolean], CFuncPtr3[Ptr[GOutputStream], Ptr[GCancellable], Ptr[Ptr[GError]], gboolean], CFuncPtr7[Ptr[GOutputStream], Ptr[Byte], gsize, CInt, Ptr[GCancellable], GAsyncReadyCallback, gpointer, Unit], CFuncPtr3[Ptr[GOutputStream], Ptr[GAsyncResult], Ptr[Ptr[GError]], gssize], CFuncPtr7[Ptr[GOutputStream], Ptr[GInputStream], GOutputStreamSpliceFlags, CInt, Ptr[GCancellable], GAsyncReadyCallback, gpointer, Unit], CFuncPtr3[Ptr[GOutputStream], Ptr[GAsyncResult], Ptr[Ptr[GError]], gssize], CFuncPtr5[Ptr[GOutputStream], CInt, Ptr[GCancellable], GAsyncReadyCallback, gpointer, Unit], CFuncPtr3[Ptr[GOutputStream], Ptr[GAsyncResult], Ptr[Ptr[GError]], gboolean], CFuncPtr5[Ptr[GOutputStream], CInt, Ptr[GCancellable], GAsyncReadyCallback, gpointer, Unit], CFuncPtr3[Ptr[GOutputStream], Ptr[GAsyncResult], Ptr[Ptr[GError]], gboolean], CFuncPtr6[Ptr[GOutputStream], Ptr[GOutputVector], gsize, Ptr[gsize], Ptr[GCancellable], Ptr[Ptr[GError]], gboolean], CFuncPtr7[Ptr[GOutputStream], Ptr[GOutputVector], gsize, CInt, Ptr[GCancellable], GAsyncReadyCallback, gpointer, Unit], CFuncPtr4[Ptr[GOutputStream], Ptr[GAsyncResult], Ptr[gsize], Ptr[Ptr[GError]], gboolean], CFuncPtr0[Unit], CFuncPtr0[Unit], CFuncPtr0[Unit], CFuncPtr0[Unit], CFuncPtr0[Unit]]
->>>
+>>> { stateVisits = 835, stateVisits2 = 835 }
 object types:
    type GOutputStreamClass = CStruct21[
      GObjectClass,
@@ -5927,7 +5927,7 @@ object a:
     }) 
     index
   }
->>>
+>>> { stateVisits = 1513, stateVisits2 = 1513 }
 object a:
    private val packageIndex
        : scala.collection.Map[String, scala.collection.Seq[Path]] = {
@@ -6479,9 +6479,8 @@ object a:
 >>>
 object a:
    def foo =
-      val bar =
-        for (baz <- bazs) yield
-           def foo = baz
+      val bar = for (baz <- bazs) yield
+         def foo = baz
 <<< #4133 enclosed for-yield with added end marker
 rewrite.scala3 {
   convertToNewSyntax = true
@@ -6697,7 +6696,7 @@ object a {
         g.asInstanceOf[Tuple18[_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _] => Any].apply((x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15, x16, x17, x18))).asInstanceOf[F]
   )
 }
->>>
+>>> { stateVisits = 2441, stateVisits2 = 2441 }
 object a {
   def tupledFunction18[F, G]: TupledFunction[F, G] = TupledFunction[F, G](
       untupledImpl = (g: G) =>
@@ -7002,3 +7001,97 @@ object Streamable {
      def inputStream() = is
   .slurp(codec)
 }
+<<< #4133 overflow case body, could lead to non-idempotence
+maxColumn = 78
+===
+object a:
+  def foo = tree match {
+    case tree: untpd.TermLambdaTypeTree => typedTermLambdaTypeTree(tree)(using ctx.localContext(tree, NoSymbol).setNewScope)
+  }
+>>>
+object a:
+   def foo = tree match {
+     case tree: untpd.TermLambdaTypeTree => typedTermLambdaTypeTree(tree)(
+         using ctx.localContext(tree, NoSymbol).setNewScope
+       )
+   }
+<<< #4133 case body with added end marker, could lead to non-idempotence
+maxColumn = 76
+rewrite.scala3.insertEndMarkerMinLines = 4
+===
+object a:
+  def checkImportAlternatives(previous: Type, prevPrec: BindingPrec, prevCtx: Context)(using Context): Type =
+
+    if Feature.enabled(Feature.relaxedExtensionImports) && altImports != null && ctx.isImportContext then
+      val curImport = ctx.importInfo.uncheckedNN
+      namedImportRef(curImport) match
+        case _ =>
+          checkImportAlternatives(previous, prevPrec, prevCtx)(using ctx.outer)
+    else
+      val found = findRefRecur(previous, prevPrec, prevCtx)
+  end checkImportAlternatives
+>>>
+object a:
+   def checkImportAlternatives(
+       previous: Type,
+       prevPrec: BindingPrec,
+       prevCtx: Context
+   )(using Context): Type =
+
+     if Feature.enabled(Feature.relaxedExtensionImports) &&
+        altImports != null && ctx.isImportContext
+     then
+        val curImport = ctx.importInfo.uncheckedNN
+        namedImportRef(curImport) match
+           case _ => checkImportAlternatives(previous, prevPrec, prevCtx)(
+               using ctx.outer
+             )
+        end match
+     else
+        val found = findRefRecur(previous, prevPrec, prevCtx)
+   end checkImportAlternatives
+<<< #4133 binpack with enum cases and trailing comment
+binPack.preset = always
+===
+object Parsers:
+  enum Location(inArgs: Boolean):
+    case InPatternArgs extends Location(false, true, true) // InParens not true, since it might be an alternative
+>>>
+object Parsers:
+   enum Location(inArgs: Boolean):
+      case InPatternArgs extends Location(
+            false, true, true
+          ) // InParens not true, since it might be an alternative
+<<< #4219
+object a:
+  val expression = for (
+    x <- loremipsumdolorsitametconsecteturadipiscingelitseddoeiusmodtemporincididu;
+    y <- loremipsumdolorsitametconsecteturadipiscingelitseddoeiusmodtemporincididu;
+    z <-
+      loremipsumdolorsitametconsecteturadipiscingelitseddoeiusmodtemporincididu
+  ) yield x + y
+>>>
+object a:
+   val expression = for (
+     x <- loremipsumdolorsitametconsecteturadipiscingelitseddoeiusmodtemporincididu;
+     y <- loremipsumdolorsitametconsecteturadipiscingelitseddoeiusmodtemporincididu;
+     z <- loremipsumdolorsitametconsecteturadipiscingelitseddoeiusmodtemporincididu
+   ) yield x + y
+<<< #4219 forceBeforeAssign
+newlines.forceBeforeAssign = any
+===
+object a:
+  val expression = for (
+    x <- loremipsumdolorsitametconsecteturadipiscingelitseddoeiusmodtemporincididu;
+    y <- loremipsumdolorsitametconsecteturadipiscingelitseddoeiusmodtemporincididu;
+    z <-
+      loremipsumdolorsitametconsecteturadipiscingelitseddoeiusmodtemporincididu
+  ) yield x + y
+>>>
+object a:
+   val expression =
+     for (
+       x <- loremipsumdolorsitametconsecteturadipiscingelitseddoeiusmodtemporincididu;
+       y <- loremipsumdolorsitametconsecteturadipiscingelitseddoeiusmodtemporincididu;
+       z <- loremipsumdolorsitametconsecteturadipiscingelitseddoeiusmodtemporincididu
+     ) yield x + y

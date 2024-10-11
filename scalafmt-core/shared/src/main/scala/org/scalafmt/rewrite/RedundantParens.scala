@@ -195,6 +195,7 @@ class RedundantParens(implicit val ftoks: FormatTokens)
     case _: Lit | _: Name | _: Term.Interpolate => true
     case _: Term.PartialFunction => true
     case _: Term.AnonymousFunction => false
+    case t: Term.Select if !isSelectWithDot(t) => false
     case _ => style.rewrite.redundantParens.infixSide.isDefined
   }
 
@@ -227,7 +228,7 @@ class RedundantParens(implicit val ftoks: FormatTokens)
             .map((cnt, _))
       }
 
-    ftoks.matchingOpt(ft.right).flatMap(rt => iter(ft, ftoks.after(rt), 1))
+    ftoks.matchingOpt(ft.right).flatMap(rt => iter(ft, rt, 1))
   }
 
 }

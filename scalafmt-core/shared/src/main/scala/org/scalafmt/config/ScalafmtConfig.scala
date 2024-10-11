@@ -175,6 +175,13 @@ case class ScalafmtConfig(
     NamedDialect.getName(dialect).getOrElse("unknown dialect"),
   )
 
+  private[scalafmt] def withFileOverride(conf: Conf.Obj): ScalafmtConfig =
+    copy(fileOverride = conf)
+
+  private[scalafmt] def withCompleteCallback(
+      cb: FormatEvent.CompleteFormat => Unit,
+  ): ScalafmtConfig = copy(runner = runner.withCompleteCallback(cb))
+
   // used by dynamic
   def needGitAutoCRLF: Boolean = project.git && lineEndings.isEmpty &&
     System.lineSeparator() == "\r\n"

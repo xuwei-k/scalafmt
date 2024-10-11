@@ -38,9 +38,11 @@ private class BestFirstSearch private (range: Set[Range])(implicit
 
   private def getBlockCloseToRecurse(ft: FormatToken, stop: Token)(implicit
       style: ScalafmtConfig,
-  ): Option[Token] = getEndOfBlock(ft, parensToo = true).filter { close =>
-    // Block must span at least 3 lines to be worth recursing.
-    close != stop && distance(ft.left, close) > style.maxColumn * 3
+  ): Option[Token] = getEndOfBlock(ft, parensToo = true).collect {
+    case close if close.left != stop && {
+          // Block must span at least 3 lines to be worth recursing.
+          tokens.distance(ft, close) > style.maxColumn * 3
+        } => close.left
   }
 
   private val memo = mutable.Map.empty[Long, State]
@@ -70,8 +72,7 @@ private class BestFirstSearch private (range: Set[Range])(implicit
       maxCost: Int = Integer.MAX_VALUE,
   ): Either[State, State] = {
     implicit val Q: StateQueue = new StateQueue(depth)
-    def enqueue(state: State) = Q.enqueue(state)
-    enqueue(start)
+    Q.enqueue(start)
 
     // TODO(olafur) this while loop is waaaaaaaaaaaaay tooo big.
     var deepestState: State = start
@@ -98,9 +99,8 @@ private class BestFirstSearch private (range: Set[Range])(implicit
         if (curr.split != null && curr.split.isNL)
           if (
             emptyQueueSpots.contains(idx) ||
-            optimizer.dequeueOnNewStatements && curr.allAltAreNL &&
-            !(depth == 0 && noOptZone) &&
-            (leftTok.is[Token.KwElse] || statementStarts.contains(idx))
+            optimizer.dequeueOnNewStatements && !(depth == 0 &&
+              noOptZone) && optimizationEntities.statementStarts.contains(idx)
           ) Q.addGeneration()
 
         val noBlockClose = start == curr && 0 != maxCost || !noOptZone ||
@@ -108,7 +108,7 @@ private class BestFirstSearch private (range: Set[Range])(implicit
         val blockClose =
           if (noBlockClose) None else getBlockCloseToRecurse(splitToken, stop)
         if (blockClose.nonEmpty) blockClose.foreach { end =>
-          shortestPathMemo(curr, end, depth + 1, maxCost).foreach(enqueue)
+          shortestPathMemo(curr, end, depth + 1, maxCost).foreach(Q.enqueue)
         }
         else {
           if (optimizer.escapeInPathologicalCases && isSeqMulti(routes(idx)))
@@ -118,7 +118,6 @@ private class BestFirstSearch private (range: Set[Range])(implicit
             )
 
           val actualSplit = getActiveSplits(splitToken, curr, maxCost)
-          val allAltAreNL = actualSplit.forall(_.isNL)
 
           var optimalNotFound = true
           val handleOptimalTokens = optimizer.acceptOptimalAtHints &&
@@ -139,14 +138,13 @@ private class BestFirstSearch private (range: Set[Range])(implicit
               }
               if (null ne stateToQueue) {
                 stats.updateBest(nextState, stateToQueue)
-                enqueue(stateToQueue)
+                Q.enqueue(stateToQueue)
               }
             }
           }
 
           actualSplit.foreach { split =>
-            if (optimalNotFound)
-              processNextState(getNext(curr, split, allAltAreNL))
+            if (optimalNotFound) processNextState(getNext(curr, split))
             else sendEvent(split)
           }
         }
@@ -159,11 +157,11 @@ private class BestFirstSearch private (range: Set[Range])(implicit
   private def sendEvent(split: Split): Unit = initStyle.runner
     .event(FormatEvent.Enqueue(split))
 
-  private def getNext(state: State, split: Split, allAltAreNL: Boolean)(implicit
+  private def getNext(state: State, split: Split)(implicit
       style: ScalafmtConfig,
   ): State = {
     sendEvent(split)
-    state.next(split, nextAllAltAreNL = allAltAreNL)
+    state.next(split)
   }
 
   private def killOnFail(opt: OptimalToken, nextNextState: State = null)(
@@ -244,43 +242,10 @@ private class BestFirstSearch private (range: Set[Range])(implicit
         case Seq() => Left(null) // dead end if empty
         case Seq(split) =>
           if (split.isNL) Right(state)
-          else {
-            implicit val nextState: State =
-              getNext(state, split, allAltAreNL = false)
-            traverseSameLine(nextState)
-          }
-        case ss
-            if state.appliedPenalty == 0 &&
-              RightParenOrBracket(splitToken.right) =>
-          traverseSameLineZeroCost(ss, state)
+          else traverseSameLine(getNext(state, split))
         case ss => stateAsOptimal(state, ss).toRight(state)
       }
     }
-
-  @tailrec
-  private def traverseSameLineZeroCost(
-      splits: Seq[Split],
-      state: State,
-      nlState: => Option[State] = None,
-  )(implicit style: ScalafmtConfig, queue: StateQueue): Either[State, State] = {
-    def newNlState: Option[State] = stateAsOptimal(state, splits).orElse(nlState)
-    splits.filter(_.costWithPenalty == 0) match {
-      case Seq(split) if !split.isNL =>
-        val nextState: State = getNext(state, split, allAltAreNL = false)
-        if (nextState.split.costWithPenalty > 0) newNlState.toRight(state)
-        else if (nextState.depth >= tokens.length) Right(nextState)
-        else {
-          val nextToken = tokens(nextState.depth)
-          if (RightParenOrBracket(nextToken.right)) {
-            implicit val style: ScalafmtConfig = styleMap.at(nextToken)
-            val nextSplits =
-              getActiveSplits(nextToken, nextState, maxCost = Int.MaxValue)
-            traverseSameLineZeroCost(nextSplits, nextState, newNlState)
-          } else newNlState.toRight(nextState)
-        }
-      case _ => newNlState.toRight(state)
-    }
-  }
 
   def getBestPath: SearchResult = {
     initStyle.runner.event(FormatEvent.Routes(routes))
@@ -332,24 +297,24 @@ object BestFirstSearch {
   private def hasSlbAfter(state: State)(ft: FormatToken): Boolean = state.policy
     .exists(_.appliesUntil(ft)(_.isInstanceOf[PolicyOps.SingleLineBlock]))
 
-  private def getNoOptZones(tokens: FormatTokens) = {
+  private def getNoOptZones(tokens: FormatTokens)(implicit styleMap: StyleMap) = {
     val result = Set.newBuilder[Token]
     var expire: Token = null
     tokens.foreach {
       case FormatToken(x, _, _) if expire ne null =>
         if (x eq expire) expire = null else result += x
       case FormatToken(t: Token.LeftParen, _, m) if (m.leftOwner match {
-            // TODO(olafur) https://github.com/scalameta/scalameta/issues/345
-            case lo: Term.ArgClause => !lo.parent.is[Term.ApplyInfix]
+            case lo: Term.ArgClause => !lo.parent.is[Term.ApplyInfix] &&
+              !styleMap.at(t).newlines.keep
             case _: Term.Apply => true // legacy: when enclosed in parens
             case _ => false
-          }) => expire = tokens.matching(t)
+          }) => expire = tokens.matching(t).left
       case FormatToken(t: Token.LeftBrace, _, m) if (m.leftOwner match {
             // Type compounds can be inside defn.defs
             case lo: meta.Stat.Block => lo.parent.is[Type.Refine]
             case _: Type.Refine => true
             case _ => false
-          }) => expire = tokens.matching(t)
+          }) => expire = tokens.matching(t).left
       case _ =>
     }
     result.result()

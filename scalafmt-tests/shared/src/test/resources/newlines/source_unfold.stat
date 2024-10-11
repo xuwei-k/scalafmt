@@ -1284,13 +1284,13 @@ danglingParentheses.preset = false
 ===
 case class AttributeInfo(symbol : Symbol, typeRef : Type, value : Option[Any],
   values : Seq[String ~ Any]) // sym_Ref info_Ref {constant_Ref} {nameRef constantRef}
->>>
+>>> { stateVisits = 63, stateVisits2 = 63 }
 case class AttributeInfo(
     symbol: Symbol,
     typeRef: Type,
     value: Option[Any],
-    values: Seq[
-      String ~ Any]) // sym_Ref info_Ref {constant_Ref} {nameRef constantRef}
+    values: Seq[String ~ Any]
+) // sym_Ref info_Ref {constant_Ref} {nameRef constantRef}
 <<< 3.29 apply with optimal token
 maxColumn = 80
 ===
@@ -2807,7 +2807,8 @@ class Foo {
   val vv = v
     .aaa //
     //
-    .bbb.ccc()
+    .bbb
+    .ccc()
   val vv = v.aaa //
   val vv = v.aaa
 }
@@ -2827,7 +2828,8 @@ class Foo {
     .bbb //
     //
     .ccc //
-    .ddd.eee()
+    .ddd
+    .eee()
 }
 <<< #1334 3: continue chain indent after a comment with apply
 class Foo {
@@ -2885,7 +2887,8 @@ val a: Vector[Array[Double]] =
     // another comment
     .map { foo =>
       bar
-    }.tail
+    }
+    .tail
 <<< #1334 6: multiple select and a match after a comment
 val a: Vector[Array[Double]] = b.c
        // Only handle first case, others will be fixed on the next pass.
@@ -2898,7 +2901,8 @@ val a: Vector[Array[Double]] = b.c
 val a: Vector[Array[Double]] =
   b.c
     // Only handle first case, others will be fixed on the next pass.
-    .headOption.a match {
+    .headOption
+    .a match {
     case None =>
     case _ =>
   }
@@ -3948,7 +3952,7 @@ a match {
         Root / "foo" | Root / "bar" |
         Root / "baz" / _ / "qux"
       ) =>
-    ( if (foo)
+    ( if ( foo )
         ( foo ) + bar
       else
         foo + ( bar ) ) + ( baz )
@@ -3971,14 +3975,14 @@ spaces.inParentheses = true
 ===
 for ((a, b) <- c.d) (((a, b)))
 >>>
-for (( a, b ) <- c.d)
+for ( ( a, b ) <- c.d )
   ((( a, b )))
 <<< #2219 with spaces, for-do with braces
 spaces.inParentheses = true
 ===
 for ((a, b) <- c.d) {{ (((a, b))) }}
 >>>
-for (( a, b ) <- c.d) {
+for ( ( a, b ) <- c.d ) {
   {
     ((( a, b )))
   }
@@ -3988,21 +3992,21 @@ spaces.inParentheses = true
 ===
 for ((a, b) <- c.d) yield (((a, b)))
 >>>
-for (( a, b ) <- c.d)
+for ( ( a, b ) <- c.d )
   yield ((( a, b )))
 <<< #2219 with spaces, while
 spaces.inParentheses = true
 ===
 while ((((a,b) < (1,1)))) (((a, b)))
 >>>
-while ((( ( a, b ) < ( 1, 1 ) )))
+while ( (( ( a, b ) < ( 1, 1 ) )) )
   ((( a, b )))
 <<< #2219 with spaces, if
 spaces.inParentheses = true
 ===
 if ((((a,b) < (1,1)))) (((a, b)))
 >>>
-if ((( ( a, b ) < ( 1, 1 ) )))
+if ( (( ( a, b ) < ( 1, 1 ) )) )
   ((( a, b )))
 <<< #2250
 danglingParentheses.callSite = true
@@ -6291,10 +6295,12 @@ object a {
 object a {
   foo
     // c2
-    .bar(baz).foo(bar, baz)
+    .bar(baz)
+    .foo(bar, baz)
   foo // c1
     // c2
-    .bar(baz).foo(bar, baz)
+    .bar(baz)
+    .foo(bar, baz)
   foo
     .bar(baz) // c1
     // c2
@@ -8975,7 +8981,7 @@ object a {
     )
   )
 }
->>>
+>>> { stateVisits = 684, stateVisits2 = 684 }
 object a {
   div(cls := "cover")(
     div(cls := "doc")(bodyContents),
@@ -9016,7 +9022,8 @@ object a {
               h2(cls := "h200")(
                 "Type parameters"),
               dl(
-                cls := "attributes attributes-small")(
+                cls :=
+                  "attributes attributes-small")(
                 memberTypeParams *)))
           .toSeq
           .flatten ++
@@ -9028,14 +9035,16 @@ object a {
                 h2(cls := "h200")(
                   "Value parameters"),
                 dl(
-                  cls := "attributes attributes-small")(
+                  cls :=
+                    "attributes attributes-small")(
                   memberValueParams *)))
             .toSeq
             .flatten :+
           h2(cls := "h200")(
             "Attributes") :+
           dl(
-            cls := "attributes attributes-small")(
+            cls :=
+              "attributes attributes-small")(
             attributes *)))
 }
 <<< #4133 binpack with complex nested applies and not forcing config style, dangling
@@ -9076,7 +9085,7 @@ object a {
     )
   )
 }
->>>
+>>> { stateVisits = 708, stateVisits2 = 708 }
 object a {
   div(cls := "cover")(
     div(cls := "doc")(bodyContents),
@@ -9131,7 +9140,8 @@ object a {
                 "Type parameters"
               ),
               dl(
-                cls := "attributes attributes-small"
+                cls :=
+                  "attributes attributes-small"
               )(memberTypeParams *)
             )
           )
@@ -9146,7 +9156,8 @@ object a {
                   "Value parameters"
                 ),
                 dl(
-                  cls := "attributes attributes-small"
+                  cls :=
+                    "attributes attributes-small"
                 )(memberValueParams *)
               )
             )
@@ -9156,7 +9167,8 @@ object a {
             "Attributes"
           ) :+
           dl(
-            cls := "attributes attributes-small"
+            cls :=
+              "attributes attributes-small"
           )(attributes *)
       )
   )
@@ -9442,3 +9454,1129 @@ trait Infer {
     }
   }
 }
+<<< #4133 very long one-liner with chain of infixes, full method
+class UDFRegistration private[sql] (functionRegistry: FunctionRegistry) extends Logging {
+  def register[RT: TypeTag, A1: TypeTag, A2: TypeTag, A3: TypeTag, A4: TypeTag, A5: TypeTag, A6: TypeTag, A7: TypeTag, A8: TypeTag, A9: TypeTag, A10: TypeTag, A11: TypeTag, A12: TypeTag, A13: TypeTag, A14: TypeTag, A15: TypeTag, A16: TypeTag, A17: TypeTag, A18: TypeTag, A19: TypeTag, A20: TypeTag, A21: TypeTag, A22: TypeTag](name: String, func: Function22[A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20, A21, A22, RT]): UserDefinedFunction = {
+    val inputEncoders: Seq[Option[ExpressionEncoder[_]]] = Try(ExpressionEncoder[A1]()).toOption :: Try(ExpressionEncoder[A2]()).toOption :: Try(ExpressionEncoder[A3]()).toOption :: Try(ExpressionEncoder[A4]()).toOption :: Try(ExpressionEncoder[A5]()).toOption :: Try(ExpressionEncoder[A6]()).toOption :: Try(ExpressionEncoder[A7]()).toOption :: Try(ExpressionEncoder[A8]()).toOption :: Try(ExpressionEncoder[A9]()).toOption :: Try(ExpressionEncoder[A10]()).toOption :: Try(ExpressionEncoder[A11]()).toOption :: Try(ExpressionEncoder[A12]()).toOption :: Try(ExpressionEncoder[A13]()).toOption :: Try(ExpressionEncoder[A14]()).toOption :: Try(ExpressionEncoder[A15]()).toOption :: Try(ExpressionEncoder[A16]()).toOption :: Try(ExpressionEncoder[A17]()).toOption :: Try(ExpressionEncoder[A18]()).toOption :: Try(ExpressionEncoder[A19]()).toOption :: Try(ExpressionEncoder[A20]()).toOption :: Try(ExpressionEncoder[A21]()).toOption :: Try(ExpressionEncoder[A22]()).toOption :: Nil
+  }
+}
+>>> { stateVisits = 702, stateVisits2 = 702 }
+class UDFRegistration private[sql] (
+    functionRegistry: FunctionRegistry
+) extends Logging {
+  def register[
+      RT: TypeTag,
+      A1: TypeTag,
+      A2: TypeTag,
+      A3: TypeTag,
+      A4: TypeTag,
+      A5: TypeTag,
+      A6: TypeTag,
+      A7: TypeTag,
+      A8: TypeTag,
+      A9: TypeTag,
+      A10: TypeTag,
+      A11: TypeTag,
+      A12: TypeTag,
+      A13: TypeTag,
+      A14: TypeTag,
+      A15: TypeTag,
+      A16: TypeTag,
+      A17: TypeTag,
+      A18: TypeTag,
+      A19: TypeTag,
+      A20: TypeTag,
+      A21: TypeTag,
+      A22: TypeTag
+  ](
+      name: String,
+      func: Function22[
+        A1,
+        A2,
+        A3,
+        A4,
+        A5,
+        A6,
+        A7,
+        A8,
+        A9,
+        A10,
+        A11,
+        A12,
+        A13,
+        A14,
+        A15,
+        A16,
+        A17,
+        A18,
+        A19,
+        A20,
+        A21,
+        A22,
+        RT
+      ]
+  ): UserDefinedFunction = {
+    val inputEncoders: Seq[
+      Option[ExpressionEncoder[_]]
+    ] =
+      Try(ExpressionEncoder[A1]())
+        .toOption ::
+        Try(ExpressionEncoder[A2]())
+          .toOption ::
+        Try(ExpressionEncoder[A3]())
+          .toOption ::
+        Try(ExpressionEncoder[A4]())
+          .toOption ::
+        Try(ExpressionEncoder[A5]())
+          .toOption ::
+        Try(ExpressionEncoder[A6]())
+          .toOption ::
+        Try(ExpressionEncoder[A7]())
+          .toOption ::
+        Try(ExpressionEncoder[A8]())
+          .toOption ::
+        Try(ExpressionEncoder[A9]())
+          .toOption ::
+        Try(ExpressionEncoder[A10]())
+          .toOption ::
+        Try(ExpressionEncoder[A11]())
+          .toOption ::
+        Try(ExpressionEncoder[A12]())
+          .toOption ::
+        Try(ExpressionEncoder[A13]())
+          .toOption ::
+        Try(ExpressionEncoder[A14]())
+          .toOption ::
+        Try(ExpressionEncoder[A15]())
+          .toOption ::
+        Try(ExpressionEncoder[A16]())
+          .toOption ::
+        Try(ExpressionEncoder[A17]())
+          .toOption ::
+        Try(ExpressionEncoder[A18]())
+          .toOption ::
+        Try(ExpressionEncoder[A19]())
+          .toOption ::
+        Try(ExpressionEncoder[A20]())
+          .toOption ::
+        Try(ExpressionEncoder[A21]())
+          .toOption ::
+        Try(ExpressionEncoder[A22]())
+          .toOption :: Nil
+  }
+}
+<<< #4133 very long one-liner with chain of infixes
+runner.maxStateVisits = 1000
+===
+class UDFRegistration {
+  def foo = {
+    val inputEncoders: Seq_Option_ExpressionEncoder_____ = Try(ExpressionEncoder_A1_) :: Try(ExpressionEncoder_A2_) :: Try(ExpressionEncoder_A3_) :: Try(ExpressionEncoder_A4_) :: Try(ExpressionEncoder_A5_) :: Try(ExpressionEncoder_A6_) :: Try(ExpressionEncoder_A7_) :: Try(ExpressionEncoder_A8_) :: Try(ExpressionEncoder_A9_) :: Try(ExpressionEncoder_A10_) :: Try(ExpressionEncoder_A11_) :: Try(ExpressionEncoder_A12_) :: Try(ExpressionEncoder_A13_) :: Try(ExpressionEncoder_A14_) :: Try(ExpressionEncoder_A15_) :: Try(ExpressionEncoder_A16_) :: Try(ExpressionEncoder_A17_) :: Try(ExpressionEncoder_A18_) :: Try(ExpressionEncoder_A19_) :: Try(ExpressionEncoder_A20_) :: Try(ExpressionEncoder_A21_) :: Try(ExpressionEncoder_A22_) :: Nil
+  }
+}
+>>>
+class UDFRegistration {
+  def foo = {
+    val inputEncoders
+        : Seq_Option_ExpressionEncoder_____ =
+      Try(ExpressionEncoder_A1_) ::
+        Try(ExpressionEncoder_A2_) ::
+        Try(ExpressionEncoder_A3_) ::
+        Try(ExpressionEncoder_A4_) ::
+        Try(ExpressionEncoder_A5_) ::
+        Try(ExpressionEncoder_A6_) ::
+        Try(ExpressionEncoder_A7_) ::
+        Try(ExpressionEncoder_A8_) ::
+        Try(ExpressionEncoder_A9_) ::
+        Try(ExpressionEncoder_A10_) ::
+        Try(ExpressionEncoder_A11_) ::
+        Try(ExpressionEncoder_A12_) ::
+        Try(ExpressionEncoder_A13_) ::
+        Try(ExpressionEncoder_A14_) ::
+        Try(ExpressionEncoder_A15_) ::
+        Try(ExpressionEncoder_A16_) ::
+        Try(ExpressionEncoder_A17_) ::
+        Try(ExpressionEncoder_A18_) ::
+        Try(ExpressionEncoder_A19_) ::
+        Try(ExpressionEncoder_A20_) ::
+        Try(ExpressionEncoder_A21_) ::
+        Try(ExpressionEncoder_A22_) ::
+        Nil
+  }
+}
+<<< #4133 very long one-liner with chain of infixes, with selects
+runner.maxStateVisits = 5000
+===
+class UDFRegistration {
+  def foo = {
+    val inputEncoders: Seq_Option_ExpressionEncoder_____ = Try(ExpressionEncoder_A1_).toOption :: Try(ExpressionEncoder_A2_).toOption :: Try(ExpressionEncoder_A3_).toOption :: Try(ExpressionEncoder_A4_).toOption :: Try(ExpressionEncoder_A5_).toOption :: Try(ExpressionEncoder_A6_).toOption :: Try(ExpressionEncoder_A7_).toOption :: Try(ExpressionEncoder_A8_).toOption :: Try(ExpressionEncoder_A9_).toOption :: Try(ExpressionEncoder_A10_).toOption :: Try(ExpressionEncoder_A11_).toOption :: Try(ExpressionEncoder_A12_).toOption :: Try(ExpressionEncoder_A13_).toOption :: Try(ExpressionEncoder_A14_).toOption :: Try(ExpressionEncoder_A15_).toOption :: Try(ExpressionEncoder_A16_).toOption :: Try(ExpressionEncoder_A17_).toOption :: Try(ExpressionEncoder_A18_).toOption :: Try(ExpressionEncoder_A19_).toOption :: Try(ExpressionEncoder_A20_).toOption :: Try(ExpressionEncoder_A21_).toOption :: Try(ExpressionEncoder_A22_).toOption :: Nil
+  }
+}
+>>>
+class UDFRegistration {
+  def foo = {
+    val inputEncoders
+        : Seq_Option_ExpressionEncoder_____ =
+      Try(ExpressionEncoder_A1_)
+        .toOption ::
+        Try(ExpressionEncoder_A2_)
+          .toOption ::
+        Try(ExpressionEncoder_A3_)
+          .toOption ::
+        Try(ExpressionEncoder_A4_)
+          .toOption ::
+        Try(ExpressionEncoder_A5_)
+          .toOption ::
+        Try(ExpressionEncoder_A6_)
+          .toOption ::
+        Try(ExpressionEncoder_A7_)
+          .toOption ::
+        Try(ExpressionEncoder_A8_)
+          .toOption ::
+        Try(ExpressionEncoder_A9_)
+          .toOption ::
+        Try(ExpressionEncoder_A10_)
+          .toOption ::
+        Try(ExpressionEncoder_A11_)
+          .toOption ::
+        Try(ExpressionEncoder_A12_)
+          .toOption ::
+        Try(ExpressionEncoder_A13_)
+          .toOption ::
+        Try(ExpressionEncoder_A14_)
+          .toOption ::
+        Try(ExpressionEncoder_A15_)
+          .toOption ::
+        Try(ExpressionEncoder_A16_)
+          .toOption ::
+        Try(ExpressionEncoder_A17_)
+          .toOption ::
+        Try(ExpressionEncoder_A18_)
+          .toOption ::
+        Try(ExpressionEncoder_A19_)
+          .toOption ::
+        Try(ExpressionEncoder_A20_)
+          .toOption ::
+        Try(ExpressionEncoder_A21_)
+          .toOption ::
+        Try(ExpressionEncoder_A22_)
+          .toOption :: Nil
+  }
+}
+<<< #4133 very long one-liner with chain of infixes, with select and types
+runner.maxStateVisits = 100000
+===
+class UDFRegistration {
+  def foo = {
+    val inputEncoders: Seq[Option[ExpressionEncoder[_]]] = Try(ExpressionEncoder[A1]).toOption :: Try(ExpressionEncoder[A2]).toOption :: Try(ExpressionEncoder[A3]).toOption :: Try(ExpressionEncoder[A4]).toOption :: Try(ExpressionEncoder[A5]).toOption :: Try(ExpressionEncoder[A6]).toOption :: Try(ExpressionEncoder[A7]).toOption :: Try(ExpressionEncoder[A8]).toOption :: Try(ExpressionEncoder[A9]).toOption :: Try(ExpressionEncoder[A10]).toOption :: Try(ExpressionEncoder[A11]).toOption :: Try(ExpressionEncoder[A12]).toOption :: Try(ExpressionEncoder[A13]).toOption :: Try(ExpressionEncoder[A14]).toOption :: Try(ExpressionEncoder[A15]).toOption :: Try(ExpressionEncoder[A16]).toOption :: Try(ExpressionEncoder[A17]).toOption :: Try(ExpressionEncoder[A18]).toOption :: Try(ExpressionEncoder[A19]).toOption :: Try(ExpressionEncoder[A20]).toOption :: Try(ExpressionEncoder[A21]).toOption :: Try(ExpressionEncoder[A22]).toOption :: Nil
+  }
+}
+>>>
+class UDFRegistration {
+  def foo = {
+    val inputEncoders: Seq[
+      Option[ExpressionEncoder[_]]
+    ] =
+      Try(ExpressionEncoder[A1])
+        .toOption ::
+        Try(ExpressionEncoder[A2])
+          .toOption ::
+        Try(ExpressionEncoder[A3])
+          .toOption ::
+        Try(ExpressionEncoder[A4])
+          .toOption ::
+        Try(ExpressionEncoder[A5])
+          .toOption ::
+        Try(ExpressionEncoder[A6])
+          .toOption ::
+        Try(ExpressionEncoder[A7])
+          .toOption ::
+        Try(ExpressionEncoder[A8])
+          .toOption ::
+        Try(ExpressionEncoder[A9])
+          .toOption ::
+        Try(ExpressionEncoder[A10])
+          .toOption ::
+        Try(ExpressionEncoder[A11])
+          .toOption ::
+        Try(ExpressionEncoder[A12])
+          .toOption ::
+        Try(ExpressionEncoder[A13])
+          .toOption ::
+        Try(ExpressionEncoder[A14])
+          .toOption ::
+        Try(ExpressionEncoder[A15])
+          .toOption ::
+        Try(ExpressionEncoder[A16])
+          .toOption ::
+        Try(ExpressionEncoder[A17])
+          .toOption ::
+        Try(ExpressionEncoder[A18])
+          .toOption ::
+        Try(ExpressionEncoder[A19])
+          .toOption ::
+        Try(ExpressionEncoder[A20])
+          .toOption ::
+        Try(ExpressionEncoder[A21])
+          .toOption ::
+        Try(ExpressionEncoder[A22])
+          .toOption :: Nil
+  }
+}
+<<< #4133 infix after xml block
+maxColumn = 80
+===
+object a {
+  private def waitingBatchRow(batch: BatchUIData): Seq[Node] = {
+    baseRow(batch) ++ createOutputOperationProgressBar(batch) ++ <td>queued</td>++ {
+      if (firstFailureReason.nonEmpty) {
+        // Waiting batches have not run yet, so must have no failure reasons.
+        <td>-</td>
+      } else {
+        Nil
+      }
+    }
+  }
+}
+>>>
+object a {
+  private def waitingBatchRow(batch: BatchUIData): Seq[Node] = {
+    baseRow(batch) ++ createOutputOperationProgressBar(batch) ++
+      <td>queued</td> ++ {
+        if (firstFailureReason.nonEmpty) {
+          // Waiting batches have not run yet, so must have no failure reasons.
+          <td>-</td>
+        } else {
+          Nil
+        }
+      }
+  }
+}
+<<< #4133 applies and selects with a partial function 1
+maxColumn = 76
+runner.parser = source
+===
+val fieldsCasts = from.fields.zip(to.fields).map {
+  case (fromField, toField) => nullSafeCastFunction(fromField.dataType, toField.dataType, ctx)
+}
+>>>
+val fieldsCasts = from
+  .fields
+  .zip(to.fields)
+  .map { case (fromField, toField) =>
+    nullSafeCastFunction(fromField.dataType, toField.dataType, ctx)
+  }
+<<< #4133 applies and selects with a partial function 2
+maxColumn = 76
+===
+val stats = Profiler.getStatistics().asScala.toSeq.map {
+  case (trace, count) => MethodCallTrace(trace.className, trace.methodName, trace.methodDescriptor) -> count.intValue
+}
+>>>
+val stats = Profiler
+  .getStatistics()
+  .asScala
+  .toSeq
+  .map { case (trace, count) =>
+    MethodCallTrace(
+      trace.className,
+      trace.methodName,
+      trace.methodDescriptor
+    ) -> count.intValue
+  }
+<<< #4133 partial function within apply, short
+rdd.map(
+    {case (id, count) => (count, id)})
+>>>
+rdd.map({ case (id, count) =>
+  (count, id)
+})
+<<< #4133 partial function within apply, long
+maxColumn = 80
+===
+rdd.map(
+    {case (id, count) => (count, id)})
+>>>
+rdd.map({ case (id, count) =>
+  (count, id)
+})
+<<< #4133 RedundantParens around infix with an embedded blank lin
+maxColumn = 80
+rewrite {
+  rules = [RedundantParens, RedundantBraces]
+  redundantBraces.maxLines = 100
+  redundantParens.infixSide = all
+}
+===
+class ClassEmitter {
+
+  def genScalaClassConstructor = {
+
+    if (useESClass) {
+      for {
+        chainProto <- chainProtoWithGlobals
+      } yield {
+        (
+          // Real constructor
+          js.JSDocConstructor(realCtorDef.head) ::
+          realCtorDef.tail :::
+          chainProto :::
+          (genIdentBracketSelect(prototypeFor(ctorVar), "constructor") := ctorVar) ::
+
+          // Inheritable constructor
+          js.JSDocConstructor(inheritableCtorDef.head) ::
+          inheritableCtorDef.tail :::
+          (globalVar(VarField.h, className).prototype := prototypeFor(ctorVar)) :: Nil
+        )
+      }
+    }
+  }
+
+}
+>>>
+class ClassEmitter {
+
+  def genScalaClassConstructor =
+
+    if (useESClass) {
+      for {
+        chainProto <- chainProtoWithGlobals
+      } yield
+        // Real constructor
+        js.JSDocConstructor(realCtorDef.head) :: realCtorDef.tail :::
+          chainProto :::
+          (genIdentBracketSelect(prototypeFor(ctorVar), "constructor") :=
+            ctorVar) ::
+          // Inheritable constructor
+          js.JSDocConstructor(inheritableCtorDef.head) ::
+          inheritableCtorDef.tail :::
+          (globalVar(VarField.h, className).prototype :=
+            prototypeFor(ctorVar)) :: Nil
+    }
+
+}
+<<< #4133 lambda in braces, overflow after brace
+maxColumn = 76
+===
+validateStructuralIntegrityWithReasonImpl(row, expectedSchema).map {
+  errorMessage => s"Error message is: $errorMessage, " +
+      s"UnsafeRow status: ${getStructuralIntegrityStatus(row, expectedSchema)}"
+}
+>>>
+validateStructuralIntegrityWithReasonImpl(row, expectedSchema).map {
+  errorMessage =>
+    s"Error message is: $errorMessage, " +
+      s"UnsafeRow status: ${getStructuralIntegrityStatus(
+          row,
+          expectedSchema
+        )}"
+}
+<<< #4133 lambda in braces, overflow after brace 2
+maxColumn = 74
+===
+val finalProperties = properties.get(SupportsNamespaces.PROP_LOCATION).map { loc =>
+  properties + (SupportsNamespaces.PROP_LOCATION -> makeQualifiedDBObjectPath(loc))
+}
+>>>
+val finalProperties = properties
+  .get(SupportsNamespaces.PROP_LOCATION)
+  .map { loc =>
+    properties +
+      (SupportsNamespaces.PROP_LOCATION -> makeQualifiedDBObjectPath(loc))
+  }
+<<< #4133 lambda in parens rewritten to braces
+maxColumn = 80
+rewrite.rules = [RedundantBraces]
+===
+object Build {
+  lazy val scaladoc = project.in(file("scaladoc")).
+    settings(
+      generateScalaDocumentation := Def.inputTaskDyn {
+        val outputDirOverride = extraArgs.headOption.fold(identity[GenerationConfig](_))(newDir => {
+          config: GenerationConfig => config.add(OutputDir(newDir))
+        })
+        val justAPI = justAPIArg.fold(identity[GenerationConfig](_))(_ => {
+          config: GenerationConfig => config.remove[SiteRoot]
+        })
+      }.evaluated,
+    )
+}
+>>>
+object Build {
+  lazy val scaladoc = project
+    .in(file("scaladoc"))
+    .settings(
+      generateScalaDocumentation :=
+        Def
+          .inputTaskDyn {
+            val outputDirOverride =
+              extraArgs
+                .headOption
+                .fold(identity[GenerationConfig](_)) {
+                  newDir => config: GenerationConfig =>
+                    config.add(OutputDir(newDir))
+                }
+            val justAPI =
+              justAPIArg.fold(identity[GenerationConfig](_)) {
+                _ => config: GenerationConfig =>
+                  config.remove[SiteRoot]
+              }
+          }
+          .evaluated
+    )
+}
+<<< #4133 monads with binpack and no newlines in types
+maxColumn = 80
+binPack.preset = always
+newlines {
+  avoidInResultType = true
+  sometimesBeforeColonInMethodReturnType = false
+}
+===
+trait FunctionInstances extends FunctionInstances0 {
+  implicit def function6Instance[T1, T2, T3, T4, T5, T6]: Monad[(T1, T2, T3, T4, T5, T6) => *] with BindRec[(T1, T2, T3, T4, T5, T6) => *] =
+    new Monad[(T1, T2, T3, T4, T5, T6) => *] with BindRec[(T1, T2, T3, T4, T5, T6) => *] {
+      //
+    }
+}
+>>>
+trait FunctionInstances extends FunctionInstances0 {
+  implicit def function6Instance[
+      T1, T2, T3, T4, T5,
+      T6
+  ]: Monad[(T1, T2, T3, T4, T5, T6) => *] with BindRec[(T1, T2, T3, T4, T5, T6) => *] =
+    new Monad[(T1, T2, T3, T4, T5, T6) => *]
+      with BindRec[(T1, T2, T3, T4, T5, T6) => *] {
+      //
+    }
+}
+<<< #4133 overflowing complex result type 1
+preset = default
+maxColumn = 76
+===
+object Multipart {
+  def format(
+     //
+  ): Flow[MultipartFormData.Part[Source_ByteString], ByteString, NotUsed] = {
+    //
+  }
+}
+>>>
+object Multipart {
+  def format(
+      //
+  ): Flow[
+    MultipartFormData.Part[Source_ByteString],
+    ByteString,
+    NotUsed
+  ] = {
+    //
+  }
+}
+<<< #4133 overflowing complex result type 2
+preset = default
+maxColumn = 80
+===
+object Multipart {
+  private def streamed(
+    //
+  ): GraphStage[FlowShape[MultipartFormData.Part[Source[ByteString, _]], Source[ByteString, Any]]] =
+    new GraphStage[FlowShape[MultipartFormData.Part[Source[ByteString, _]], Source[ByteString, Any]]] {
+      //
+    }
+}
+>>>
+object Multipart {
+  private def streamed(
+      //
+  ): GraphStage[FlowShape[
+    MultipartFormData.Part[Source[ByteString, _]],
+    Source[ByteString, Any]
+  ]] =
+    new GraphStage[FlowShape[MultipartFormData.Part[
+      Source[ByteString, _]
+    ], Source[ByteString, Any]]] {
+      //
+    }
+}
+<<< #4133 complex nested applies/lambdas with for and tuple, narrow
+private object MemoMap {
+  def make(implicit trace: Trace): UIO[MemoMap] =
+    Ref.Synchronized
+      .map { ref =>
+        new MemoMap { self =>
+          final def getOrElseMemoize[E, A, B](scope: Scope)(
+            layer: ZLayer[A, E, B]
+          ): ZIO[A, E, ZEnvironment[B]] =
+            ref.modifyZIO { map =>
+              map.get(layer) match {
+                case None =>
+                  for {
+                    memoized = (
+                                 promise.await.onExit {
+                                   case Exit.Failure(_) => ZIO.unit
+                                   case Exit.Success(_) => observers.update(_ + 1)
+                                 },
+                                 (exit: Exit[Any, Any]) => finalizerRef.get.flatMap(_(exit))
+                               )
+                  } yield (resource, if (layer.isFresh) map else map.updated(layer, memoized))
+              }
+            }.flatten
+        }
+      }
+}
+>>> { stateVisits = 333, stateVisits2 = 333 }
+private object MemoMap {
+  def make(implicit
+      trace: Trace
+  ): UIO[MemoMap] = Ref
+    .Synchronized
+    .map { ref =>
+      new MemoMap {
+        self =>
+        final def getOrElseMemoize[
+            E,
+            A,
+            B
+        ](scope: Scope)(
+            layer: ZLayer[A, E, B]
+        ): ZIO[A, E, ZEnvironment[B]] =
+          ref
+            .modifyZIO { map =>
+              map.get(layer) match {
+                case None =>
+                  for {
+                    memoized =
+                      (
+                        promise
+                          .await
+                          .onExit {
+                            case Exit
+                                  .Failure(
+                                    _
+                                  ) =>
+                              ZIO.unit
+                            case Exit
+                                  .Success(
+                                    _
+                                  ) =>
+                              observers
+                                .update(
+                                  _ + 1
+                                )
+                          },
+                        (
+                          exit: Exit[
+                            Any,
+                            Any
+                          ]
+                        ) =>
+                          finalizerRef
+                            .get
+                            .flatMap(
+                              _(exit)
+                            )
+                      )
+                  } yield (
+                    resource,
+                    if (layer.isFresh)
+                      map
+                    else
+                      map.updated(
+                        layer,
+                        memoized
+                      )
+                  )
+              }
+            }
+            .flatten
+      }
+    }
+}
+<<< #4133 complex nested applies/lambdas with for and tuple, wide and long
+maxColumn = 80
+===
+object a {
+  private object MemoMap {
+    def make(implicit trace: Trace): UIO[MemoMap] =
+      Ref.Synchronized
+        .make[Map[ZLayer[Nothing, Any, Any], (IO[Any, Any], Exit[Any, Any] => UIO[Any])]](Map.empty)
+        .map { ref =>
+          new MemoMap { self =>
+            final def getOrElseMemoize[E, A, B](scope: Scope)(
+              layer: ZLayer[A, E, B]
+            ): ZIO[A, E, ZEnvironment[B]] =
+              ref.modifyZIO { map =>
+                map.get(layer) match {
+                  case Some((acquire, release)) =>
+                    val cached: ZIO[Any, E, ZEnvironment[B]] = acquire
+                      .asInstanceOf[IO[E, (FiberRefs.Patch, ZEnvironment[B])]]
+                      .flatMap { case (patch, b) => ZIO.patchFiberRefs(patch).as(b) }
+                      .onExit {
+                        case Exit.Success(_) => scope.addFinalizerExit(release)
+                        case Exit.Failure(_) => ZIO.unit
+                      }
+
+                    ZIO.succeed((cached, map))
+                  case None =>
+                    for {
+                      observers    <- Ref.make(0)
+                      promise      <- Promise.make[E, (FiberRefs.Patch, ZEnvironment[B])]
+                      finalizerRef <- Ref.make[Exit[Any, Any] => UIO[Any]](_ => ZIO.unit)
+
+                      resource = ZIO.uninterruptibleMask { restore =>
+                                   for {
+                                     a          <- ZIO.environment[A]
+                                     outerScope  = scope
+                                     innerScope <- Scope.make
+                                     tp <-
+                                       restore(
+                                         layer
+                                           .scope(innerScope)
+                                           .flatMap(_.apply(self).diffFiberRefs)
+                                       ).exit.flatMap {
+                                         case e @ Exit.Failure(cause) =>
+                                           promise.failCause(cause) *> innerScope.close(e) *> ZIO
+                                             .failCause(cause)
+
+                                         case Exit.Success((patch, b)) =>
+                                           for {
+                                             _ <- finalizerRef.set { (e: Exit[Any, Any]) =>
+                                                    ZIO.whenZIO(observers.modify(n => (n == 1, n - 1)))(
+                                                      innerScope.close(e)
+                                                    )
+                                                  }
+                                             _ <- observers.update(_ + 1)
+                                             outerFinalizer <-
+                                               outerScope.addFinalizerExit(e => finalizerRef.get.flatMap(_.apply(e)))
+                                             _ <- promise.succeed((patch, b))
+                                           } yield b
+                                       }
+                                   } yield tp
+                                 }
+
+                      memoized = (
+                                   promise.await.onExit {
+                                     case Exit.Failure(_) => ZIO.unit
+                                     case Exit.Success(_) => observers.update(_ + 1)
+                                   },
+                                   (exit: Exit[Any, Any]) => finalizerRef.get.flatMap(_(exit))
+                                 )
+                    } yield (resource, if (layer.isFresh) map else map.updated(layer, memoized))
+
+                }
+              }.flatten
+          }
+        }
+  }
+}
+>>> { stateVisits = 970, stateVisits2 = 970 }
+object a {
+  private object MemoMap {
+    def make(implicit trace: Trace): UIO[MemoMap] = Ref
+      .Synchronized
+      .make[Map[
+        ZLayer[Nothing, Any, Any],
+        (IO[Any, Any], Exit[Any, Any] => UIO[Any])
+      ]](Map.empty)
+      .map { ref =>
+        new MemoMap {
+          self =>
+          final def getOrElseMemoize[E, A, B](
+              scope: Scope
+          )(layer: ZLayer[A, E, B]): ZIO[A, E, ZEnvironment[B]] =
+            ref
+              .modifyZIO { map =>
+                map.get(layer) match {
+                  case Some((acquire, release)) =>
+                    val cached: ZIO[Any, E, ZEnvironment[B]] = acquire
+                      .asInstanceOf[IO[E, (FiberRefs.Patch, ZEnvironment[B])]]
+                      .flatMap { case (patch, b) =>
+                        ZIO.patchFiberRefs(patch).as(b)
+                      }
+                      .onExit {
+                        case Exit.Success(_) =>
+                          scope.addFinalizerExit(release)
+                        case Exit.Failure(_) =>
+                          ZIO.unit
+                      }
+
+                    ZIO.succeed((cached, map))
+                  case None =>
+                    for {
+                      observers <- Ref.make(0)
+                      promise <- Promise.make[
+                        E,
+                        (FiberRefs.Patch, ZEnvironment[B])
+                      ]
+                      finalizerRef <- Ref.make[Exit[Any, Any] => UIO[Any]](_ =>
+                        ZIO.unit
+                      )
+
+                      resource = ZIO.uninterruptibleMask { restore =>
+                        for {
+                          a <- ZIO.environment[A]
+                          outerScope = scope
+                          innerScope <- Scope.make
+                          tp <- restore(
+                            layer
+                              .scope(innerScope)
+                              .flatMap(_.apply(self).diffFiberRefs)
+                          ).exit
+                            .flatMap {
+                              case e @ Exit.Failure(cause) =>
+                                promise.failCause(cause) *>
+                                  innerScope.close(e) *> ZIO.failCause(cause)
+
+                              case Exit.Success((patch, b)) =>
+                                for {
+                                  _ <- finalizerRef.set { (e: Exit[Any, Any]) =>
+                                    ZIO.whenZIO(
+                                      observers.modify(n => (n == 1, n - 1))
+                                    )(innerScope.close(e))
+                                  }
+                                  _ <- observers.update(_ + 1)
+                                  outerFinalizer <- outerScope.addFinalizerExit(
+                                    e => finalizerRef.get.flatMap(_.apply(e))
+                                  )
+                                  _ <- promise.succeed((patch, b))
+                                } yield b
+                            }
+                        } yield tp
+                      }
+
+                      memoized =
+                        (
+                          promise
+                            .await
+                            .onExit {
+                              case Exit.Failure(_) =>
+                                ZIO.unit
+                              case Exit.Success(_) =>
+                                observers.update(_ + 1)
+                            },
+                          (exit: Exit[Any, Any]) =>
+                            finalizerRef.get.flatMap(_(exit))
+                        )
+                    } yield (
+                      resource,
+                      if (layer.isFresh)
+                        map
+                      else
+                        map.updated(layer, memoized)
+                    )
+
+                }
+              }
+              .flatten
+        }
+      }
+  }
+}
+<<< #4133 spark: massive chain of applies with anonymous function calls
+maxColumn = 80
+runner.maxStateVisits = 10000000
+runner.optimizer.maxVisitsPerToken=1000000
+===
+object a {
+  private def ignoreUndocumentedPackages(packages: Seq[Seq[File]]): Seq[Seq[File]] = {
+    packages
+      .map(_.filterNot(_.getName.contains("$")))
+      .map(_.filterNot(_.getCanonicalPath.contains("org/apache/spark/deploy")))
+      .map(_.filterNot(_.getCanonicalPath.contains("org/apache/spark/examples")))
+      .map(_.filterNot(_.getCanonicalPath.contains("org/apache/spark/internal")))
+      .map(_.filterNot(_.getCanonicalPath.contains("org/apache/spark/memory")))
+      .map(_.filterNot(_.getCanonicalPath.contains("org/apache/spark/network")))
+      .map(_.filterNot(_.getCanonicalPath.contains("org/apache/spark/rpc")))
+      .map(_.filterNot(f =>
+        f.getCanonicalPath.contains("org/apache/spark/shuffle") &&
+        !f.getCanonicalPath.contains("org/apache/spark/shuffle/api")))
+      .map(_.filterNot(_.getCanonicalPath.contains("org/apache/spark/executor")))
+      .map(_.filterNot(_.getCanonicalPath.contains("org/apache/spark/ExecutorAllocationClient")))
+      .map(_.filterNot(_.getCanonicalPath.contains("org/apache/spark/scheduler/cluster/CoarseGrainedSchedulerBackend")))
+      .map(_.filterNot(f =>
+        f.getCanonicalPath.contains("org/apache/spark/unsafe") &&
+        !f.getCanonicalPath.contains("org/apache/spark/unsafe/types/CalendarInterval")))
+      .map(_.filterNot(_.getCanonicalPath.contains("python")))
+      .map(_.filterNot(_.getCanonicalPath.contains("org/apache/spark/util/collection")))
+      .map(_.filterNot(_.getCanonicalPath.contains("org/apache/spark/util/io")))
+      .map(_.filterNot(_.getCanonicalPath.contains("org/apache/spark/util/kvstore")))
+      .map(_.filterNot(_.getCanonicalPath.contains("org/apache/spark/sql/catalyst")))
+      .map(_.filterNot(_.getCanonicalPath.contains("org/apache/spark/sql/connect/")))
+      .map(_.filterNot(_.getCanonicalPath.contains("org/apache/spark/sql/execution")))
+      .map(_.filterNot(_.getCanonicalPath.contains("org/apache/spark/sql/internal")))
+      .map(_.filterNot(_.getCanonicalPath.contains("org/apache/spark/sql/hive")))
+      .map(_.filterNot(_.getCanonicalPath.contains("org/apache/spark/sql/catalog/v2/utils")))
+      .map(_.filterNot(_.getCanonicalPath.contains("org.apache.spark.errors")))
+      .map(_.filterNot(_.getCanonicalPath.contains("org.apache.spark.sql.errors")))
+      .map(_.filterNot(_.getCanonicalPath.contains("org/apache/hive")))
+      .map(_.filterNot(_.getCanonicalPath.contains("org/apache/spark/sql/v2/avro")))
+      .map(_.filterNot(_.getCanonicalPath.contains("SSLOptions")))
+  }
+}
+>>> { stateVisits = 1168, stateVisits2 = 1168 }
+object a {
+  private def ignoreUndocumentedPackages(
+      packages: Seq[Seq[File]]
+  ): Seq[Seq[File]] = {
+    packages
+      .map(_.filterNot(_.getName.contains("$")))
+      .map(_.filterNot(_.getCanonicalPath.contains("org/apache/spark/deploy")))
+      .map(
+        _.filterNot(_.getCanonicalPath.contains("org/apache/spark/examples"))
+      )
+      .map(
+        _.filterNot(_.getCanonicalPath.contains("org/apache/spark/internal"))
+      )
+      .map(_.filterNot(_.getCanonicalPath.contains("org/apache/spark/memory")))
+      .map(_.filterNot(_.getCanonicalPath.contains("org/apache/spark/network")))
+      .map(_.filterNot(_.getCanonicalPath.contains("org/apache/spark/rpc")))
+      .map(
+        _.filterNot(f =>
+          f.getCanonicalPath.contains("org/apache/spark/shuffle") &&
+            !f.getCanonicalPath.contains("org/apache/spark/shuffle/api")
+        )
+      )
+      .map(
+        _.filterNot(_.getCanonicalPath.contains("org/apache/spark/executor"))
+      )
+      .map(
+        _.filterNot(
+          _.getCanonicalPath
+            .contains("org/apache/spark/ExecutorAllocationClient")
+        )
+      )
+      .map(
+        _.filterNot(
+          _.getCanonicalPath
+            .contains(
+              "org/apache/spark/scheduler/cluster/CoarseGrainedSchedulerBackend"
+            )
+        )
+      )
+      .map(
+        _.filterNot(f =>
+          f.getCanonicalPath.contains("org/apache/spark/unsafe") &&
+            !f.getCanonicalPath
+              .contains("org/apache/spark/unsafe/types/CalendarInterval")
+        )
+      )
+      .map(_.filterNot(_.getCanonicalPath.contains("python")))
+      .map(
+        _.filterNot(
+          _.getCanonicalPath.contains("org/apache/spark/util/collection")
+        )
+      )
+      .map(_.filterNot(_.getCanonicalPath.contains("org/apache/spark/util/io")))
+      .map(
+        _.filterNot(
+          _.getCanonicalPath.contains("org/apache/spark/util/kvstore")
+        )
+      )
+      .map(
+        _.filterNot(
+          _.getCanonicalPath.contains("org/apache/spark/sql/catalyst")
+        )
+      )
+      .map(
+        _.filterNot(
+          _.getCanonicalPath.contains("org/apache/spark/sql/connect/")
+        )
+      )
+      .map(
+        _.filterNot(
+          _.getCanonicalPath.contains("org/apache/spark/sql/execution")
+        )
+      )
+      .map(
+        _.filterNot(
+          _.getCanonicalPath.contains("org/apache/spark/sql/internal")
+        )
+      )
+      .map(
+        _.filterNot(_.getCanonicalPath.contains("org/apache/spark/sql/hive"))
+      )
+      .map(
+        _.filterNot(
+          _.getCanonicalPath.contains("org/apache/spark/sql/catalog/v2/utils")
+        )
+      )
+      .map(_.filterNot(_.getCanonicalPath.contains("org.apache.spark.errors")))
+      .map(
+        _.filterNot(_.getCanonicalPath.contains("org.apache.spark.sql.errors"))
+      )
+      .map(_.filterNot(_.getCanonicalPath.contains("org/apache/hive")))
+      .map(
+        _.filterNot(_.getCanonicalPath.contains("org/apache/spark/sql/v2/avro"))
+      )
+      .map(_.filterNot(_.getCanonicalPath.contains("SSLOptions")))
+  }
+}
+<<< #4133 #4133 spark: massive chain of applies with function calls
+maxColumn = 80
+runner.maxStateVisits = 10000000
+runner.optimizer.maxVisitsPerToken=1000000
+===
+object a {
+  private def ignoreUndocumentedPackages(packages: Seq[Seq[File]]): Seq[Seq[File]] = {
+    packages
+      .map(filterNot(getName.contains("$")))
+      .map(filterNot(getCanonicalPath.contains("org/apache/spark/deploy")))
+      .map(filterNot(getCanonicalPath.contains("org/apache/spark/examples")))
+      .map(filterNot(getCanonicalPath.contains("org/apache/spark/internal")))
+      .map(filterNot(getCanonicalPath.contains("org/apache/spark/memory")))
+      .map(filterNot(getCanonicalPath.contains("org/apache/spark/network")))
+      .map(filterNot(getCanonicalPath.contains("org/apache/spark/rpc")))
+      .map(filterNot(f =>
+        f.getCanonicalPath.contains("org/apache/spark/shuffle") &&
+        !f.getCanonicalPath.contains("org/apache/spark/shuffle/api")))
+      .map(filterNot(getCanonicalPath.contains("org/apache/spark/executor")))
+      .map(filterNot(getCanonicalPath.contains("org/apache/spark/ExecutorAllocationClient")))
+      .map(filterNot(getCanonicalPath.contains("org/apache/spark/scheduler/cluster/CoarseGrainedSchedulerBackend")))
+      .map(filterNot(f =>
+        f.getCanonicalPath.contains("org/apache/spark/unsafe") &&
+        !f.getCanonicalPath.contains("org/apache/spark/unsafe/types/CalendarInterval")))
+      .map(filterNot(getCanonicalPath.contains("python")))
+      .map(filterNot(getCanonicalPath.contains("org/apache/spark/util/collection")))
+      .map(filterNot(getCanonicalPath.contains("org/apache/spark/util/io")))
+      .map(filterNot(getCanonicalPath.contains("org/apache/spark/util/kvstore")))
+      .map(filterNot(getCanonicalPath.contains("org/apache/spark/sql/catalyst")))
+      .map(filterNot(getCanonicalPath.contains("org/apache/spark/sql/connect/")))
+      .map(filterNot(getCanonicalPath.contains("org/apache/spark/sql/execution")))
+      .map(filterNot(getCanonicalPath.contains("org/apache/spark/sql/internal")))
+      .map(filterNot(getCanonicalPath.contains("org/apache/spark/sql/hive")))
+      .map(filterNot(getCanonicalPath.contains("org/apache/spark/sql/catalog/v2/utils")))
+      .map(filterNot(getCanonicalPath.contains("org.apache.spark.errors")))
+      .map(filterNot(getCanonicalPath.contains("org.apache.spark.sql.errors")))
+      .map(filterNot(getCanonicalPath.contains("org/apache/hive")))
+      .map(filterNot(getCanonicalPath.contains("org/apache/spark/sql/v2/avro")))
+      .map(filterNot(getCanonicalPath.contains("SSLOptions")))
+  }
+}
+>>> { stateVisits = 739, stateVisits2 = 739 }
+object a {
+  private def ignoreUndocumentedPackages(
+      packages: Seq[Seq[File]]
+  ): Seq[Seq[File]] = {
+    packages
+      .map(filterNot(getName.contains("$")))
+      .map(filterNot(getCanonicalPath.contains("org/apache/spark/deploy")))
+      .map(filterNot(getCanonicalPath.contains("org/apache/spark/examples")))
+      .map(filterNot(getCanonicalPath.contains("org/apache/spark/internal")))
+      .map(filterNot(getCanonicalPath.contains("org/apache/spark/memory")))
+      .map(filterNot(getCanonicalPath.contains("org/apache/spark/network")))
+      .map(filterNot(getCanonicalPath.contains("org/apache/spark/rpc")))
+      .map(
+        filterNot(f =>
+          f.getCanonicalPath.contains("org/apache/spark/shuffle") &&
+            !f.getCanonicalPath.contains("org/apache/spark/shuffle/api")
+        )
+      )
+      .map(filterNot(getCanonicalPath.contains("org/apache/spark/executor")))
+      .map(
+        filterNot(
+          getCanonicalPath.contains("org/apache/spark/ExecutorAllocationClient")
+        )
+      )
+      .map(
+        filterNot(
+          getCanonicalPath.contains(
+            "org/apache/spark/scheduler/cluster/CoarseGrainedSchedulerBackend"
+          )
+        )
+      )
+      .map(
+        filterNot(f =>
+          f.getCanonicalPath.contains("org/apache/spark/unsafe") &&
+            !f.getCanonicalPath
+              .contains("org/apache/spark/unsafe/types/CalendarInterval")
+        )
+      )
+      .map(filterNot(getCanonicalPath.contains("python")))
+      .map(
+        filterNot(getCanonicalPath.contains("org/apache/spark/util/collection"))
+      )
+      .map(filterNot(getCanonicalPath.contains("org/apache/spark/util/io")))
+      .map(
+        filterNot(getCanonicalPath.contains("org/apache/spark/util/kvstore"))
+      )
+      .map(
+        filterNot(getCanonicalPath.contains("org/apache/spark/sql/catalyst"))
+      )
+      .map(
+        filterNot(getCanonicalPath.contains("org/apache/spark/sql/connect/"))
+      )
+      .map(
+        filterNot(getCanonicalPath.contains("org/apache/spark/sql/execution"))
+      )
+      .map(
+        filterNot(getCanonicalPath.contains("org/apache/spark/sql/internal"))
+      )
+      .map(filterNot(getCanonicalPath.contains("org/apache/spark/sql/hive")))
+      .map(
+        filterNot(
+          getCanonicalPath.contains("org/apache/spark/sql/catalog/v2/utils")
+        )
+      )
+      .map(filterNot(getCanonicalPath.contains("org.apache.spark.errors")))
+      .map(filterNot(getCanonicalPath.contains("org.apache.spark.sql.errors")))
+      .map(filterNot(getCanonicalPath.contains("org/apache/hive")))
+      .map(filterNot(getCanonicalPath.contains("org/apache/spark/sql/v2/avro")))
+      .map(filterNot(getCanonicalPath.contains("SSLOptions")))
+  }
+}
+<<< #4318
+runner.dialect = scala213source3
+align.openParenCallSite = true
+newlines.configStyleCallSite.prefer = false
+===
+object A {
+  def f(a: (
+             Seq[Int],
+               Seq[Int]) =
+           (Seq(), Seq())): Unit = ???
+}
+>>>
+object A {
+  def f(
+      a: (Seq[Int], Seq[Int]) =
+        (Seq(), Seq())
+  ): Unit = ???
+}
+<<< #4219
+object a {
+  val expression = for (
+    x <- loremipsumdolorsitametconsecteturadipiscingelitseddoeiusmodtemporincididu;
+    y <- loremipsumdolorsitametconsecteturadipiscingelitseddoeiusmodtemporincididu
+  ) yield x + y
+}
+>>>
+object a {
+  val expression =
+    for (
+      x <-
+        loremipsumdolorsitametconsecteturadipiscingelitseddoeiusmodtemporincididu;
+      y <-
+        loremipsumdolorsitametconsecteturadipiscingelitseddoeiusmodtemporincididu
+    )
+      yield x + y
+}
+<<< #4133 select chain with no-break comment before dot, short
+maxColumn = 37
+===
+sel.getContext /*ScImportSelectors*/ .getContext.asInstanceOf[ScImportExpr].reference
+>>>
+sel
+  .getContext /*ScImportSelectors*/
+  .getContext
+  .asInstanceOf[ScImportExpr]
+  .reference
+<<< #4133 select chain with no-break comment before dot, long
+maxColumn = 80
+===
+sel.getContext /*ScImportSelectors*/ .getContext.asInstanceOf[ScImportExpr].reference
+>>>
+sel
+  .getContext /*ScImportSelectors*/
+  .getContext
+  .asInstanceOf[ScImportExpr]
+  .reference

@@ -987,3 +987,21 @@ package foo {
 
   import bar.baz
 }
+<<< #4368 comment after import and blank
+rewrite.imports.expand = true
+===
+import scala.concurrent.Future
+
+// format: off
+/** Something
+ */
+// format: on
+class Test {}
+>>>
+import scala.concurrent.Future
+
+// format: off
+/** Something
+ */
+// format: on
+class Test {}

@@ -9,7 +9,7 @@ import scala.meta.tokens.Token
 
 case class OptimalToken(
     token: Token,
-    killOnFail: Boolean = false,
+    killOnFail: Boolean,
     recurseOnly: Boolean = false,
 ) {
   override def toString: String = {
@@ -145,7 +145,7 @@ case class Split(
 
   def withOptimalTokenOpt(
       token: => Option[Token],
-      killOnFail: Boolean = false,
+      killOnFail: Boolean,
       extend: Boolean = false,
       recurseOnly: Boolean = false,
   ): Split = withOptimalAt(
@@ -156,7 +156,7 @@ case class Split(
 
   def withOptimalToken(
       token: => Token,
-      killOnFail: Boolean = false,
+      killOnFail: Boolean,
       ignore: Boolean = false,
       extend: Boolean = false,
       recurseOnly: Boolean = false,
@@ -198,10 +198,10 @@ case class Split(
     else throw new UnsupportedOperationException("Use orPolicy or andPolicy")
 
   def withSingleLine(
-      fexpire: => Token,
+      expire: => Token,
       exclude: => TokenRanges = TokenRanges.empty,
       noSyntaxNL: Boolean = false,
-      killOnFail: => Boolean = false,
+      killOnFail: => Option[Boolean] = None,
       rank: Int = 0,
       extend: Boolean = false,
       ignore: Boolean = false,
@@ -210,38 +210,22 @@ case class Split(
   )(implicit fileLine: FileLine, style: ScalafmtConfig): Split =
     if (isIgnored || ignore) this
     else {
-      val expire = fexpire
-      withSingleLineAndOptimal(
-        expire,
-        expire,
-        exclude,
-        noSyntaxNL,
-        killOnFail,
-        rank,
-        extend,
-        noOptimal = noOptimal,
+      val expireEval = expire
+      val excludeEval = exclude
+      withOptimalToken(
+        expireEval,
+        killOnFail = killOnFail.getOrElse(excludeEval.isEmpty),
+        extend = extend,
+        ignore = noOptimal,
         recurseOnly = recurseOnly,
+      ).withSingleLineNoOptimal(
+        expireEval,
+        excludeEval,
+        noSyntaxNL,
+        rank,
+        extend = extend,
       )
     }
-
-  def withSingleLineAndOptimal(
-      expire: => Token,
-      optimal: => Token,
-      exclude: => TokenRanges = TokenRanges.empty,
-      noSyntaxNL: Boolean = false,
-      killOnFail: Boolean = false,
-      rank: Int = 0,
-      extend: Boolean = false,
-      noOptimal: Boolean = false,
-      recurseOnly: Boolean = false,
-  )(implicit fileLine: FileLine, style: ScalafmtConfig): Split =
-    withOptimalToken(
-      optimal,
-      killOnFail,
-      extend = extend,
-      ignore = noOptimal,
-      recurseOnly = recurseOnly,
-    ).withSingleLineNoOptimal(expire, exclude, noSyntaxNL, rank, extend = extend)
 
   def withSingleLineNoOptimal(
       expire: => Token,
@@ -276,7 +260,14 @@ case class Split(
     else copy(penalty = this.penalty + penalty)
 
   def withIndent(length: => Length, expire: => Token, when: ExpiresOn): Split =
-    withMod(modExt.withIndent(length, expire, when))
+    withIndent(length, expire, when, ignore = false)
+
+  def withIndent(
+      length: => Length,
+      expire: => Token,
+      when: ExpiresOn,
+      ignore: Boolean,
+  ): Split = withMod(modExt.withIndent(length, expire, when), ignore)
 
   def withIndentOpt(
       length: => Length,
@@ -325,7 +316,7 @@ case class Split(
         else ""
       }
     val opt = optimalAt.fold("")(", opt=" + _)
-    s"""$prefix$mod:[$fileLineStack](cost=$cost, pen=$penalty, indents=$indentation, $policy$opt)"""
+    s"""${prefix}c=$cost[$penalty] $mod:[$fileLineStack](indents=$indentation, $policy$opt)"""
   }
 }
 

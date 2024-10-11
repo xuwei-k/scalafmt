@@ -2,6 +2,7 @@ package org.scalafmt.util
 
 import org.scalafmt.Debug
 import org.scalafmt.Scalafmt
+import org.scalafmt.config.ConfParsed
 import org.scalafmt.config.DanglingParentheses
 import org.scalafmt.config.FormatEvent._
 import org.scalafmt.config.Indents
@@ -19,6 +20,8 @@ import java.util.regex.Pattern
 import scala.annotation.tailrec
 import scala.collection.mutable
 
+import metaconfig.Conf
+import metaconfig.Configured
 import munit.Assertions._
 import munit.Location
 
@@ -29,12 +32,13 @@ trait HasTests extends FormatAssertions {
   def scalafmtRunner(sr: ScalafmtRunner, dg: Debug): ScalafmtRunner = sr.copy(
     debug = true,
     maxStateVisits = sr.maxStateVisits.orElse(Some(150000)),
+    completeCallback = dg.completed,
     eventCallback = {
       case CreateFormatOps(ops) => dg.formatOps = ops
       case Routes(routes) => dg.routes = routes
-      case explored: Explored if explored.n % 10000 == 0 => logger.elem(explored)
+      case explored: Explored if explored.n % 10000 == 0 =>
+        logger.elem(explored)
       case Enqueue(split) => dg.enqueued(split)
-      case evt: CompleteFormat => dg.completed(evt)
       case x: Written => dg.locations = x.formatLocations
       case _ =>
     },
@@ -117,9 +121,31 @@ trait HasTests extends FormatAssertions {
       val name = matcher.group(1)
       val extraConfig = Option(matcher.group(2))
       val original = matcher.group(3)
-      val altFilename = Option(matcher.group(4))
+      val extra = Option(matcher.group(4)).flatMap { x =>
+        ConfParsed.fromString(x).conf match {
+          case Configured.Ok(v) => Some(v)
+          case _ => Some(Conf.Str(x))
+        }
+      }
       val expected = matcher.group(5)
       val testStyle = extraConfig.fold(style)(loadStyle(_, style, linenum))
+
+      val altFilename = extra match {
+        case Some(Conf.Str(value)) => Some(value)
+        case Some(x: Conf.Obj) => x.field("filename") match {
+            case Some(Conf.Str(value)) => Some(value)
+            case _ => None
+          }
+        case _ => None
+      }
+      def getExtraNum(field: String) = extra match {
+        case Some(x: Conf.Obj) => x.field(field) match {
+            case Some(Conf.Num(value)) => Some(value.intValue)
+            case _ => None
+          }
+        case _ => None
+      }
+
       val actualName = stripPrefix(name)
       val test = DiffTest(
         actualName,
@@ -130,6 +156,8 @@ trait HasTests extends FormatAssertions {
         moduleSkip || isSkip(name),
         moduleOnly || isOnly(name),
         testStyle,
+        stateVisits = getExtraNum("stateVisits"),
+        stateVisits2 = getExtraNum("stateVisits2"),
       )
       linenum += numLines(t)
       test

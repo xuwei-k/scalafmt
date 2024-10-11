@@ -3,7 +3,7 @@ package org.scalafmt.internal
 import org.scalafmt.Error
 import org.scalafmt.Formatted
 import org.scalafmt.Scalafmt
-import org.scalafmt.config.{Case => _, _}
+import org.scalafmt.config._
 import org.scalafmt.internal.RegexCompat._
 import org.scalafmt.rewrite.RedundantBraces
 import org.scalafmt.util.LiteralOps
@@ -152,7 +152,7 @@ class FormatWriter(formatOps: FormatOps) {
       tok.left match {
         case rb: T.RightBrace // look for "foo { bar }"
             if RedundantBraces.canRewriteWithParensOnRightBrace(tok) =>
-          val beg = tokens(matching(rb)).meta.idx
+          val beg = matching(rb).idx
           val bloc = locations(beg)
           val style = bloc.style
           if (
@@ -1033,18 +1033,10 @@ class FormatWriter(formatOps: FormatOps) {
 
         private def formatListBlock(
             listIndent: String,
-        )(block: Scaladoc.ListBlock): Unit = {
-          val prefix = block.prefix
+        )(block: Scaladoc.ListBlock): Unit = block.items.foreach { item =>
+          val prefix = item.prefix
           val itemIndent = getIndentation(listIndent.length + prefix.length + 1)
-          block.items.foreach { x =>
-            sb.append(listIndent).append(prefix).append(' ')
-            formatListTerm(itemIndent)(x)
-          }
-        }
-
-        private def formatListTerm(
-            itemIndent: String,
-        )(item: Scaladoc.ListItem): Unit = {
+          sb.append(listIndent).append(prefix).append(' ')
           formatTextAfterMargin(item.text, itemIndent)
           item.terms.foreach(formatTerm(_, itemIndent, sbNonEmpty = true))
         }
@@ -1170,7 +1162,9 @@ class FormatWriter(formatOps: FormatOps) {
             val ft = floc.formatToken
             idx += 1
             columnShift += floc.shift
-            if (floc.hasBreakAfter || ft.leftHasNewline) floc
+            if (
+              floc.hasBreakAfter || ft.leftHasNewline || idx >= locations.length
+            ) floc
             else {
               getAlignNonSlcOwner(ft, locations(idx)).foreach { nonSlcOwner =>
                 val (container, depth) =

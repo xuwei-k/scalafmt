@@ -41,7 +41,8 @@ object ProjectFiles {
   implicit lazy val codec: ConfCodecEx[ProjectFiles] = generic
     .deriveCodecEx(ProjectFiles()).noTypos
 
-  val defaultIncludePaths = Seq("glob:**.scala", "glob:**.sbt", "glob:**.sc")
+  val defaultIncludePaths =
+    Seq("glob:**.scala", "glob:**.sbt", "glob:**.sc", "glob:**.mill")
 
   private sealed abstract class PathMatcher {
     def matches(path: file.Path): Boolean
