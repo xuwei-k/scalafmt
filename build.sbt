@@ -18,10 +18,8 @@ def scala213 = "2.13.16"
 
 inThisBuild {
   List(
-    version ~= { dynVer =>
-      if (isCI) dynVer else localSnapshotVersion // only for local publishing
-    },
-    organization := "org.scalameta",
+    version := "3.8.4-fork-1",
+    organization := "com.github.xuwei-k",
     homepage := Some(url("https://github.com/scalameta/scalafmt")),
     licenses :=
       List("Apache-2.0" -> url("http://www.apache.org/licenses/LICENSE-2.0")),
