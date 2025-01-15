@@ -148,3 +148,497 @@ final class RemoteSettings(val config: Config) {
         "watch-failure-detector.expected-response-after > 0"
       )
 }
+<<< #4133 partial func in block, from spark, ifElseExpressions
+rewrite.redundantBraces.ifElseExpressions = true
+===
+object a {
+  val toIterator: Any => Iterator[_] = if (lenient) {
+    {
+      case i: scala.collection.Iterable[_] => i.iterator
+      case l: java.util.List[_] => l.iterator().asScala
+      case a: Array[_] => a.iterator
+      case o => unsupportedCollectionType(o.getClass)
+    }
+  } else {
+    unsupportedCollectionType(tag.runtimeClass)
+  }
+}
+>>>
+object a {
+  val toIterator: Any => Iterator[_] = if (lenient) {
+    case i: scala.collection.Iterable[_] => i.iterator
+    case l: java.util.List[_]            => l.iterator().asScala
+    case a: Array[_]                     => a.iterator
+    case o => unsupportedCollectionType(o.getClass)
+  }
+  else
+    unsupportedCollectionType(tag.runtimeClass)
+}
+<<< #4133 partial func in block, from spark, !ifElseExpressions
+rewrite.redundantBraces.ifElseExpressions = false
+===
+object a {
+  val toIterator: Any => Iterator[_] = if (lenient) {
+    {
+      case i: scala.collection.Iterable[_] => i.iterator
+      case l: java.util.List[_] => l.iterator().asScala
+      case a: Array[_] => a.iterator
+      case o => unsupportedCollectionType(o.getClass)
+    }
+  } else {
+    unsupportedCollectionType(tag.runtimeClass)
+  }
+}
+>>>
+object a {
+  val toIterator: Any => Iterator[_] = if (lenient) {
+    {
+      case i: scala.collection.Iterable[_] => i.iterator
+      case l: java.util.List[_]            => l.iterator().asScala
+      case a: Array[_]                     => a.iterator
+      case o => unsupportedCollectionType(o.getClass)
+    }
+  } else {
+    unsupportedCollectionType(tag.runtimeClass)
+  }
+}
+<<< #4133 if-else with braces, some blocks are empty, have only comment, !if-else
+object a {
+  if (sym.isClassConstructor) {
+    constructorTrees += dd
+  } else if (exposed && sym.is(Accessor, butNot = Lazy)) {
+    // Exposed accessors must not be emitted, since the field they access is enough.
+  } else if (sym.hasAnnotation(jsdefn.JSOptionalAnnot)) {
+    // Optional methods must not be emitted
+  } else {
+    generatedMethods ++= genMethod(dd)
+  }
+}
+>>>
+object a {
+  if (sym.isClassConstructor) {
+    constructorTrees += dd
+  } else if (exposed && sym.is(Accessor, butNot = Lazy)) {
+    // Exposed accessors must not be emitted, since the field they access is enough.
+  } else if (sym.hasAnnotation(jsdefn.JSOptionalAnnot)) {
+    // Optional methods must not be emitted
+  } else {
+    generatedMethods ++= genMethod(dd)
+  }
+}
+<<< #4133 if-else with braces, some blocks are empty, have only comment, scala3, !if-else
+runner.dialect = scala3
+rewrite.scala3.convertToNewSyntax = true
+===
+object a {
+  if (sym.isClassConstructor) {
+    constructorTrees += dd
+  } else if (exposed && sym.is(Accessor, butNot = Lazy)) {
+    // Exposed accessors must not be emitted, since the field they access is enough.
+  } else if (sym.hasAnnotation(jsdefn.JSOptionalAnnot)) {
+    // Optional methods must not be emitted
+  } else {
+    generatedMethods ++= genMethod(dd)
+  }
+}
+>>>
+object a {
+  if sym.isClassConstructor then {
+    constructorTrees += dd
+  } else if exposed && sym.is(Accessor, butNot = Lazy) then {
+    // Exposed accessors must not be emitted, since the field they access is enough.
+  } else if sym.hasAnnotation(jsdefn.JSOptionalAnnot) then {
+    // Optional methods must not be emitted
+  } else {
+    generatedMethods ++= genMethod(dd)
+  }
+}
+<<< #4133 if-else with braces, some blocks are empty, have only comment, scala3, if-else
+runner.dialect = scala3
+rewrite.scala3.convertToNewSyntax = true
+rewrite.redundantBraces.ifElseExpressions = true
+===
+object a {
+  if (sym.isClassConstructor) {
+    constructorTrees += dd
+  } else if (exposed && sym.is(Accessor, butNot = Lazy)) {
+    // Exposed accessors must not be emitted, since the field they access is enough.
+  } else if (sym.hasAnnotation(jsdefn.JSOptionalAnnot)) {
+    // Optional methods must not be emitted
+  } else {
+    generatedMethods ++= genMethod(dd)
+  }
+}
+>>>
+object a {
+  if sym.isClassConstructor then constructorTrees += dd
+  else if exposed && sym.is(Accessor, butNot = Lazy) then {
+    // Exposed accessors must not be emitted, since the field they access is enough.
+  } else if sym.hasAnnotation(jsdefn.JSOptionalAnnot) then {
+    // Optional methods must not be emitted
+  } else generatedMethods ++= genMethod(dd)
+}
+<<< if-else with one block completely empty, !if-else
+object a {
+  if (template.isEmpty || hasModifiers || definition.exists(it => it.contains(CASE) && !it.contains(OBJECT))) {} else {
+    if (sb.length >= 2 && sb.substring(sb.length - 2, sb.length()) == "()" && !(sb.length > 2 && sb.charAt(sb.length - 3) == ')')) {
+      sb.delete(sb.length - 2, sb.length())
+    }
+  }
+}
+>>>
+object a {
+  if (
+    template.isEmpty || hasModifiers || definition
+      .exists(it => it.contains(CASE) && !it.contains(OBJECT))
+  ) {}
+  else {
+    if (
+      sb.length >= 2 && sb.substring(
+        sb.length - 2,
+        sb.length()
+      ) == "()" && !(sb.length > 2 && sb.charAt(sb.length - 3) == ')')
+    ) {
+      sb.delete(sb.length - 2, sb.length())
+    }
+  }
+}
+<<< if-else with one block completely empty, if-else
+rewrite.redundantBraces.ifElseExpressions = true
+===
+object a {
+  if (template.isEmpty || hasModifiers || definition.exists(it => it.contains(CASE) && !it.contains(OBJECT))) {} else {
+    if (sb.length >= 2 && sb.substring(sb.length - 2, sb.length()) == "()" && !(sb.length > 2 && sb.charAt(sb.length - 3) == ')')) {
+      sb.delete(sb.length - 2, sb.length())
+    }
+  }
+}
+>>>
+object a {
+  if (
+    template.isEmpty || hasModifiers || definition
+      .exists(it => it.contains(CASE) && !it.contains(OBJECT))
+  ) {}
+  else if (
+    sb.length >= 2 && sb.substring(
+      sb.length - 2,
+      sb.length()
+    ) == "()" && !(sb.length > 2 && sb.charAt(sb.length - 3) == ')')
+  )
+    sb.delete(sb.length - 2, sb.length())
+}
+<<< non-redundant parens in `new`
+rewrite.rules = [RedundantBraces, RedundantParens]
+===
+object a {
+  private val reloadCache: Try[Application] => T = new InlineCache[Try[Application], T]({ (tryApp: Try[Application]) =>
+    reloadCounter.incrementAndGet()
+    reloadValue(tryApp)
+  })
+}
+>>>
+object a {
+  private val reloadCache: Try[Application] => T =
+    new InlineCache[Try[Application], T]({ (tryApp: Try[Application]) =>
+      reloadCounter.incrementAndGet()
+      reloadValue(tryApp)
+    })
+}
+<<< block within parens: single-stat apply
+object a {
+  val switchVersion: Command = Command.args("+~", "<version> <args>")({
+    foo(bar)
+  })
+}
+>>>
+object a {
+  val switchVersion: Command = Command.args("+~", "<version> <args>")(
+    foo(bar)
+  )
+}
+<<< block within parens: single-stat infix
+object a {
+  val switchVersion: Command = Command.args("+~", "<version> <args>")({
+    foo + bar
+  })
+}
+>>>
+object a {
+  val switchVersion: Command = Command.args("+~", "<version> <args>")(
+    foo + bar
+  )
+}
+<<< block within parens: single-stat func with single-stat body (term)
+object a {
+  val switchVersion: Command = Command.args("+~", "<version> <args>")({ (initialState: State, args: Seq[String]) =>
+    {
+      foo + bar
+    }
+  })
+}
+>>>
+object a {
+  val switchVersion: Command = Command.args("+~", "<version> <args>")(
+    (initialState: State, args: Seq[String]) => foo + bar
+  )
+}
+<<< block within parens: single-stat func with single-stat body (defn)
+object a {
+  val switchVersion: Command = Command.args("+~", "<version> <args>")({ (initialState: State, args: Seq[String]) =>
+    {
+      def run = ???
+    }
+  })
+}
+>>>
+object a {
+  val switchVersion: Command = Command.args("+~", "<version> <args>") {
+    (initialState: State, args: Seq[String]) =>
+      def run = ???
+  }
+}
+<<< block within parens: single-stat func with multi-stat body
+object a {
+  val switchVersion: Command = Command.args("+~", "<version> <args>")({ (initialState: State, args: Seq[String]) =>
+    {
+      val requestedVersionPrefix = args.head
+      def run = ???
+    }
+  })
+}
+>>>
+object a {
+  val switchVersion: Command = Command.args("+~", "<version> <args>") {
+    (initialState: State, args: Seq[String]) =>
+      val requestedVersionPrefix = args.head
+      def run = ???
+  }
+}
+<<< block within parens: single-stat defn
+object a {
+  val switchVersion: Command = Command.args("+~", "<version> <args>")({
+    val foo = ???
+  })
+}
+>>>
+object a {
+  val switchVersion: Command = Command.args("+~", "<version> <args>") {
+    val foo = ???
+  }
+}
+<<< block within parens: multi-stat
+object a {
+  val switchVersion: Command = Command.args("+~", "<version> <args>")({
+    val foo = 0
+    val bar = 1
+    foo + bar
+  })
+}
+>>>
+object a {
+  val switchVersion: Command = Command.args("+~", "<version> <args>") {
+    val foo = 0
+    val bar = 1
+    foo + bar
+  }
+}
+<<< remove a trailing comma within braces
+rewrite.trailingCommas.style = always
+===
+def foo = {
+  // this path intentionally survives a `clean`
+  (LocalRootProject / baseDirectory).value / "test-suite/target/test-suite-stability.js",
+}
+>>>
+def foo =
+  // this path intentionally survives a `clean`
+  (LocalRootProject / baseDirectory).value / "test-suite/target/test-suite-stability.js"
+<<< keep a trailing comma within braces
+rewrite.trailingCommas.style = keep
+===
+def foo = {
+  // this path intentionally survives a `clean`
+  (LocalRootProject / baseDirectory).value / "test-suite/target/test-suite-stability.js",
+}
+>>>
+def foo = {
+  // this path intentionally survives a `clean`
+  (LocalRootProject / baseDirectory).value / "test-suite/target/test-suite-stability.js",
+}
+<<< braces in infix, with a trailing comma
+Def.settings(
+  saveForStabilityTest / artifactPath := {
+    // this path intentionally survives a `clean`
+    (LocalRootProject / baseDirectory).value / "test-suite/target/test-suite-stability.js" /* c */,
+  },
+  saveForStabilityTest := foo
+)
+>>>
+Def.settings(
+  saveForStabilityTest / artifactPath :=
+    // this path intentionally survives a `clean`
+    (LocalRootProject / baseDirectory).value / "test-suite/target/test-suite-stability.js" /* c */
+  ,
+  saveForStabilityTest := foo
+)
+<<< braces at end of infix expressions
+newlines.source = fold
+newlines.afterInfix = keep
+===
+Switch(typeof(instance), List(
+    str("string") -> {
+      Return(constantClassResult(BoxedStringClass))
+    },
+    str("boolean") -> {
+      Return(constantClassResult(BoxedBooleanClass))
+    },
+    str("undefined") -> {
+      Return(constantClassResult(BoxedUnitClass))
+    } + 1
+))
+>>>
+Switch(
+  typeof(instance),
+  List(
+    str("string") ->
+      Return(constantClassResult(BoxedStringClass)),
+    str("boolean") ->
+      Return(constantClassResult(BoxedBooleanClass)),
+    str("undefined") ->
+      Return(constantClassResult(BoxedUnitClass)) + 1
+  )
+)
+<<< closing brace between comment and comma
+newlines.source = fold
+newlines.afterInfix = keep
+===
+dataFrameCachingWrapper(
+  (args: FnArgsWithId) => {
+    fn(args.df, args.batchId) // dfId is not used, see hack comment above.
+  },
+  sessionHolder)
+>>>
+dataFrameCachingWrapper(
+  (args: FnArgsWithId) =>
+    fn(args.df, args.batchId) // dfId is not used, see hack comment above.
+  ,
+  sessionHolder
+)
+<<< ok to rewrite parens to braces removing blank line within infix [scala213]
+maxColumn = 80
+runner.dialect = scala213
+newlines.source = keep
+rewrite.redundantBraces.oneStatApply {
+  parensMaxSpan = 100
+  bracesMinSpan = 100
+}
+===
+condDefs(nullPointers != CheckedBehavior.Unchecked)(
+  defineFunction0(VarField.throwNullPointerException) {
+    Throw(maybeWrapInUBE(nullPointers, {
+      genScalaClassNew(NullPointerExceptionClass, NoArgConstructorName)
+    }))
+  } :::
+
+  // "checkNotNull", but with a very short name
+  defineFunction1(VarField.n) { x =>
+    Block(
+      If(x === Null(), genCallHelper(VarField.throwNullPointerException)),
+      Return(x)
+    )
+  }
+)
+>>>
+condDefs(nullPointers != CheckedBehavior.Unchecked) {
+  defineFunction0(VarField.throwNullPointerException)(
+    Throw(maybeWrapInUBE(
+      nullPointers,
+      genScalaClassNew(NullPointerExceptionClass, NoArgConstructorName)
+    ))
+  ) :::
+    // "checkNotNull", but with a very short name
+    defineFunction1(VarField.n)(x =>
+      Block(
+        If(x === Null(), genCallHelper(VarField.throwNullPointerException)),
+        Return(x)
+      )
+    )
+}
+<<< ok to rewrite parens to braces removing blank line within infix [scala3]
+maxColumn = 80
+runner.dialect = scala3
+newlines.source = keep
+rewrite.redundantBraces.oneStatApply {
+  parensMaxSpan = 100
+  bracesMinSpan = 100
+}
+===
+condDefs(nullPointers != CheckedBehavior.Unchecked)(
+  defineFunction0(VarField.throwNullPointerException) {
+    Throw(maybeWrapInUBE(nullPointers, {
+      genScalaClassNew(NullPointerExceptionClass, NoArgConstructorName)
+    }))
+  } :::
+
+  // "checkNotNull", but with a very short name
+  defineFunction1(VarField.n) { x =>
+    Block(
+      If(x === Null(), genCallHelper(VarField.throwNullPointerException)),
+      Return(x)
+    )
+  }
+)
+>>>
+condDefs(nullPointers != CheckedBehavior.Unchecked) {
+  defineFunction0(VarField.throwNullPointerException)(
+    Throw(maybeWrapInUBE(
+      nullPointers,
+      genScalaClassNew(NullPointerExceptionClass, NoArgConstructorName)
+    ))
+  ) :::
+    // "checkNotNull", but with a very short name
+    defineFunction1(VarField.n)(x =>
+      Block(
+        If(x === Null(), genCallHelper(VarField.throwNullPointerException)),
+        Return(x)
+      )
+    )
+}
+<<< ok to rewrite parens to braces if infix has no blank line
+maxColumn = 80
+newlines.source = keep
+rewrite.redundantBraces.oneStatApply {
+  parensMaxSpan = 100
+  bracesMinSpan = 100
+}
+===
+condDefs(nullPointers != CheckedBehavior.Unchecked)(
+  defineFunction0(VarField.throwNullPointerException) {
+    Throw(maybeWrapInUBE(nullPointers, {
+      genScalaClassNew(NullPointerExceptionClass, NoArgConstructorName)
+    }))
+  } :::
+  // "checkNotNull", but with a very short name
+  defineFunction1(VarField.n) { x =>
+    Block(
+      If(x === Null(), genCallHelper(VarField.throwNullPointerException)),
+      Return(x)
+    )
+  }
+)
+>>>
+condDefs(nullPointers != CheckedBehavior.Unchecked) {
+  defineFunction0(VarField.throwNullPointerException)(
+    Throw(maybeWrapInUBE(
+      nullPointers,
+      genScalaClassNew(NullPointerExceptionClass, NoArgConstructorName)
+    ))
+  ) :::
+    // "checkNotNull", but with a very short name
+    defineFunction1(VarField.n)(x =>
+      Block(
+        If(x === Null(), genCallHelper(VarField.throwNullPointerException)),
+        Return(x)
+      )
+    )
+}

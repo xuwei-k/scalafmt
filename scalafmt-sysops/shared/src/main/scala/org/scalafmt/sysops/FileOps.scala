@@ -83,9 +83,7 @@ object FileOps {
 
   @inline
   private[sysops] def readAsURL(url: URL)(implicit codec: Codec): String = Using
-    .resource(scala.io.Source.fromURL(url)) {
-      _.getLines().mkString("", "\n", "\n")
-    }
+    .resource(scala.io.Source.fromURL(url))(_.getLines().mkString("", "\n", "\n"))
 
   @inline
   private[sysops] def readAsURI(uri: URI)(implicit codec: Codec): String =
@@ -141,9 +139,9 @@ object FileOps {
   def getFileMatcher(paths: Seq[Path]): Path => Boolean = {
     val dirBuilder = Seq.newBuilder[Path]
     val fileBuilder = Set.newBuilder[Path]
-    paths.foreach { path =>
-      if (isRegularFile(path)) fileBuilder += path else dirBuilder += path
-    }
+    paths.foreach(path =>
+      if (isRegularFile(path)) fileBuilder += path else dirBuilder += path,
+    )
     val dirs = dirBuilder.result()
     val files = fileBuilder.result()
     x =>

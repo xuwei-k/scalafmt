@@ -113,14 +113,19 @@ used to select it.
 
 Available dialects are:
 
-- `scala211`
-- `scala212`
-- `scala212source3`
-- `scala213`
-- `scala213source3`
-- `scala3`
-- `sbt0137`
-- `sbt1`
+- Scala 2
+  - `scala211`
+  - `scala212`
+  - `scala212source3`
+  - `scala213`
+  - `scala213source3`
+- Scala 3
+  - `scala3`: most recent release
+  - `Scala3Future`: scala3 plus experimental, unreleased features
+  - specific versions from `Scala30` to `Scala36`
+- sbt-specific
+  - `sbt0137`
+  - `sbt1`
 
 You can also specify `runner.dialect` for a subset of files using [fileOverride](#fileoverride):
 
@@ -219,7 +224,7 @@ It uses modified detection of [config-style formatting](#newlinesconfigstylexxxs
   config-style should be driven solely by presence of a dangling closing parenthesis
 - to achieve that, use a combination of
   [`danglingParentheses.xxxSite = false`](#danglingparenthesescallsite) and
-  [`newlines.configStyleXxxSite.prefer = true`](#newlinesconfigstylexxxsiteprefer)
+  [`newlines.configStyle.xxxSite.prefer = true`](#newlinesconfigstylexxxsiteprefer)
 
 The preset itself is defined as:
 
@@ -236,7 +241,6 @@ The preset itself is defined as:
       defnSite = false
     }
     docstrings.style = Asterisk
-    importSelectors = binPack
     indent.callSite = 4
     newlines {
       avoidInResultType = true
@@ -343,7 +347,7 @@ style). Defaults to `indent.callSite`.
 Example:
 
 ```scala mdoc:scalafmt
-newlines.configStyleCallSite.prefer = false
+newlines.configStyle.callSite.prefer = false
 danglingParentheses.callSite = false
 binPack.callSite = always
 indent.callSite = 2
@@ -413,7 +417,7 @@ style). Defaults to `indent.defnSite`.
 Example:
 
 ```scala mdoc:scalafmt
-newlines.configStyleDefnSite.prefer = false
+newlines.configStyle.defnSite.prefer = false
 danglingParentheses.defnSite = false
 binPack.defnSite = always
 indent.defnSite = 2
@@ -862,7 +866,9 @@ foo(bar((_, _) =>
     }))
 ```
 
-### `indentOperator`
+### `indent.infix`
+
+> Prior to v3.8.4, this section was called `indentOperator`.
 
 Normally, the first eligible break _inside_ a chain of infix operators is
 indented by 2.
@@ -870,9 +876,10 @@ indented by 2.
 This group of parameters allows overriding which infix operators, and in which
 context, are eligible to be exempted from this, with indentation _omitted_.
 
-If you wish to disable this functionality, set `indentOperator.excludeRegex = '^$'`.
+If you wish to disable this functionality, set
+`indent.infix.excludeRegex = '^$'`.
 
-#### `indentOperator.exemptScope`
+#### `indent.infix.exemptScope`
 
 Added in 3.4.0, this parameter determines when an infix operator can be exempted from applying
 continuation indentation.
@@ -899,9 +906,13 @@ to be exempted from the default indentation rule:
     [scala-js coding style](https://github.com/scala-js/scala-js/blob/main/CODINGSTYLE.md#long-expressions-with-binary-operators).
 - `all`: all infix operators
   - this value replaced deprecated `indentOperator.topLevelOnly=false`
+- `notAssign` (since v3.8.4): any non-assignment operator
+  - this value expanded upon deprecated `verticalAlignMultilineOperators`
+    which now simply maps to `{ exemptScope = notAssign, excludeRegex = ".*" }`
+- `notWithinAssign` (since v3.8.4): any infix not part of a larger assignment expression
 
 ```scala mdoc:scalafmt
-indentOperator.exemptScope = oldTopLevel
+indent.infix.exemptScope = oldTopLevel
 ---
 function(
   a &&
@@ -926,7 +937,7 @@ function {
 ```
 
 ```scala mdoc:scalafmt
-indentOperator.exemptScope = all
+indent.infix.exemptScope = all
 ---
 function(
   a &&
@@ -951,7 +962,7 @@ function {
 ```
 
 ```scala mdoc:scalafmt
-indentOperator.exemptScope = aloneEnclosed
+indent.infix.exemptScope = aloneEnclosed
 ---
 function(
   a &&
@@ -976,7 +987,7 @@ function {
 ```
 
 ```scala mdoc:scalafmt
-indentOperator.exemptScope = aloneArgOrBody
+indent.infix.exemptScope = aloneArgOrBody
 ---
 function(
   a &&
@@ -1000,7 +1011,7 @@ function {
 }
 ```
 
-#### `indentOperator.excludeRegex`
+#### `indent.infix.excludeRegex`
 
 Defines a regular expression for excluded infix operators. If an eligible
 operator matches, it will not be indented.
@@ -1008,28 +1019,29 @@ operator matches, it will not be indented.
 In v3.1.0, this parameter was renamed from `indentOperator.exclude`.
 
 ```scala mdoc:defaults
-indentOperator.excludeRegex
+indent.infix.excludeRegex
 ```
 
-#### `indentOperator.includeRegex`
+#### `indent.infix.includeRegex`
 
 Defines a regular expression for included infix operators. If an eligible
 operator matches and is not excluded explicitly by
-[indentOperator.excludeRegex](#indentoperatorexcluderegex), it be will indented.
+[indent.infix.excludeRegex](#indentinfixexcluderegex), it be will indented.
 
 In v3.1.0, due to conflict with built-in HOCON keyword, this parameter was
 renamed from `indentOperator.include`.
 
 ```scala mdoc:defaults
-indentOperator.includeRegex
+indent.infix.includeRegex
 ```
 
-#### `indentOperator.preset`
+#### `indent.infix.preset`
 
 - `default`
   - use defaults for all fields
 - `spray` (also `akka`)
-  - set `indentOperator.excludeRegex = "^$"` and `indentOperator.includeRegex = "^.*=$"`
+  - set `indent.infix.excludeRegex = "^$"`
+    and `indent.infix.includeRegex = "^.*=$"`
 
 ## Alignment
 
@@ -2403,34 +2415,52 @@ newlines.implicitParamListModifierForce = [before,after]
 def format(code: String, age: Int)(implicit ev: Parser, c: Context): String
 ```
 
-#### Implicit with `newlines.configStyleDefnSite.prefer`
+#### Implicit with `newlines.configStyle.defnSite.prefer`
 
 While config-style normally requires a newline after the opening parenthesis,
 postponing that break until after the `implicit` keyword is allowed if other
 parameters require keeping this keyword attached to the opening brace.
 
 Therefore, any of the parameters described in this section will take precedence
-even when `newlines.configStyleDefnSite.prefer = true` is used.
+even when `newlines.configStyle.defnSite.prefer = true` is used.
 
-### `newlines.afterInfix`
+### `newlines.infix`
 
-> Since v2.5.0.
+Introduced in v3.8.4, this parameter (and its companions) controls formatting
+around infix expressions. It contains the following parameter groups:
 
-This parameter (and its companions) controls formatting around infix
-expressions.
+- `termSite`
+  - primarily applies to ordinary infix expressions (`Term.ApplyInfix`)
+- `typeSite`:
+  - applies to infix expressions within types (`Type.ApplyInfix`) only
+  - defaults to `termSite` if _no fields_ are specified
+- `patSite`:
+  - applies to infix expressions within patterns (`Pat.ExtractInfix`) only
+  - defaults to `termSite` if _no fields_ are specified
 
-> The default value depends on `newlines.source` (see below).
+Each of these groups has several parameters of its own (replacing deprecated
+`newlines.afterInfixXxx`, originally added in v2.5.0, which moved to `termSite`):
 
-#### `newlines.afterInfix=keep`
+- `style`:
+- `maxCountPerFile`
+- `maxCountPerExprForSome`
+- `breakOnNested`
+
+#### `newlines.infix: style=keep`
 
 This approach preserves line breaks in the input. This is the original
 behaviour, and default for `newlines.source=classic,keep`.
 
-#### `newlines.afterInfix=many,some`
+One caveat is: for `classic` type infixes with Scala3 (or if the dialect
+[enables](#runnerdialectoverride) the `useInfixTypePrecedence` flag),
+`some` is the default.
+
+#### `newlines.infix: style=many,some`
 
 These approaches _completely ignore_ existing newlines around infix, always use
 a space before an infix operator and occasionally break after it. `some` is
-default for `newlines.source=fold`, and `many` for `newlines.source=unfold`.
+default for `newlines.source=fold` (also see caveat under `keep` aboce), and
+`many` for `newlines.source=unfold`.
 
 > Might require increasing
 > [optimizer limits](#route-search-optimizations-giving-up),
@@ -2442,31 +2472,31 @@ after
 and both will _always_ break before an expression enclosed in matching
 parentheses.
 
-#### `newlines.afterInfixMaxCountPerFile`
+#### `newlines.infix: maxCountPerFile`
 
 ```scala mdoc:defaults
-newlines.afterInfixMaxCountPerFile
+newlines.infix.termSite.maxCountPerFile
 ```
 
-If the total number of infix operations in the _entire file_ exceeds
-`newlines.afterInfixMaxCountPerFile`, the formatter automatically switches to
-`newlines.afterInfix=keep` for this file.
+If the total number of matching infix operations in the _entire file_ exceeds
+`newlines.infix.xxxSite.maxCountPerFile`, the formatter automatically switches to
+`newlines.infix.xxxSite.style=keep` for this file.
 
-#### `newlines.afterInfixMaxCountPerExprForSome`
+#### `newlines.infix: maxCountPerExprForSome`
 
 ```scala mdoc:defaults
-newlines.afterInfixMaxCountPerExprForSome
+newlines.infix.termSite.maxCountPerExprForSome
 ```
 
-If `newlines.afterInfix` is set to `some` and the number of infix operations in
+If `newlines.infix.xxxSite.style` is set to `some` and the number of infix operations in
 a _given expression sequence_ (top-level or enclosed in parens/braces) exceeds
-`newlines.afterInfixMaxCountPerExprForSome`, the formatter switches to `many`
+`newlines.infix.xxxSite.maxCountPerExprForSome`, the formatter switches to `many`
 for that sequence only.
 
-#### `newlines.afterInfixBreakOnNested`
+#### `newlines.infix: breakOnNested`
 
 ```scala mdoc:defaults
-newlines.afterInfixBreakOnNested
+newlines.infix.termSite.breakOnNested
 ```
 
 If enabled, will force line breaks around a nested parenthesized sub-expression
@@ -2660,22 +2690,6 @@ def fooFunc(foo1: String)(foo2: String, foo3: String): String = ???
 val res = fooFunc("foo1")("foo2", "foo3")
 ```
 
-### `newlines.selectChains`
-
-This parameter controls how select chains (sequences of `.method` invocations)
-are formatted.
-
-It takes the same values as [newlines.source](#newlinessource); use `null`
-(default) to fall back on the current value of `newlines.source`.
-
-> Since v3.0.0.
-
-- `keep`: attempts to preserve break
-- `fold`: attempts to avoid breaks
-- `unfold`: forces breaks on each select unless all fit on a single line
-- `classic` (i.e., `null` and `newlines.source` is not specified):
-  see [Classic select chains](#classic-select-chains).
-
 ### `newlines.inInterpolation`
 
 This parameter controls how to format spliced scala code within string constants
@@ -2731,24 +2745,35 @@ println(s"""${1}
 )
 ```
 
-### `optIn.annotationNewlines`
+### `newlines.annotation`
 
-This boolean parameter controls newlines after annotations.
+This boolean parameter controls newlines after annotations. Prior to v3.8.4,
+was called `optIn.annotationNewlines`.
 
 ```scala mdoc:defaults
-optIn.annotationNewlines
+newlines.annotation
 ```
 
 Its behaviour depends on [newlines.source](#newlinessource):
 
-- `optIn.annotationNewlines = true`:
+- `newlines.annotation = true`:
   - `newlines.source=fold`: allows space before another annotation
   - `newlines.source=unfold`: forces break
   - otherwise: preserves space _before_ or after an annotation
-- `optIn.annotationNewlines = false`:
+- `newlines.annotation = false`:
   - `newlines.source=fold`: allows space before a keyword or another annotation
   - `newlines.source=unfold`: allows space before another annotation
   - otherwise: allows space before a keyword
+
+### `newlines.selfAnnotation`
+
+If enabled, this parameter forces a break after a self annotation in a template if
+`newlines.source=fold/unfold`, and preserves it otherwise.
+Prior to v3.8.4, was called `optIn.selfAnnotationNewline`.
+
+```scala mdoc:defaults
+newlines.selfAnnotation
+```
 
 ## Newlines: `danglingParentheses`
 
@@ -2919,12 +2944,23 @@ clauses in definitions. It outputs a newline after the opening parenthesis
 (or after the `implicit` keyword) and a newline before the closing parenthesis,
 with arguments or parameters listed one per line.
 
-### `newlines.configStyleXxxSite.prefer`
+### `newlines.configStyle.xxxSite`
 
-`CallSite` applies to argument clauses method calls, while `DefnSite` to
-parameter clauses in method or class definitions.
-In v3.8.2 replaced a single parameter `optIn.configStyleArguments` and
-falls back to its value (which is enabled by default).
+The `xxxSite` portion refers to:
+
+- `fallBack` [since v3.8.4]: used if a more specific group is not defined
+  - its `prefer` field replaced `optIn.configStyleArguments`, enabled by default
+- `callSite` [since v3.8.4]: applies to argument clauses in method calls
+  - replaced section called `newlines.configStyleCallSite`
+- `bracketCallSite` [since v3.8.4]: applies to type argument clauses, falls
+  back to `callSite` if not specified
+- `defnSite` [since v3.8.4]: applies to parameter clauses in method or class
+  definitions
+  - replaced section called `newlines.configStyleDefnSite`
+- `bracketDefnSite` [since v3.8.4]: applies to type parameter clauses, falls
+  back to `defnSite` if not specified
+
+### `newlines.configStyle.xxxSite.prefer`
 
 If true, applies config-style formatting:
 
@@ -2942,7 +2978,7 @@ If true, applies config-style formatting:
 Please note that other parameters might also force config-style (see below).
 
 ```scala mdoc:scalafmt
-newlines.configStyleDefnSite.prefer = true
+newlines.configStyle.defnSite.prefer = true
 maxColumn=45
 ---
 object a {
@@ -2961,16 +2997,16 @@ object a {
 
 ### Forcing config style
 
-When `newlines.configStyleXxxSite.forceIfOptimized` is enabled and
+When `newlines.configStyle.xxxSite.forceIfOptimized` is enabled and
 [route search optimization](#route-search-optimizations-arg-or-param-clause)
 is applicable to a clause, the formatter will force config-style formatting.
 
 By default, takes the same value as
-[`newlines.configStyleXxxSite.prefer`](#newlinesconfigstylexxxsiteprefer).
+[`newlines.configStyle.xxxSite.prefer`](#newlinesconfigstylexxxsiteprefer).
 
 ```scala mdoc:scalafmt
-newlines.configStyleCallSite.forceIfOptimized = true
-newlines.configStyleDefnSite.forceIfOptimized = false
+newlines.configStyle.callSite.forceIfOptimized = true
+newlines.configStyle.defnSite.forceIfOptimized = false
 runner.optimizer.callSite { minSpan = 5, minCount = 2 }
 maxColumn = 60
 ---
@@ -2988,6 +3024,14 @@ object a {
   method(foo, bar)
 }
 ```
+
+### `newlines.configStyle.beforeComma`
+
+If enabled, will break before comma (instead of after) when using config style.
+However, if the `runner.dialect` supports trailing commas, using
+[`rewrite.trailingCommas`](#trailing-commas) is recommended (which is why,
+prior to v3.8.4, this parameter was called `poorMansTrailingCommasInConfigStyle`).
+`
 
 ## Rewrite Rules
 
@@ -3023,6 +3067,11 @@ The rule takes the following parameters under `rewrite.avoidInfix`:
   - if unspecified, and `project.layout` determines that the file being
     formatted is not a test file, then these test assert methods will not
     be excluded
+- (since 3.8.4) `excludePostfix`, unless set to `true` explicitly, will also
+  apply the rule to `Term.Select` trees specified without a dot
+- (since 3.8.4) `excludeMatch`, if set to `false` explicitly and if the dialect
+  enables `allowMatchAsOperator` (such as Scala 3), will also apply the rule to
+  `Term.Match` trees specified without a dot
 
 ```scala mdoc:scalafmt
 rewrite.rules = [AvoidInfix]
@@ -3198,19 +3247,96 @@ rewrite.redundantBraces.stringInterpolation = true
 s"user id is ${id}"
 ```
 
-#### `RedundantBraces`: `parensForOneLineApply`
+#### `RedundantBraces`: `oneStatApply`
+
+Added in v3.8.4, controls treatment of single-argument apply delimiters,
+has lower priority than [fewer braces](#rewritescala3removeoptionalbraces),
+and takes the following values:
+
+- `parensMaxSpan`: if non-negative, converts braces to parentheses in an
+  argument clause if its span is _not larger than_ the specified value
+  (and can be legally used with parentheses)
+- `bracesMinSpan`: if non-negative, converts parentheses to braces in a
+  single-statement argument clause if its span is _strictly larger than_
+  the specified value
+  - clearly, `parensMaxSpan` may not exceed `bracesMinSpan` but might be
+    the same (for convenience of specifying the pivot point)
+- `parensMaxSpan=0, bracesMinSpan<0` is a special combination which
+  replaced an earlier parameter `parensForOneLineApply = true` and uses parens
+  when the argument clause ends up formatted on a single line (rather than
+  looking at the argument clause span)
+  - see also
+    [newlines.afterCurlyLambdaParams = squash](#newlinesaftercurlylambdaparams)
+
+> Here, the span is computed a bit differently than for
+> [fewer braces](#rewritescala3removeoptionalbraces) or
+> [search optimizer](#route-search-optimizations-arg-or-param-clause),
+> in that it removes not only whitespace but also all punctuation (opening and
+> closing delimiters, commas, semicolons and dots), comments and any optional
+> syntax tokens in scala3 (such as `then`, `:` in coloneol or varargs, end
+> markers etc.), anything that a rewrite rule could modify.
+>
+> The reason is that this happens during the rewrite phase where this or other
+> rules could modify or remove braces, trim trailing commas, add dots and
+> parentheses to an infix, rewrite scala3 code using new syntax, or reformat
+> comments.
+>
+> Thus, to avoid non-idempotent formatting, we ignore them.
+
+In all cases, redundant delimiters will be rewritten, as before.
 
 ```scala mdoc:defaults
-rewrite.redundantBraces.parensForOneLineApply
+rewrite.redundantBraces.oneStatApply.parensMaxSpan
+rewrite.redundantBraces.oneStatApply.bracesMinSpan
 ```
-
-See also [newlines.afterCurlyLambdaParams = squash](#newlinesaftercurlylambdaparams).
 
 ```scala mdoc:scalafmt
 rewrite.rules = [RedundantBraces]
-rewrite.redundantBraces.parensForOneLineApply = true
+rewrite.redundantBraces.oneStatApply.parensMaxSpan = 0
 ---
 xs.map { x => x + 1 }
+```
+
+```scala mdoc:scalafmt
+rewrite.rules = [RedundantBraces]
+rewrite.redundantBraces.oneStatApply.parensMaxSpan = 15
+---
+xs.map { x => // should rewrite this
+  x + 1
+}
+xs.map { x => // should not rewrite this, not a single-stat argument
+  x + 1
+  x + 2
+}
+xs.map { x => // should not rewrite outer, span too long
+  x.foo {
+    bar.baz(qux)
+  }
+}
+```
+
+```scala mdoc:scalafmt
+rewrite.rules = [RedundantBraces]
+rewrite.redundantBraces.oneStatApply.bracesMinSpan = 2
+---
+xs.map(x => // should rewrite this
+  x + 1
+)
+xs.map( // should not rewrite this, contains an infix with a break before operator
+  x
+  + 1
+)
+xs.map( // should rewrite this, contains an infix with a break after operator
+  x +
+  1
+)
+// scalafmt: { newlines.infix.termSite.style = some }
+xs.map( // should rewrite this, allows formatting infix
+  x
+  + 1
+)
+xs.map( // should not rewrite this, span too short
+  xy)
 ```
 
 #### `RedundantBraces`: `maxBreaks`
@@ -3787,6 +3913,32 @@ rewrite.trailingCommas.allowFolding
 
 If set to false, the trailing comma will always be forced.
 
+### `rewrite.tokens`
+
+> Prior to v3.8.4, was called `rewriteTokens`.
+
+Map of tokens to rewrite. For example, Map("⇒" -> "=>") will rewrite unicode
+arrows to regular ascii arrows.
+
+```scala mdoc:defaults
+rewrite.tokens
+```
+
+```scala mdoc:scalafmt
+rewrite.tokens = {
+  "⇒": "=>"
+  "→": "->"
+  "←": "<-"
+}
+---
+val tuple = "a" → 1
+val lambda = (x: Int) ⇒ x + 1
+for {
+  a ← Option(1)
+  b ← Option(2)
+} yield a + b
+```
+
 ## Scala3 rewrites
 
 This section describes rules which are applied if the appropriate dialect (e.g.,
@@ -3853,6 +4005,11 @@ The section contains the following settings (available since v3.8.1):
   - will only apply the rewrite if the cumulative span of all visible
     (non-whitespace) tokens within the argument is between the two values
   - this rule is disabled if `fewerBracesMaxSpan == 0`
+- (since v3.8.4) `fewerBracesParensToo`
+  - will apply the rule just above to an argument in parentheses as well,
+    if the one of following is also satisfied:
+    - [`newlines.infix.xxxSite.style`](#newlinesinfix-stylekeep) is NOT `keep`; or
+    - current dialect supports `allowInfixOperatorAfterNL`
 
 Prior to v3.8.1, `rewrite.scala3.removeOptionalBraces` was a flag which
 took three possible values (with their equivalent current settings shown):
@@ -4113,7 +4270,8 @@ This variant used to be called `JavaDoc`.
 docstrings.style = Asterisk
 ---
 /** Skip first line, format intermediate lines with an asterisk
-  * below the first asterisk of the first line (aka JavaDoc)
+  * below the first asterisk of the first line (aka JavaDoc).
+  * Since v3.8.4, `blankFirstLine = fold` takes precedence.
   */
 ```
 
@@ -4275,9 +4433,10 @@ Takes the following values:
 - `unfold`: will enforce a blank first line
   (replaced `yes` in v3.8.2)
 
-> Since v2.7.5. Ignored for `docstrings.style = keep` or
-> `docstrings.style = Asterisk` or
-> `docstrings.wrap = no`.
+> Since v2.7.5.
+>
+> - Ignored for `docstrings.style = keep` or `docstrings.wrap = no`.
+> - [since v3.8.4] For `docstrings.style = Asterisk`, only `fold` changes default behaviour.
 
 ```scala mdoc:scalafmt
 # do not force a blank first line
@@ -4387,6 +4546,16 @@ val identity = Array(1, 0, 0,
                      0, 1, 0,
                      0, 0, 1)
 // format: on
+```
+
+Since v3.8.4, these format on-off tags can be configured:
+
+- `formatOff`: tags to turn formatting off
+- `formatOn`: tags to turn formatting back on
+
+```scala mdoc:defaults
+formatOff
+formatOn
 ```
 
 ### Project
@@ -5032,6 +5201,10 @@ The behaviour of `binPack.parentConstructors = source` depends on the value of
 [`newlines.source`](#newlinessource); `keep` maps to `keep` and attempts to preserve the
 space if there's no line break in the source, `fold` maps to `Oneline`, rest to `Never`.
 
+#### `binPack.parentConstructors=Always`
+
+This option attempts to binpack parents, formatting as many on each line as will fit.
+
 ```scala mdoc:scalafmt
 binPack.parentConstructors = Always
 maxColumn = 30
@@ -5044,6 +5217,12 @@ object A {
 }
 ```
 
+#### `binPack.parentConstructors=Never`
+
+This option will attempt to format the entire declaration on one line (starting
+with `class` or `trait` and including all parents); otherwise, will enforce
+breaks before each.
+
 ```scala mdoc:scalafmt
 binPack.parentConstructors = Never
 maxColumn = 30
@@ -5052,6 +5231,11 @@ object A {
   trait Foo extends Bar with Baz
 }
 ```
+
+#### `binPack.parentConstructors=Oneline`
+
+This option will attempt to format all parents on one line (starting with
+`extends` and including all parents); otherwise, will enforce breaks before each.
 
 ```scala mdoc:scalafmt
 binPack.parentConstructors = Oneline
@@ -5070,6 +5254,12 @@ object A {
 }
 ```
 
+#### `binPack.parentConstructors=OnelineIfPrimaryOneline`
+
+This option will attempt to format all parents on one line (from `extends` and
+including all parents), but only if the primary constructor fits on one line
+as well (the same or previous); otherwise, will enforce breaks before each.
+
 ```scala mdoc:scalafmt
 binPack.parentConstructors = OnelineIfPrimaryOneline
 maxColumn = 30
@@ -5086,6 +5276,10 @@ object A {
 }
 ```
 
+#### `binPack.parentConstructors=keep`
+
+This option attempts to preserve breaks before each parent.
+
 ```scala mdoc:scalafmt
 binPack.parentConstructors = keep
 ---
@@ -5101,6 +5295,22 @@ object A {
       b
     ) with Baz
     with Qux
+}
+```
+
+#### `binPack.parentConstructors=ForceBreak`
+
+This option will enforce a break before each parent. As usual, the break is only
+actually introduced if indented position on the next line is less than the current.
+Added in 3.8.4.
+
+```scala mdoc:scalafmt
+binPack.parentConstructors = ForceBreak
+maxColumn = 45
+---
+object A {
+  class Foo(a: Int) extends Bar with Baz
+  class Foo(a: Int, b: Int, c: String, d: Double) extends Bar with Baz
 }
 ```
 
@@ -5129,7 +5339,7 @@ otherwise.
 
 When not disabled, these parameters have complex interactions with
 [`newline.source`](#newlinessource),
-[`newlines.configStyleXxxSite.prefer`](#newlinesconfigstylexxxsiteprefer)
+[`newlines.configStyle.xxxSite.prefer`](#newlinesconfigstylexxxsiteprefer)
 (aka `cfgStyle` below) and
 [`danglingParentheses.xxxSite`](#newlines-danglingparentheses) (aka `dangle`).
 Keep in mind that when [config-style is forced](#forcing-config-style),
@@ -5190,41 +5400,112 @@ the selection of breaks, such as when dealing with multiline arguments
 If set explicitly, will be used for type arguments or parameters,
 instead of the respective [`binPack.xxxSite`](#binpackxxxsite).
 
-### binpacking of `importSelectors`
+### `binPack.importSelectors`
 
 Import selectors (those grouped in `{...}`) will always be formatted on a single
 line if they fit without exceeding `maxColumn`. This parameter controls how they
 will be handled _if_ they overflow.
+(Prior to v3.8.4, it was called `importSelectors`.)
 
 ```scala mdoc:defaults
-importSelectors
+binPack.importSelectors
 ```
 
 Takes the following parameters:
 
-- `noBinPack`: format one per line
-- `binPack`: binpack, with as many as would fit on each line
+- `unfold`: format one per line (prior to v3.8.4, called `noBinPack`)
+- `fold`: fit as many as possible on each line (prior to v3.8.4, called `binPack`)
 - `singleLine`: format all on one line
 
-## Classic select chains
+```scala mdoc:scalafmt
+maxColumn = 10
+binPack.importSelectors = unfold
+---
+import a.b.{c, d, e, f, g}
+```
 
-The parameters below control formatting of select chains when
-`newlines.source = classic`, and specifically which select expressions are
-included in a chain.
+```scala mdoc:scalafmt
+maxColumn = 10
+binPack.importSelectors = fold
+---
+import a.b.{c, d, e, f, g}
+```
+
+```scala mdoc:scalafmt
+maxColumn = 10
+binPack.importSelectors = singleLine
+---
+import a.b.{c, d, e, f, g}
+```
+
+## Select chains
+
+The parameters below control formatting of select chains, such as which select
+expressions are considered to start a chain.
 
 Generally, a chain can either be formatted on one line up to the last select, or
 will have a break on the first select.
 
-### `includeCurlyBraceInSelectChains`
+when
+
+### `newlines.selectChains.style`
+
+This parameter controls how select chains (sequences of `.method` invocations)
+are formatted.
+
+It takes the same values as [newlines.source](#newlinessource); use `null`
+(default) to fall back on the current value of `newlines.source`.
+
+> Since v3.0.0.
+
+- `keep`: attempts to preserve break
+- `fold`: attempts to avoid breaks
+- `unfold`: forces breaks on each select unless all fit on a single line
+- `classic` (i.e., `null` and `newlines.source` is not specified).
+
+### `newlines.selectChains.enclose`
+
+> - Added in v2.6.2
+> - Before v3.8.4, was called `optIn.encloseClassicChains` and applied only to `style = classic`
+> - By default, enabled unless `style = classic`
+
+Controls what happens if a chain enclosed in parentheses is followed by
+additional selects. Those additional selects will be considered part of the
+enclosed chain if and only if this flag is false.
+
+```scala mdoc:defaults
+newlines.selectChains.enclose
+```
+
+```scala mdoc:scalafmt
+newlines.selectChains.enclose = true
+maxColumn = 30
+---
+(foo.map(_ + 1).map(_ + 1))
+  .filter(_ > 2)
+```
+
+```scala mdoc:scalafmt
+newlines.selectChains.enclose = false
+maxColumn = 30
+---
+(foo.map(_ + 1).map(_ + 1))
+  .filter(_ > 2)
+```
+
+### `newlines.selectChains.classicCanStartWithBraceApply`
+
+> - Prior to v3.8.4, was called `includeCurlyBraceInSelectChains`
+> - Applies only if `style = classic` (always enabled for others)
 
 Controls if select followed by curly braces can _start_ a chain.
 
 ```scala mdoc:defaults
-includeCurlyBraceInSelectChains
+newlines.selectChains.classicCanStartWithBraceApply
 ```
 
 ```scala mdoc:scalafmt
-includeCurlyBraceInSelectChains = true
+newlines.selectChains.classicCanStartWithBraceApply = true
 ---
 List(1).map { x =>
     x + 2
@@ -5233,7 +5514,7 @@ List(1).map { x =>
 ```
 
 ```scala mdoc:scalafmt
-includeCurlyBraceInSelectChains = false
+newlines.selectChains.classicCanStartWithBraceApply = false
 ---
 List(1)
   .map { x =>
@@ -5242,16 +5523,19 @@ List(1)
   .filter(_ > 2)
 ```
 
-### `includeNoParensInSelectChains`
+### `newlines.selectChains.classicCanStartWithoutApply`
+
+> - Prior to v3.8.4, was called `includeNoParensInSelectChains`
+> - Applies only if `style = classic` (always enabled for others)
 
 Controls if select _not_ followed by an apply can _start_ a chain.
 
 ```scala mdoc:defaults
-includeNoParensInSelectChains
+newlines.selectChains.classicCanStartWithoutApply
 ```
 
 ```scala mdoc:scalafmt
-includeNoParensInSelectChains = true
+newlines.selectChains.classicCanStartWithoutApply = true
 ---
 List(1).toIterator.buffered
   .map(_ + 2)
@@ -5259,22 +5543,25 @@ List(1).toIterator.buffered
 ```
 
 ```scala mdoc:scalafmt
-includeNoParensInSelectChains = false
+newlines.selectChains.classicCanStartWithoutApply = false
 ---
 List(1).toIterator.buffered.map(_ + 2).filter(_ > 2)
 ```
 
-### `optIn.breakChainOnFirstMethodDot`
+### `newlines.selectChains.classicKeepFirst`
+
+> - Prior to v3.8.4, was called `optIn.breakChainOnFirstMethodDot`
+> - Applies only if `style = classic`
 
 Keeps the break on the first select of the chain if the source contained one.
 Has no effect if there was no newline in the source.
 
 ```scala mdoc:defaults
-optIn.breakChainOnFirstMethodDot
+newlines.selectChains.classicKeepFirst
 ```
 
 ```scala mdoc:scalafmt
-optIn.breakChainOnFirstMethodDot = false
+newlines.selectChains.classicKeepFirst = false
 ---
 // collapse into a single line
 foo
@@ -5283,14 +5570,17 @@ foo
 ```
 
 ```scala mdoc:scalafmt
-optIn.breakChainOnFirstMethodDot = true
+newlines.selectChains.classicKeepFirst = true
 ---
 // preserve break on first dot and break on subsequent dots
 foo
   .map(_ + 1).filter(_ > 2)
 ```
 
-### `optIn.breaksInsideChains`
+### `newlines.selectChains.classicKeepAfterFirstBreak`
+
+> - Prior to v3.8.4, was called `optIn.breaksInsideChains`
+> - Applies only if `style = classic`
 
 Controls whether to preserve a newline before each subsequent select when the
 very first one used a line break; that is, this parameter doesn't prohibit
@@ -5304,11 +5594,11 @@ If true, preserves existence or lack of breaks on subsequent selects if the
 first select was formatted with a newline.
 
 ```scala mdoc:defaults
-optIn.breaksInsideChains
+newlines.selectChains.classicKeepAfterFirstBreak
 ```
 
 ```scala mdoc:scalafmt
-optIn.breaksInsideChains = true
+newlines.selectChains.classicKeepAfterFirstBreak = true
 maxColumn = 35
 ---
 foo.bar(_ + 1)
@@ -5321,7 +5611,7 @@ foo.bar(_ + 1)
 ```
 
 ```scala mdoc:scalafmt
-optIn.breaksInsideChains = false
+newlines.selectChains.classicKeepAfterFirstBreak = false
 maxColumn = 35
 ---
 foo.bar(_ + 1)
@@ -5331,34 +5621,6 @@ foo.bar(_ + 1).baz(_ > 2).qux(_ * 12)
 foo.bar(_ + 1).baz(_ > 2).qux { _ * 12 }
 foo.bar(_ + 1)
   .baz(_ > 2).qux(_ * 12)
-```
-
-### `optIn.encloseClassicChains`
-
-Controls what happens if a chain enclosed in parentheses is followed by
-additional selects. Those additional selects will be considered part of the
-enclosed chain if and only if this flag is false.
-
-> Since v2.6.2.
-
-```scala mdoc:defaults
-optIn.encloseClassicChains
-```
-
-```scala mdoc:scalafmt
-optIn.encloseClassicChains = true
-maxColumn = 30
----
-(foo.map(_ + 1).map(_ + 1))
-  .filter(_ > 2)
-```
-
-```scala mdoc:scalafmt
-optIn.encloseClassicChains = false
-maxColumn = 30
----
-(foo.map(_ + 1).map(_ + 1))
-  .filter(_ > 2)
 ```
 
 ## Miscellaneous
@@ -5378,59 +5640,6 @@ is set and `git` parameter
 [`core.autocrlf`](https://git-scm.com/book/en/v2/Customizing-Git-Git-Configuration#_core_autocrlf)
 is configured, then default value will be changed to `windows` if
 `autocrlf=true`, and `preserve` if `false`.
-
-### `rewriteTokens`
-
-Map of tokens to rewrite. For example, Map("⇒" -> "=>") will rewrite unicode
-arrows to regular ascii arrows.
-
-```scala mdoc:defaults
-rewriteTokens
-```
-
-```scala mdoc:scalafmt
-rewriteTokens = {
-  "⇒": "=>"
-  "→": "->"
-  "←": "<-"
-}
----
-val tuple = "a" → 1
-val lambda = (x: Int) ⇒ x + 1
-for {
-  a ← Option(1)
-  b ← Option(2)
-} yield a + b
-```
-
-### `importSelectors`
-
-This parameter controls formatting of imports.
-
-```scala mdoc:defaults
-importSelectors
-```
-
-```scala mdoc:scalafmt
-maxColumn = 10
-importSelectors = noBinPack
----
-import a.b.{c, d, e, f, g}
-```
-
-```scala mdoc:scalafmt
-maxColumn = 10
-importSelectors = binPack
----
-import a.b.{c, d, e, f, g}
-```
-
-```scala mdoc:scalafmt
-maxColumn = 10
-importSelectors = singleLine
----
-import a.b.{c, d, e, f, g}
-```
 
 ## Markdown Formatting
 
@@ -5671,11 +5880,14 @@ runner.optimizer.defnSite
 This optimization is enabled when all these criteria are satisfied:
 
 - `xxxSite.minSpan`:
-  must be non-negative, and the character distance between the matching
-  parentheses, excluding any whitespace, must exceed this value
-  (prior to v3.8.1, this parameter was called `forceConfigStyleOnOffset`)
+  must be non-negative and not exceed the character span covered by the entire
+  clause, excluding any whitespace
+  - prior to v3.8.1, this parameter was called `forceConfigStyleOnOffset`
+  - prior to v3.8.4, the parameter had to be strictly less than the span, and
+    the span calculation excluded the last token of the clause (a closing delim
+    spanning a single-character, unless optional braces had been used)
 - `xxxSite.minCount`:
-  must be positive and may not exceed the number of arguments
+  must be positive and not exceed the number of arguments
   (prior to v3.8.2, this parameter was called `forceConfigStyleMinCount`)
 
 > These parameters cannot be [overridden within a file](#for-code-block)

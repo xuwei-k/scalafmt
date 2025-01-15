@@ -14,6 +14,8 @@ import scala.meta.tokenizers.TokenizeException
 
 import java.util.concurrent.atomic.AtomicReference
 
+import scala.annotation.tailrec
+
 import util.control.Breaks
 
 object ScalafmtCoreRunner extends ScalafmtRunner {
@@ -40,14 +42,12 @@ object ScalafmtCoreRunner extends ScalafmtRunner {
 
     val termDisplay = newTermDisplay(options, inputMethods, termDisplayMessage)
     val exitCode = new AtomicReference(ExitCode.Ok)
-    Breaks.breakable {
-      inputMethods.compatPar.foreach { inputMethod =>
-        val code = handleFile(inputMethod, options, adjustedScalafmtConf)
-        exitCode.getAndUpdate(ExitCode.merge(code, _))
-        if (options.check && !code.isOk) Breaks.break
-        termDisplay.taskProgress(termDisplayMessage)
-      }
-    }
+    Breaks.breakable(inputMethods.compatPar.foreach { inputMethod =>
+      val code = handleFile(inputMethod, options, adjustedScalafmtConf)
+      exitCode.getAndUpdate(ExitCode.merge(code, _))
+      if (options.check && !code.isOk) Breaks.break
+      termDisplay.taskProgress(termDisplayMessage)
+    })
     termDisplay.completedTask(termDisplayMessage, exitCode.get.isOk)
     termDisplay.stop()
     exitCode.get()
@@ -72,19 +72,22 @@ object ScalafmtCoreRunner extends ScalafmtRunner {
   ): ExitCode = {
     val input = inputMethod.readInput(options)
     val filename = inputMethod.path.toString
-    val formatResult = Scalafmt
-      .formatCode(input, scalafmtConfig, options.range, filename)
-    formatResult.formatted match {
-      case Formatted.Success(formatted) => inputMethod
-          .write(formatted, input, options)
-      case _: Formatted.Failure if scalafmtConfig.runner.ignoreWarnings =>
-        ExitCode.Ok // do nothing
-      case Formatted.Failure(e @ (_: ParseException | _: TokenizeException)) =>
+    @tailrec
+    def handleError(e: Throwable): ExitCode = e match {
+      case Error.WithCode(e, _) => handleError(e)
+      case _: ParseException | _: TokenizeException =>
         options.common.err.println(e.toString)
         ExitCode.ParseError
-      case Formatted.Failure(e) =>
+      case e =>
         new FailedToFormat(filename, e).printStackTrace(options.common.err)
         ExitCode.UnexpectedError
+    }
+    Scalafmt.formatCode(input, scalafmtConfig, options.range, filename)
+      .formatted match {
+      case Formatted.Success(x) => inputMethod.write(x, input, options)
+      case x: Formatted.Failure =>
+        if (scalafmtConfig.runner.ignoreWarnings) ExitCode.Ok // do nothing
+        else handleError(x.e)
     }
   }
 }

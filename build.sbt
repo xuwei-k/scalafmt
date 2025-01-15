@@ -14,44 +14,32 @@ def localSnapshotVersion: String = s"$parseTagVersion-SNAPSHOT"
 def isCI = System.getenv("CI") != null
 
 def scala212 = "2.12.20"
-def scala213 = "2.13.15"
+def scala213 = "2.13.16"
 
-inThisBuild(List(
-  organization := "com.github.xuwei-k",
-  homepage := Some(url("https://github.com/xuwei-k/scalafmt")),
-  licenses := List(
-    "Apache-2.0" -> url("http://www.apache.org/licenses/LICENSE-2.0")
-  ),
-  scmInfo := Some(
-    ScmInfo(
-      url("https://github.com/xuwei-k/scalafmt"),
-      "git@github.com:xuwei-k/scalafmt.git"
-    )
-  ),
-  scalacOptions += {
-    val a = (LocalRootProject / baseDirectory).value.toURI.toString
-    val g =
-      "https://raw.githubusercontent.com/xuwei-k/scalafmt/" + sys.process
-        .Process("git rev-parse HEAD")
-        .lineStream_!
-        .head
-        .take(10)
-    s"-P:scalajs:mapSourceURI:$a->$g/"
-  },
-  licenses :=
-    List("Apache-2.0" -> url("http://www.apache.org/licenses/LICENSE-2.0")),
-  developers := List(Developer(
-    "olafurpg",
-    "Ólafur Páll Geirsson",
-    "olafurpg@gmail.com",
-    url("https://geirsson.com"),
-  )),
-  scalaVersion := scala213,
-  crossScalaVersions := List(scala213, scala212),
-  testFrameworks += new TestFramework("munit.Framework"),
-  // causes native image issues
-  dependencyOverrides += "org.jline" % "jline" % "3.23.0",
-))
+inThisBuild {
+  List(
+    version ~= { dynVer =>
+      if (isCI) dynVer else localSnapshotVersion // only for local publishing
+    },
+    organization := "org.scalameta",
+    homepage := Some(url("https://github.com/scalameta/scalafmt")),
+    licenses :=
+      List("Apache-2.0" -> url("http://www.apache.org/licenses/LICENSE-2.0")),
+    developers := List(Developer(
+      "olafurpg",
+      "Ólafur Páll Geirsson",
+      "olafurpg@gmail.com",
+      url("https://geirsson.com"),
+    )),
+    scalaVersion := scala213,
+    crossScalaVersions := List(scala213, scala212),
+    resolvers ++= Resolver.sonatypeOssRepos("releases"),
+    resolvers ++= Resolver.sonatypeOssRepos("snapshots"),
+    testFrameworks += new TestFramework("munit.Framework"),
+    // causes native image issues
+    dependencyOverrides += "org.jline" % "jline" % "3.28.0",
+  )
+}
 
 name := "scalafmtRoot"
 publish / skip := true
@@ -85,7 +73,7 @@ lazy val dynamic = crossProject(JVMPlatform, NativePlatform)
     buildInfoPackage := "org.scalafmt.dynamic",
     buildInfoObject := "BuildInfo",
     libraryDependencies ++= List(
-      "io.get-coursier" % "interface" % "0.0.17",
+      "io.get-coursier" % "interface" % "1.0.26",
       "com.typesafe" % "config" % "1.4.3",
       munit.value % Test,
       scalametaTestkit.value % Test,
@@ -99,8 +87,6 @@ lazy val interfaces = crossProject(JVMPlatform, NativePlatform)
     moduleName := "scalafmt-interfaces",
     description :=
       "Dependency-free, pure Java public interfaces to integrate with Scalafmt through a build tool or editor plugin.",
-    crossVersion := CrossVersion.disabled,
-    autoScalaLibrary := false,
     Compile / resourceGenerators += Def.task {
       val out = (Compile / managedResourceDirectories).value.head /
         "scalafmt.properties"
@@ -109,7 +95,7 @@ lazy val interfaces = crossProject(JVMPlatform, NativePlatform)
       IO.write(props, "scalafmt properties", out)
       List(out)
     },
-  )
+  ).jvmSettings(crossVersion := CrossVersion.disabled, autoScalaLibrary := false)
 
 lazy val sysops = crossProject(JVMPlatform, NativePlatform, JSPlatform)
   .withoutSuffixFor(JVMPlatform).in(file("scalafmt-sysops")).settings(
@@ -121,7 +107,7 @@ lazy val sysops = crossProject(JVMPlatform, NativePlatform, JSPlatform)
         case Some((2, 12)) =>
           Seq("com.github.bigwheel" %% "util-backports" % "2.1")
         case Some((2, 13)) =>
-          Seq("org.scala-lang.modules" %% "scala-parallel-collections" % "1.0.4")
+          Seq("org.scala-lang.modules" %% "scala-parallel-collections" % "1.1.0")
         case _ => Seq()
       }
     },
@@ -171,7 +157,6 @@ lazy val coreJVM = core.jvm
 lazy val macros = crossProject(JVMPlatform, NativePlatform, JSPlatform)
   .in(file("scalafmt-macros")).settings(
     moduleName := "scalafmt-macros",
-    buildInfoSettings,
     scalacOptions ++= scalacJvmOptions.value,
     libraryDependencies ++= Seq(
       scalameta.value,
@@ -208,24 +193,30 @@ lazy val cli = crossProject(JVMPlatform, NativePlatform)
         oldStrategy(x)
     },
     libraryDependencies ++= Seq(
-      "org.scalameta" %%% "munit-diff" % "1.0.2",
+      "org.scalameta" %%% "munit-diff" % "1.0.3",
       "com.martiansoftware" % "nailgun-server" % "0.9.1",
       "com.github.scopt" %%% "scopt" % "4.1.0",
     ),
     scalacOptions ++= scalacJvmOptions.value,
     Compile / mainClass := Some("org.scalafmt.cli.Cli"),
-    nativeImageVersion := "22.3.0",
+  ).jvmSettings(
     nativeImageInstalled := isCI,
+    nativeImageOptions += "-march=compatibility",
     nativeImageOptions ++= {
-      val isMusl = sys.env.get("NATIVE_IMAGE_MUSL").exists(_.toBoolean)
-      if (isMusl) Seq("--libc=musl") else Nil
-    },
-    nativeImageOptions ++= {
-      val isStatic = sys.env.get("NATIVE_IMAGE_STATIC").exists(_.toBoolean)
-      if (isStatic) Seq("--static") else Nil
+      // https://www.graalvm.org/22.3/reference-manual/native-image/guides/build-static-executables/
+      // https://www.graalvm.org/latest/reference-manual/native-image/guides/build-static-executables/
+      sys.env.get("NATIVE_IMAGE_STATIC") match {
+        case Some("nolibc") => Seq(
+            "-H:+UnlockExperimentalVMOptions",
+            "-H:+StaticExecutableWithDynamicLibC",
+            "-H:-UnlockExperimentalVMOptions",
+          )
+        case Some("musl") => Seq("--static", "--libc=musl")
+        case _ => Nil
+      }
     },
   ).nativeSettings(scalaNativeConfig).dependsOn(core, dynamic)
-  .enablePlugins(NativeImagePlugin)
+  .jvmEnablePlugins(NativeImagePlugin)
 
 lazy val tests = crossProject(JVMPlatform, NativePlatform)
   .withoutSuffixFor(JVMPlatform).in(file("scalafmt-tests")).settings(
@@ -266,18 +257,17 @@ lazy val communityTestsScala3 = project
   .in(file("scalafmt-tests-community/scala3")).settings(communityTestsSettings)
   .enablePlugins(BuildInfoPlugin).dependsOn(communityTestsCommon)
 
-lazy val communityTestsSpark = project
-  .in(file("scalafmt-tests-community/spark")).settings(communityTestsSettings)
-  .enablePlugins(BuildInfoPlugin).dependsOn(communityTestsCommon)
-
-lazy val communityTestsIntellij = project
-  .in(file("scalafmt-tests-community/intellij"))
+lazy val communityTestsSpark = project.in(file("scalafmt-tests-community/spark"))
   .settings(communityTestsSettings).enablePlugins(BuildInfoPlugin)
   .dependsOn(communityTestsCommon)
 
-lazy val communityTestsOther = project
-  .in(file("scalafmt-tests-community/other")).settings(communityTestsSettings)
+lazy val communityTestsIntellij = project
+  .in(file("scalafmt-tests-community/intellij")).settings(communityTestsSettings)
   .enablePlugins(BuildInfoPlugin).dependsOn(communityTestsCommon)
+
+lazy val communityTestsOther = project.in(file("scalafmt-tests-community/other"))
+  .settings(communityTestsSettings).enablePlugins(BuildInfoPlugin)
+  .dependsOn(communityTestsCommon)
 
 lazy val benchmarks = project.in(file("scalafmt-benchmarks")).settings(
   publish / skip := true,

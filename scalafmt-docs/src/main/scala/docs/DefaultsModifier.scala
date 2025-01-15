@@ -5,11 +5,8 @@ import org.scalafmt.config.ScalafmtConfig
 import scala.meta.inputs.Input
 import scala.meta.inputs.Position
 
-import mdoc.Reporter
-import mdoc.StringModifier
-import metaconfig.Conf
-import metaconfig.ConfEncoder
-import metaconfig.Configured
+import mdoc._
+import metaconfig._
 
 class DefaultsModifier extends StringModifier {
   override val name: String = "defaults"
@@ -35,9 +32,7 @@ class DefaultsModifier extends StringModifier {
         val param = params(0)
         s"Default: `$param = ${getDefaultValue(param)}`\n"
       } else {
-        val defaults = params.map { param =>
-          s"$param = ${getDefaultValue(param)}"
-        }
+        val defaults = params.map(param => s"$param = ${getDefaultValue(param)}")
         ScalafmtModifier
           .mdConfigCodeBlock(defaults.mkString("# Defaults\n", "\n", ""))
       }

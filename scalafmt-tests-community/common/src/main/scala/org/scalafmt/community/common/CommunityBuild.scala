@@ -4,8 +4,7 @@ import org.scalafmt.config.ConfParsed
 
 import scala.meta._
 
-import java.nio.file.FileSystems
-import java.nio.file.Path
+import java.nio.file._
 
 import metaconfig.Conf
 
@@ -20,6 +19,7 @@ case class CommunityBuild(
     stylesIncluded: Boolean = true,
     fileOverride: Option[String] = null,
     statsPerStyle: Map[String, TestStats.Style] = Map.empty,
+    statsAllStyles: Option[TestStats.Style] = None,
 ) {
   private val excludedMatchers = {
     val fs = FileSystems.getDefault

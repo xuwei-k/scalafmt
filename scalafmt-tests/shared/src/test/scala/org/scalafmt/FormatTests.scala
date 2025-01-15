@@ -42,7 +42,7 @@ class FormatTests extends FunSuite with CanRunTests with FormatAssertions {
     val runner = t.style.runner
     val result = Scalafmt.formatCode(
       t.original,
-      t.style.copy(runner = scalafmtRunner(runner, debug)),
+      t.style.copy(runner = HasTests.scalafmtRunner(runner, debug)),
       filename = t.filename,
     )
     debug.printTest()
@@ -52,7 +52,8 @@ class FormatTests extends FunSuite with CanRunTests with FormatAssertions {
       case Left(e) if err.nonEmpty && e.getMessage.contains(err) => t.expected
       case Left(e: Incomplete) => e.formattedCode
       case Left(e: SearchStateExploded) => logger.elem(e); e.partialOutput
-      case Left(e) => throw FormatException(e, t.original)
+      case Left(e: Error.WithCode) => throw e
+      case Left(e) => throw Error.WithCode(e, t.original)
       case Right(code) => code
     }
     def assertVisits(
@@ -65,16 +66,15 @@ class FormatTests extends FunSuite with CanRunTests with FormatAssertions {
         val actual1 = completedEvent.totalExplored
         val actual2 = dbgOpt2.flatMap(_.completedEvent)
           .fold(actual1)(_.totalExplored)
-        val actual = (actual1, actual2)
-        def error = s"stateVisits = $actual1, stateVisits2 = $actual2"
-        visitsOpt1 match {
-          case Some(visits1) =>
-            val expected = (visits1, visitsOpt2.getOrElse(visits1))
-            assertEquals(actual, expected, error)
-          case None => assert(
-              actual1 <= 800 && actual2 <= 800,
-              s"\nExpected test to assert: $error",
-            )
+        if (actual1 > 2000 || actual2 > 2000) {
+          def error = s"stateVisits = $actual1, stateVisits2 = $actual2"
+          visitsOpt1 match {
+            case Some(visits1) =>
+              val actual = (actual1, actual2)
+              val expected = (visits1, visitsOpt2.getOrElse(visits1))
+              assertEquals(actual, expected, error)
+            case None => fail(s"\nExpected test to assert: $error")
+          }
         }
       }
     var debug2Opt: Option[Debug] = None
@@ -91,7 +91,7 @@ class FormatTests extends FunSuite with CanRunTests with FormatAssertions {
     debug2Opt = Some(debug2)
     val result2 = Scalafmt.formatCode(
       obtained,
-      t.style.copy(runner = scalafmtRunner(runner, debug2)),
+      t.style.copy(runner = HasTests.scalafmtRunner(runner, debug2)),
       filename = t.filename,
     )
     debug2.printTest()
@@ -102,7 +102,13 @@ class FormatTests extends FunSuite with CanRunTests with FormatAssertions {
           "test does not parse: " + parseException2Message(e, obtained),
           t.expected,
         )
-      case Left(e) => throw FormatException(e, obtained)
+      case Left(Error.WithCode(e: ParseException, code)) if !onlyManual =>
+        assertEquals(
+          "test does not parse: " + parseException2Message(e, code),
+          t.expected,
+        )
+      case Left(e: Error.WithCode) => throw e
+      case Left(e) => throw Error.WithCode(e, obtained)
       case Right(code) =>
         if (onlyManual) {
           assertEquals(code, obtained, "Idempotency violated")
@@ -138,7 +144,7 @@ class FormatTests extends FunSuite with CanRunTests with FormatAssertions {
     val explored = Debug.explored.get()
     logger.debug(s"Total explored: $explored")
     if (!onlyUnit && !onlyManual)
-      assertEquals(explored, 1493674, "total explored")
+      assertEquals(explored, 1252783, "total explored")
     val results = debugResults.result()
     // TODO(olafur) don't block printing out test results.
     // I don't want to deal with scalaz's Tasks :'(

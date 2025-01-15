@@ -14,10 +14,12 @@ object TreeSyntacticGroup {
     // Term
     case _: Term.Name => g.Path
     case _: Term.Select => g.Path
+    case _: Term.SelectPostfix => g.Term.PostfixExpr
     case _: Term.Interpolate => g.Term.SimpleExpr1
     case _: Term.Xml => g.Term.SimpleExpr1
     case _: Term.Apply => g.Term.SimpleExpr1
     case _: Term.ApplyType => g.Term.SimpleExpr1
+    case _: Term.SelectMatch => g.Term.SimpleExpr1
     case t: Term.ApplyInfix => g.Term.InfixExpr(t.op.value)
     case t: Term.ApplyUnary => g.Term.PrefixExpr(t.op.value)
     case _: Term.Assign => g.Term.Expr1
@@ -50,7 +52,7 @@ object TreeSyntacticGroup {
     case _: Type.Singleton => g.Type.SimpleTyp
     case _: Type.Apply => g.Type.SimpleTyp
     case t: Type.ApplyInfix => g.Type.InfixTyp(t.op.value)
-    case _: Type.FunctionType => g.Type.Typ
+    case _: Type.ParamFunctionType => g.Type.Typ
     case _: Type.PolyFunction => g.Type.Typ
     case _: Type.Tuple => g.Type.SimpleTyp
     case _: Type.With => g.Type.WithTyp
@@ -62,7 +64,7 @@ object TreeSyntacticGroup {
     case _: Type.Wildcard => g.Type.SimpleTyp
     case _: Type.Bounds => g.Path // ???
     case _: Type.Repeated => g.Type.ParamTyp
-    case _: Type.ByName => g.Type.ParamTyp
+    case _: Type.ByNameType => g.Type.ParamTyp
     case _: Type.Var => g.Type.ParamTyp
     case _: Type.Param => g.Path // ???
     case _: Type.Match => g.Type.Typ

@@ -5,17 +5,17 @@ import org.scalafmt.internal.Policy.NoPolicy
 import org.scalafmt.util.PolicyOps
 
 import org.scalameta.FileLine
-import scala.meta.tokens.Token
+import scala.meta.tokens.{Token => T}
 
 case class OptimalToken(
-    token: Token,
+    token: FT,
     killOnFail: Boolean,
     recurseOnly: Boolean = false,
 ) {
   override def toString: String = {
-    val kof = if (killOnFail) "!" else ":"
+    val kof = if (killOnFail) "!" else ""
     val rec = if (recurseOnly) "+" else ""
-    s"$token$kof${token.end}$rec"
+    s"${token.left}$kof[${token.idx}]$rec"
   }
 }
 
@@ -59,7 +59,7 @@ case class Split(
   import PolicyOps._
 
   def withNoIndent: Split = mod match {
-    case x @ NewlineT(_, false, _) =>
+    case x: NewlineT if !x.noIndent =>
       copy(modExt = modExt.copy(mod = x.copy(noIndent = true)))
     case _ => this
   }
@@ -69,9 +69,6 @@ case class Split(
 
   @inline
   def fileLine: FileLine = fileLineStack.fileLineLast
-
-  @inline
-  def indentation: String = modExt.indentation
 
   @inline
   def isNL: Boolean = modExt.isNL
@@ -107,24 +104,21 @@ case class Split(
     if (isIgnored) this
     else {
       val newNeededTags = neededTags + splitTag
-      if (newNeededTags eq neededTags) this
-      else copy(neededTags = newNeededTags)
+      if (newNeededTags eq neededTags) this else copy(neededTags = newNeededTags)
     }
 
   def activateFor(splitTag: SplitTag): Split =
     if (isIgnored) this
     else {
       val newActiveTags = activeTags + splitTag
-      if (newActiveTags eq activeTags) this
-      else copy(activeTags = newActiveTags)
+      if (newActiveTags eq activeTags) this else copy(activeTags = newActiveTags)
     }
 
   def deActivateFor(splitTag: SplitTag): Split =
     if (isIgnored) this
     else {
       val newActiveTags = activeTags - splitTag
-      if (newActiveTags eq activeTags) this
-      else copy(activeTags = newActiveTags)
+      if (newActiveTags eq activeTags) this else copy(activeTags = newActiveTags)
     }
 
   def preActivateFor(splitTag: SplitTag): Split =
@@ -144,18 +138,17 @@ case class Split(
     else copy()(fileLineStack.forThisLine(fileLine.file, fileLine.line))
 
   def withOptimalTokenOpt(
-      token: => Option[Token],
+      token: => Option[FT],
       killOnFail: Boolean,
       extend: Boolean = false,
       recurseOnly: Boolean = false,
   ): Split = withOptimalAt(
-    token
-      .map(OptimalToken(_, killOnFail = killOnFail, recurseOnly = recurseOnly)),
+    token.map(OptimalToken(_, killOnFail = killOnFail, recurseOnly = recurseOnly)),
     extend = extend,
   )
 
   def withOptimalToken(
-      token: => Token,
+      token: => FT,
       killOnFail: Boolean,
       ignore: Boolean = false,
       extend: Boolean = false,
@@ -180,7 +173,7 @@ case class Split(
         this.optimalAt match {
           case None => amend()
           case Some(x) if extend =>
-            if (x.token.end < opt.token.end) amend() else this
+            if (x.token.idx < opt.token.idx) amend() else this
           case _ =>
             throw new UnsupportedOperationException("Can't reset optimal token")
         }
@@ -194,11 +187,13 @@ case class Split(
     if (ignore) this
     else if (extend) andPolicy(newPolicy)
     else if (isIgnored) this
-    else if (policy.isEmpty) copy(policy = newPolicy)
-    else throw new UnsupportedOperationException("Use orPolicy or andPolicy")
+    else if (policy.isEmpty) {
+      val policyEval = newPolicy
+      if (policyEval.isEmpty) this else copy(policy = policyEval)
+    } else throw new UnsupportedOperationException("Use orPolicy or andPolicy")
 
   def withSingleLine(
-      expire: => Token,
+      expire: => FT,
       exclude: => TokenRanges = TokenRanges.empty,
       noSyntaxNL: Boolean = false,
       killOnFail: => Option[Boolean] = None,
@@ -228,7 +223,7 @@ case class Split(
     }
 
   def withSingleLineNoOptimal(
-      expire: => Token,
+      expire: => FT,
       exclude: => TokenRanges = TokenRanges.empty,
       noSyntaxNL: Boolean = false,
       rank: Int = 0,
@@ -259,19 +254,19 @@ case class Split(
     if (isIgnored || penalty <= 0) this
     else copy(penalty = this.penalty + penalty)
 
-  def withIndent(length: => Length, expire: => Token, when: ExpiresOn): Split =
+  def withIndent(length: => Length, expire: => FT, when: ExpiresOn): Split =
     withIndent(length, expire, when, ignore = false)
 
   def withIndent(
       length: => Length,
-      expire: => Token,
+      expire: => FT,
       when: ExpiresOn,
       ignore: Boolean,
   ): Split = withMod(modExt.withIndent(length, expire, when), ignore)
 
   def withIndentOpt(
       length: => Length,
-      expire: Option[Token],
+      expire: Option[FT],
       when: ExpiresOn,
   ): Split = withMod(modExt.withIndentOpt(length, expire, when))
 
@@ -286,7 +281,7 @@ case class Split(
   def withIndents(indents: Seq[Indent], ignore: Boolean = false): Split =
     withMod(modExt.withIndents(indents), ignore)
 
-  def switch(trigger: Token, on: Boolean): Split =
+  def switch(trigger: T, on: Boolean): Split =
     if (isIgnored) this
     else {
       val switchedModExt = modExt.switch(trigger, on)
@@ -316,7 +311,7 @@ case class Split(
         else ""
       }
     val opt = optimalAt.fold("")(", opt=" + _)
-    s"""${prefix}c=$cost[$penalty] $mod:[$fileLineStack](indents=$indentation, $policy$opt)"""
+    s"""${prefix}c=$cost[$penalty] $modExt:[$fileLineStack]($policy$opt)"""
   }
 }
 
@@ -334,5 +329,12 @@ object Split {
   def opt(mod: Modification, cost: Int)(implicit
       fileLineStack: FileLineStack,
   ): Split = if (mod eq null) ignored else Split(mod, cost)
+
+  implicit class ImplicitSeqSplit(private val obj: Seq[Split]) extends AnyVal {
+    def penalize(penalty: Int): Seq[Split] = obj.map(_.withPenalty(penalty))
+    def penalizeIf(penalty: Int)(f: Split => Boolean): Seq[Split] = obj
+      .map(x => if (f(x)) x.withPenalty(penalty) else x)
+    def penalizeNL(penalty: Int): Seq[Split] = penalizeIf(penalty)(_.isNL)
+  }
 
 }

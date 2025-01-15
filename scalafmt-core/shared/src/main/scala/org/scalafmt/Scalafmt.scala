@@ -1,12 +1,8 @@
 package org.scalafmt
 
 import org.scalafmt.Error.PreciseIncomplete
-import org.scalafmt.config.FormatEvent.CreateFormatOps
-import org.scalafmt.config.NamedDialect
-import org.scalafmt.config.ScalafmtConfig
-import org.scalafmt.internal.BestFirstSearch
-import org.scalafmt.internal.FormatOps
-import org.scalafmt.internal.FormatWriter
+import org.scalafmt.config._
+import org.scalafmt.internal._
 import org.scalafmt.rewrite.Rewrite
 import org.scalafmt.sysops.FileOps
 
@@ -17,9 +13,7 @@ import scala.meta.tokenizers.TokenizerOptions
 
 import java.nio.file.Path
 
-import scala.util.Failure
-import scala.util.Success
-import scala.util.Try
+import scala.util._
 
 import metaconfig.Configured
 
@@ -56,7 +50,10 @@ object Scalafmt {
       style: ScalafmtConfig,
       range: Set[Range],
       filename: String,
-  ): Formatted = formatCode(code, style, range, filename).formatted
+  ): Formatted = formatCode(code, style, range, filename).formatted match {
+    case Formatted.Failure(Error.WithCode(ex, _)) => Formatted.Failure(ex)
+    case x => x
+  }
 
   private[scalafmt] def formatCode(
       code: String,
@@ -100,18 +97,20 @@ object Scalafmt {
   ): Try[String] = {
     val runner = style.runner
     val codeToInput: String => Input = toInput(_, file)
-    val parsed = runner.parse(Rewrite(codeToInput(code), style, codeToInput))
-    parsed.fold(
-      _.details match {
-        case ed: ParseException =>
-          val dialect = runner.dialectName
-          val msg = s"[dialect $dialect] ${ed.shortMessage}"
-          Failure(new ParseException(ed.pos, msg))
-        case ed => Failure(ed)
+    val original = codeToInput(code)
+    val rewritten = Rewrite(original, style)
+    runner.parse(rewritten.fold(original)(codeToInput)).fold(
+      x => {
+        val err = x.details match {
+          case ParseException(pos, msg) =>
+            ParseException(pos, s"[dialect ${runner.dialectName}] $msg")
+          case ed => ed
+        }
+        Failure(Error.WithCode(err, rewritten.getOrElse(code)))
       },
       tree => {
         implicit val formatOps = new FormatOps(tree, style, file)
-        runner.event(CreateFormatOps(formatOps))
+        runner.event(FormatEvent.CreateFormatOps(formatOps))
         implicit val formatWriter = new FormatWriter(formatOps)
         Try(BestFirstSearch(range)).flatMap { res =>
           val formattedString = formatWriter.mkString(res.state)
@@ -130,7 +129,7 @@ object Scalafmt {
       code: String,
       style: ScalafmtConfig = ScalafmtConfig.default,
       range: Set[Range] = Set.empty[Range],
-  ): Formatted = formatCode(code, style, range).formatted
+  ): Formatted = format(code, style, range, defaultFilename)
 
   // used by ScalafmtReflect.parseConfig
   def parseHoconConfigFile(configPath: Path): Configured[ScalafmtConfig] =

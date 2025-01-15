@@ -25,7 +25,7 @@ object Report {
         code(
           heatmapBar(result.test.style),
           raw(result.obtainedHtml),
-          span("\n" + ("‾" * result.test.style.maxColumn)),
+          span("\n" + "‾" * result.test.style.maxColumn),
         ),
       ),
     ),
@@ -36,12 +36,12 @@ object Report {
       val v = Math.pow(2, i).toInt
       val color = red(v)
       span(background := s"rgb(256, $color, $color)", s" $v ")
-    } :+ span("\n" + ("_" * scalaStyle.maxColumn) + "\n")
+    } :+ span("\n" + "_" * scalaStyle.maxColumn + "\n")
 
   def red(visits: Int): Int = {
     val v = log(visits, 2)
     val ratio = v / MaxVisits.toDouble
-    val result = Math.min(256, 20 + 256 - (ratio * 256)).toInt
+    val result = Math.min(256, 20 + 256 - ratio * 256).toInt
     result
   }
 
@@ -65,17 +65,18 @@ object Report {
 
   def reportBody(xs: Text.Modifier*) = html(body(background := "#f9f9f9", xs))
 
-  def compare(before: TestStats, after: TestStats): String = reportBody(div(
-    h1(
-      id := "title",
-      s"Compare ${after.gitInfo.branch} and" + s" ${before.gitInfo.branch}" +
-        s" (${before.shortCommit}...${after.shortCommit})",
-    ),
-    explanation,
-    after.intersectResults(before).sortBy { case (aft, bef) =>
-      -Math.abs(aft.visitedStates - bef.visitedStates)
-    }.map {
-      case (aft, bef) => div(
+  def compare(before: TestStats, after: TestStats): String = reportBody {
+    div(
+      h1(
+        id := "title",
+        s"Compare ${after.gitInfo.branch} and" + s" ${before.gitInfo.branch}" +
+          s" (${before.shortCommit}...${after.shortCommit})",
+      ),
+      explanation,
+      after.intersectResults(before).sortBy { case (aft, bef) =>
+        -Math.abs(aft.visitedStates - bef.visitedStates)
+      }.map { case (aft, bef) =>
+        div(
           h2(aft.test.fullName),
           table(
             tr(th(""), th("Before"), th("After"), th("Diff")),
@@ -100,8 +101,9 @@ object Report {
             code(heatmapBar(aft.test.style), raw(mkHtml(mergeResults(aft, bef)))),
           ),
         )
-    },
-  )).render
+      },
+    )
+  }.render
 
   def mergeResults(after: Result, before: Result): Seq[FormatOutput] = after
     .tokens.zip(before.tokens).map { case (aft, bef) =>

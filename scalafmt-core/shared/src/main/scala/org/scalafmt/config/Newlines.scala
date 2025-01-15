@@ -1,13 +1,13 @@
 package org.scalafmt.config
 
 import org.scalafmt.config.Newlines._
-import org.scalafmt.internal.FormatToken
+import org.scalafmt.internal._
 import org.scalafmt.util.TreeOps
 
 import scala.meta._
 
 import metaconfig._
-import metaconfig.generic.Surface
+import metaconfig.annotation._
 
 /** @param penalizeSingleSelectMultiArgList
   *   - If true, adds a penalty to newlines before a dot starting a select chain
@@ -129,23 +129,8 @@ import metaconfig.generic.Surface
   *   - If `fold`, ignore source and try to remove line breaks
   *   - If `unfold`, ignore source and try to break lines
   *
-  * @param afterInfix
-  *   Controls how line breaks around operations are handled
-  *   - If `keep` (default for source=classic,keep), preserve existing
-  *   - If `some` (default for source=fold), break after some infix ops
-  *   - If `many` (default for source=unfold), break after many infix ops
-  *
-  * @param afterInfixBreakOnNested
-  *   Force breaks around nested (enclosed in parentheses) expressions
-  *
-  * @param afterInfixMaxCountPerFile
-  *   Switch to `keep` for a given file if the total number of infix operations
-  *   in that file exceeds this value
-  *
-  * @param afterInfixMaxCountPerExprForSome
-  *   Switch to `many` for a given expression (possibly nested) if the number of
-  *   operations in that expression exceeds this value AND `afterInfix` had been
-  *   set to `some`.
+  * @param infix
+  *   Controls how line breaks around infix operations are handled
   *
   * @param topLevelStatementBlankLines
   *   Controls blank line before and/or after a top-level statement.
@@ -154,10 +139,25 @@ import metaconfig.generic.Surface
   *   - punct: don't force break if overflow is only due to trailing punctuation
   *   - tooLong: don't force break if overflow is due to tokens which are too
   *     long and would likely overflow even after a break
+  *
+  * @param annotation
+  *   - if `newlines.source` is missing or keep:
+  *     - if true, will keep existing line breaks around annotations
+  *   - if `newlines.source` is fold:
+  *     - if true, will break before the entity being annotated
+  *     - will not force break between consecutive annotations
+  *   - if `newlines.source` is unfold:
+  *     - if true, will break between consecutive annotations
+  *     - will always break before the entity being annotated
+  *
+  * @param selfAnnotation
+  *   If true, will keep a line break before a self annotation for
+  *   `newlines.source=classic/keep`, or force it for `fold/unfold`; see
+  *   [[https://github.com/scalameta/scalafmt/issues/938]]
   */
 case class Newlines(
     source: SourceHints = Newlines.classic,
-    @annotation.ExtraName("neverInResultType")
+    @ExtraName("neverInResultType")
     avoidInResultType: Boolean = false,
     beforeTypeBounds: SourceHints = Newlines.classic,
     neverBeforeJsNative: Boolean = false,
@@ -168,13 +168,13 @@ case class Newlines(
     beforeCurlyLambdaParams: BeforeCurlyLambdaParams =
       BeforeCurlyLambdaParams.never,
     private val topLevelStatementBlankLines: Seq[TopStatBlanks] = Seq.empty,
-    @annotation.DeprecatedName(
+    @DeprecatedName(
       "topLevelStatementsMinBreaks",
       "Use newlines.topLevelStatementBlankLines instead",
       "3.0.0",
     )
     private val topLevelStatementsMinBreaks: Int = 1,
-    @annotation.DeprecatedName(
+    @DeprecatedName(
       "topLevelStatements",
       "Use newlines.topLevelStatementBlankLines instead",
       "3.0.0",
@@ -183,42 +183,34 @@ case class Newlines(
     beforeTemplateBodyIfBreakInParentCtors: Boolean = false,
     topLevelBodyIfMinStatements: Seq[BeforeAfter] = Seq.empty,
     topLevelBodyMinStatements: Int = 2,
-    @annotation.ExtraName("afterCurlyLambda")
+    @ExtraName("afterCurlyLambda")
     afterCurlyLambdaParams: AfterCurlyLambdaParams =
       AfterCurlyLambdaParams.never,
-    @annotation.ExtraName("usingParamListModifierForce")
+    @ExtraName("usingParamListModifierForce")
     implicitParamListModifierForce: Seq[BeforeAfter] = Seq.empty,
-    @annotation.ExtraName("usingParamListModifierPrefer")
+    @ExtraName("usingParamListModifierPrefer")
     implicitParamListModifierPrefer: Option[BeforeAfter] = None,
     alwaysBeforeElseAfterCurlyIf: Boolean = false,
     forceBeforeAssign: ForceBeforeMultilineAssign =
       ForceBeforeMultilineAssign.never,
     private val forceBeforeMultilineAssign: Option[ForceBeforeMultilineAssign] =
       None,
-    @annotation.DeprecatedName(
-      "alwaysBeforeMultilineDef",
-      "Use newlines.forceBeforeMultilineAssign instead",
-      "3.0.0",
-    )
-    private val alwaysBeforeMultilineDef: Boolean = false,
     private[config] val beforeMultiline: Option[SourceHints] = None,
-    @annotation.DeprecatedName(
+    @DeprecatedName(
       "beforeMultilineDef",
       "Use newlines.beforeMultiline, newlines.forceBeforeMultilineAssign instead",
       "3.0.0",
     )
     beforeMultilineDef: Option[SourceHints] = None,
-    private[config] val selectChains: Option[SourceHints] = None,
-    afterInfix: Option[AfterInfix] = None,
-    afterInfixBreakOnNested: Boolean = false,
-    afterInfixMaxCountPerExprForSome: Int = 10,
-    afterInfixMaxCountPerFile: Int = 500,
+    selectChains: SelectChain = SelectChain.default,
+    infix: Infix = Infix.default,
     avoidForSimpleOverflow: Seq[AvoidForSimpleOverflow] = Seq.empty,
     inInterpolation: InInterpolation = InInterpolation.allow,
     ignoreInSyntax: Boolean = true,
     avoidAfterYield: Boolean = true,
-    configStyleCallSite: Option[ConfigStyleElement] = None,
-    configStyleDefnSite: Option[ConfigStyleElement] = None,
+    configStyle: ConfigStyle = ConfigStyle.default,
+    annotation: Boolean = true,
+    selfAnnotation: Boolean = true,
 ) {
   if (
     implicitParamListModifierForce.nonEmpty &&
@@ -245,26 +237,17 @@ case class Newlines(
   @inline
   def keep: Boolean = source eq Newlines.keep
   @inline
+  def classic: Boolean = source eq Newlines.classic
+  @inline
   def keepBreak(hasBreak: => Boolean): Boolean = keep && hasBreak
   @inline
-  def keepBreak(newlines: Int): Boolean =
-    keepBreak(!FormatToken.noBreak(newlines))
+  def keepBreak(newlines: Int): Boolean = keepBreak(!FT.noBreak(newlines))
   @inline
-  def keepBreak(implicit ft: FormatToken): Boolean = keepBreak(ft.hasBreak)
+  def keepBreak(implicit ft: FT): Boolean = keepBreak(ft.hasBreak)
 
-  val breakAfterInfix: AfterInfix = afterInfix.getOrElse {
-    source match {
-      case Newlines.unfold => AfterInfix.many
-      case Newlines.fold => AfterInfix.some
-      case Newlines.keep => AfterInfix.keep
-      case Newlines.classic => AfterInfix.keep
-    }
-  }
-  val formatInfix: Boolean = breakAfterInfix ne AfterInfix.keep
-
-  def checkInfixConfig(infixCount: Int): Newlines =
-    if (infixCount <= afterInfixMaxCountPerFile || !formatInfix) this
-    else copy(afterInfix = Some(AfterInfix.keep))
+  def checkInfixConfig(termCnt: Int, typeCnt: Int, patCnt: Int)(implicit
+      cfg: ScalafmtConfig,
+  ): Newlines = copy(infix = infix.checkInfixCounts(termCnt, typeCnt, patCnt))
 
   lazy val forceBeforeImplicitParamListModifier: Boolean =
     implicitParamListModifierForce.contains(before)
@@ -295,13 +278,12 @@ case class Newlines(
   lazy val getBeforeMultiline = beforeMultiline.getOrElse(source)
   lazy val shouldForceBeforeMultilineAssign = forceBeforeMultilineAssign
     .getOrElse {
-      val useDef = alwaysBeforeMultilineDef ||
-        beforeMultilineDef.contains(Newlines.unfold)
+      val useDef = beforeMultilineDef.contains(Newlines.unfold)
       if (useDef) ForceBeforeMultilineAssign.`def`
       else ForceBeforeMultilineAssign.never
     }
 
-  lazy val getSelectChains = selectChains.getOrElse(source)
+  lazy val getSelectChains = selectChains.style.getOrElse(source)
 
   private lazy val topStatBlankLinesSorted =
     if (topLevelStatementBlankLines.isEmpty) {
@@ -318,9 +300,9 @@ case class Newlines(
       /* minBreaks has to come first; since we'll be adding blanks, this could
        * potentially move us into another setting which didn't match before we
        * we added the blanks; the rest are sorted to put more specific first */
-      topLevelStatementBlankLines.filter(x => x.minNest <= x.maxNest).sortBy {
-        x => (x.minBreaks, x.maxNest, -x.minNest, x.regex.fold(0)(-_.length))
-      }
+      topLevelStatementBlankLines.filter(x => x.minNest <= x.maxNest).sortBy(
+        x => (x.minBreaks, x.maxNest, -x.minNest, x.regex.fold(0)(-_.length)),
+      )
 
   @inline
   def hasTopStatBlankLines = topStatBlankLinesSorted.nonEmpty
@@ -341,12 +323,36 @@ case class Newlines(
     .map(getBeforeOpenParen)
   def isBeforeOpenParenCallSite: Boolean = beforeOpenParenCallSite.isDefined
   def isBeforeOpenParenDefnSite: Boolean = beforeOpenParenDefnSite.isDefined
+
+  private[scalafmt] lazy val encloseSelectChains = selectChains.enclose
+    .getOrElse(!classic)
+
 }
 
 object Newlines {
-  implicit lazy val surface: Surface[Newlines] = generic.deriveSurface
+  implicit lazy val surface: generic.Surface[Newlines] = generic.deriveSurface
   implicit lazy val codec: ConfCodecEx[Newlines] = generic
-    .deriveCodecEx(Newlines()).noTypos
+    .deriveCodecEx(Newlines()).noTypos.withSectionRenames(
+      // deprecated since v3.0.4
+      SectionRename("configStyleCallSite", "configStyle.callSite"),
+      // deprecated since v3.0.4
+      SectionRename("configStyleDefnSite", "configStyle.defnSite"),
+      // deprecated since v3.0.0
+      SectionRename { case Conf.Bool(value) =>
+        Conf.Str(if (value) "def" else "never")
+      }("alwaysBeforeMultilineDef", "forceBeforeMultilineAssign"),
+      // deprecated since v3.8.4
+      SectionRename("afterInfix", "infix.termSite.style"),
+      SectionRename("afterInfixBreakOnNested", "infix.termSite.breakOnNested"),
+      SectionRename(
+        "afterInfixMaxCountPerFile",
+        "infix.termSite.maxCountPerFile",
+      ),
+      SectionRename(
+        "afterInfixMaxCountPerExprForSome",
+        "infix.termSite.maxCountPerExprForSome",
+      ),
+    )
 
   sealed abstract class IgnoreSourceSplit {
     val ignoreSourceSplit: Boolean
@@ -374,14 +380,86 @@ object Newlines {
       }
   }
 
-  sealed abstract class AfterInfix
-  object AfterInfix {
-    case object keep extends AfterInfix
-    case object some extends AfterInfix
-    case object many extends AfterInfix
+  case class Infix(
+      private val termSite: Infix.Site = Infix.Site.default,
+      private val typeSite: Option[Infix.Site] = None,
+      private val patSite: Option[Infix.Site] = None,
+  ) {
+    def checkInfixCounts(termCnt: Int, typeInfix: Int, patInfix: Int)(implicit
+        cfg: ScalafmtConfig,
+    ): Infix = copy(
+      termSite = termSite.checkConfig(termCnt)(None),
+      typeSite = Some(typeSite.getOrElse(termSite).checkConfig(typeInfix) {
+        val useSome = !cfg.newlines.keep && cfg.dialect.useInfixTypePrecedence
+        if (useSome) Some(Infix.some) else None
+      }),
+      patSite = Some(patSite.getOrElse(termSite).checkConfig(patInfix)(None)),
+    )
 
-    implicit val reader: ConfCodecEx[AfterInfix] = ReaderUtil
-      .oneOf[AfterInfix](keep, some, many)
+    def get(tree: Tree): Infix.Site = tree match {
+      case _: Type => typeSite.getOrElse(termSite)
+      case _: Pat => patSite.getOrElse(termSite)
+      case _ => termSite
+    }
+
+    def keep(tree: Tree): Boolean = get(tree).isKeep
+  }
+
+  object Infix {
+    private[Newlines] val default = Infix()
+    implicit lazy val surface: generic.Surface[Infix] = generic.deriveSurface
+    implicit lazy val codec: ConfCodecEx[Infix] = generic.deriveCodecEx(default)
+      .noTypos
+
+    sealed abstract class Style
+    case object keep extends Style
+    case object some extends Style
+    case object many extends Style
+    implicit val styleReader: ConfCodecEx[Style] = ReaderUtil
+      .oneOf[Style](keep, some, many)
+
+    /** @param style
+      *   Controls how line breaks around infix operations are handled
+      *   - If `keep` (default for source=classic,keep), preserve existing
+      *   - If `some` (default for source=fold), break after some infix ops
+      *   - If `many` (default for source=unfold), break after many infix ops
+      * @param breakOnNested
+      *   Force breaks around nested (enclosed in parentheses) expressions
+      * @param maxCountPerFile
+      *   Switch to `keep` for a given file if the total number of infix
+      *   operations in that file exceeds this value
+      * @param maxCountPerExprForSome
+      *   Switch to `many` for a given expression (possibly nested) if the
+      *   number of operations in that expression exceeds this value AND
+      *   `afterInfix` had been set to `some`.
+      */
+    case class Site(
+        style: Style = null,
+        breakOnNested: Boolean = false,
+        maxCountPerFile: Int = 500,
+        maxCountPerExprForSome: Int = 10,
+    ) {
+      def checkConfig(
+          infixCount: Int,
+      )(orElseStyle: => Option[Style])(implicit cfg: ScalafmtConfig): Site =
+        if (maxCountPerFile < infixCount) copy(style = keep)
+        else if (style eq null) Infix.defaultStyle(cfg.newlines.source)
+          .orElse(orElseStyle).fold(this)(x => copy(style = x))
+        else this
+      def isKeep: Boolean = (style eq keep) || (style eq null)
+    }
+    object Site {
+      private[Infix] val default = Site()
+      implicit lazy val surface: generic.Surface[Site] = generic.deriveSurface
+      implicit lazy val codec: ConfCodecEx[Site] = generic.deriveCodecEx(default)
+        .noTypos
+    }
+
+    def defaultStyle(source: SourceHints): Option[Style] = source match {
+      case Newlines.unfold => Some(many)
+      case Newlines.fold => Some(some)
+      case _ => None
+    }
   }
 
   sealed abstract class BeforeAfter
@@ -396,8 +474,17 @@ object Newlines {
     case object punct extends AvoidForSimpleOverflow
     case object tooLong extends AvoidForSimpleOverflow
     case object slc extends AvoidForSimpleOverflow
+
+    val all: Seq[sourcecode.Text[AvoidForSimpleOverflow]] =
+      Seq(punct, tooLong, slc)
+
     implicit val codec: ConfCodecEx[AvoidForSimpleOverflow] = ReaderUtil
-      .oneOf[AvoidForSimpleOverflow](punct, tooLong, slc)
+      .oneOf[AvoidForSimpleOverflow](all: _*)
+
+    implicit val seqDecoder: ConfDecoderEx[Seq[AvoidForSimpleOverflow]] =
+      ConfDecoderEx.fromPartial[Seq[AvoidForSimpleOverflow]]("STR") {
+        case (_, Conf.Str("all")) => Configured.ok(all.map(_.value))
+      }.orElse(ConfDecoderExT.canBuildSeq[AvoidForSimpleOverflow, Seq])
   }
 
   sealed abstract class InInterpolation
@@ -492,7 +579,8 @@ object Newlines {
     def isEmpty: Boolean = before == 0 && after == 0
   }
   object NumBlanks {
-    implicit val surface: Surface[NumBlanks] = generic.deriveSurface[NumBlanks]
+    implicit val surface: generic.Surface[NumBlanks] = generic
+      .deriveSurface[NumBlanks]
     implicit val encoder: ConfEncoder[NumBlanks] = generic
       .deriveEncoder[NumBlanks]
     implicit val decoder: ConfDecoderEx[NumBlanks] = {
@@ -532,7 +620,7 @@ object Newlines {
         pattern.forall(_.matcher(prefix).find())
   }
   object TopStatBlanks {
-    implicit val surface: Surface[TopStatBlanks] = generic
+    implicit val surface: generic.Surface[TopStatBlanks] = generic
       .deriveSurface[TopStatBlanks]
     implicit val codec: ConfCodecEx[TopStatBlanks] = generic
       .deriveCodecEx(TopStatBlanks()).noTypos
@@ -569,10 +657,128 @@ object Newlines {
   }
   private[config] object ConfigStyleElement {
     private val default = ConfigStyleElement()
-    implicit val surface: Surface[ConfigStyleElement] = generic
+    implicit val surface: generic.Surface[ConfigStyleElement] = generic
       .deriveSurface[ConfigStyleElement]
     implicit val codec: ConfCodecEx[ConfigStyleElement] = generic
       .deriveCodecEx(default).noTypos
+  }
+
+  case class ConfigStyle(
+      callSite: Option[ConfigStyleElement] = None,
+      defnSite: Option[ConfigStyleElement] = None,
+      bracketCallSite: Option[ConfigStyleElement] = None,
+      bracketDefnSite: Option[ConfigStyleElement] = None,
+      fallBack: ConfigStyleElement = ConfigStyleElement(),
+      @DeprecatedName(
+        "beforeComma",
+        "Scala supports trailing commas after 2.12.2. Use trailingCommas instead",
+        "2.5.0",
+      )
+      beforeComma: Boolean = false,
+  ) {
+    def getParenCallSite: ConfigStyleElement = callSite.getOrElse(fallBack)
+    def getBracketCallSite: ConfigStyleElement = bracketCallSite
+      .getOrElse(getParenCallSite)
+    def getCallSite(isBracket: Boolean): ConfigStyleElement =
+      if (isBracket) getBracketCallSite else getParenCallSite
+    @inline
+    def getCallSite(tree: Tree): ConfigStyleElement =
+      getCallSite(tree.is[Type.ArgClause])
+
+    def getParenDefnSite: ConfigStyleElement = defnSite.getOrElse(fallBack)
+    def getBracketDefnSite: ConfigStyleElement = bracketDefnSite
+      .getOrElse(getParenDefnSite)
+    def getDefnSite(isBracket: Boolean): ConfigStyleElement =
+      if (isBracket) getBracketDefnSite else getParenDefnSite
+    @inline
+    def getDefnSite(tree: Tree): ConfigStyleElement =
+      getDefnSite(tree.is[Type.ArgClause])
+  }
+  private[config] object ConfigStyle {
+    val default = ConfigStyle()
+    implicit val surface: generic.Surface[ConfigStyle] = generic
+      .deriveSurface[ConfigStyle]
+    implicit val codec: ConfCodecEx[ConfigStyle] = generic.deriveCodecEx(default)
+      .noTypos
+  }
+
+  /** @param classicKeepAfterFirstBreak
+    *   NB: failure unless newlines.source=classic If true, then the user can
+    *   opt out of line breaks inside select chains.
+    *   {{{
+    *     // original
+    *     foo
+    *       .map(_ + 1).map(_ + 1)
+    *       .filter(_ > 2)
+    *     // if true
+    *     foo
+    *       .map(_ + 1).map(_ + 1)
+    *       .filter(_ > 2)
+    *     // if false
+    *     foo
+    *       .map(_ + 1)
+    *       .map(_ + 1)
+    *       .filter(_ > 2)
+    *   }}}
+    *
+    * @param classicKeepFirst
+    *   NB: ignored unless newlines.source=classic If true, keeps the line break
+    *   before a dot if it already exists.
+    *   {{{
+    *     // original
+    *     foo
+    *       .map(_ + 1)
+    *       .filter( > 2)
+    *     // if true
+    *     foo
+    *       .map(_ + 1)
+    *       .filter( > 2)
+    *     // if false
+    *     foo.map(_ + 1).filter( > 2)
+    *   }}}
+    *
+    * @param encloseIfClassic
+    *   NB: ignored unless newlines.source=classic. Controls what happens if a
+    *   chain enclosed in parentheses is followed by additional selects. Those
+    *   additional selects will be considered part of the enclosed chain if and
+    *   only if this flag is false.
+    *   {{{
+    *     // original
+    *     (foo.map(_ + 1).map(_ + 1))
+    *       .filter(_ > 2)
+    *     // if true
+    *     (foo.map(_ + 1).map(_ + 1))
+    *       .filter(_ > 2)
+    *     // if false
+    *     (foo
+    *       .map(_ + 1)
+    *       .map(_ + 1))
+    *       .filter(_ > 2)
+    *   }}}
+    */
+
+  case class SelectChain(
+      style: Option[SourceHints] = None,
+      enclose: Option[Boolean] = None,
+      // classic-only parameters
+      classicKeepFirst: Boolean = true,
+      classicKeepAfterFirstBreak: Boolean = false,
+      classicCanStartWithBraceApply: Boolean = true,
+      classicCanStartWithoutApply: Boolean = false,
+  )
+  private[config] object SelectChain {
+    val default = SelectChain()
+    implicit val surface: generic.Surface[SelectChain] = generic
+      .deriveSurface[SelectChain]
+    implicit val encoder: ConfEncoder[SelectChain] = generic.deriveEncoder
+    implicit val decoder: ConfDecoderEx[SelectChain] = {
+      val base = generic.deriveDecoderEx(default).noTypos
+      ConfDecoderEx.from {
+        case (_, conf: Conf.Str) => SourceHints.codec.read(None, conf)
+            .map(x => SelectChain(style = Some(x)))
+        case (state, conf) => base.read(state, conf)
+      }
+    }
   }
 
 }

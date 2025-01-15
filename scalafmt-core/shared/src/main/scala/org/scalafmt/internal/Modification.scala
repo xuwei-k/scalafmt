@@ -9,11 +9,11 @@ sealed abstract class Modification {
   final def isBlankLine: Boolean = newlines > 1
 }
 
-case class Provided(ft: FormatToken) extends Modification {
+case class Provided(ft: FT) extends Modification {
   override val newlines: Int = ft.newlinesBetween
   override lazy val length: Int =
     if (isNL) betweenText.indexOf('\n') else betweenText.length
-  lazy val betweenText: String = ft.between.map(_.syntax).mkString
+  lazy val betweenText: String = ft.between.map(_.text).mkString
 }
 
 case object NoSplit extends Modification {
@@ -34,29 +34,22 @@ case object NoSplit extends Modification {
   *   optional additional set of indents) if the newline will indent beyond the
   *   current column? For example, used by select chains in [[Router]].
   */
-case class NewlineT(
-    isDouble: Boolean = false,
-    noIndent: Boolean = false,
-    alt: Option[ModExt] = None,
-) extends Modification {
+case class NewlineT(isDouble: Boolean = false, noIndent: Boolean = false)
+    extends Modification {
   override def toString = {
     val double = if (isDouble) "x2" else ""
     val indent = if (noIndent) "[NoIndent]" else ""
-    val altStr = alt.fold("")(x => "|" + x.mod.toString)
-    "NL" + double + indent + altStr
+    "NL" + double + indent
   }
   override val newlines: Int = if (isDouble) 2 else 1
   override val length: Int = 0
 }
 
-object Newline extends NewlineT {
-  def orMod(flag: Boolean, mod: => Modification): Modification =
-    if (flag) this else mod
-}
+object Newline extends NewlineT
 
 object Newline2x extends NewlineT(isDouble = true) {
   def apply(isDouble: Boolean): NewlineT = if (isDouble) this else Newline
-  def apply(ft: FormatToken): NewlineT = apply(ft.hasBlankLine)
+  def apply(ft: FT): NewlineT = apply(ft.hasBlankLine)
 }
 
 object NoIndentNewline extends NewlineT(noIndent = true)
@@ -71,7 +64,13 @@ object Space extends Modification {
   def apply(flag: Boolean): Modification = if (flag) this else NoSplit
   def orNL(flag: Boolean): Modification = if (flag) this else Newline
   def orNL(nl: Int): Modification =
-    if (FormatToken.noBreak(nl)) this
-    else Newline2x(FormatToken.hasBlankLine(nl))
-  def orNL(ft: FormatToken): Modification = orNL(ft.newlinesBetween)
+    if (FT.noBreak(nl)) this else Newline2x(FT.hasBlankLine(nl))
+  def orNL(ft: FT): Modification = orNL(ft.newlinesBetween)
+}
+
+case class SpaceOrNoSplit(policy: Policy.End.WithPos) extends Modification {
+  override val newlines: Int = 0
+  override val length: Int = 1
+
+  override def toString: String = "SPorNS"
 }

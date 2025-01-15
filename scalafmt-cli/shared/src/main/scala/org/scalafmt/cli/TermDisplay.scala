@@ -102,7 +102,7 @@ object TermDisplay extends TermUtils {
       assert(decile <= 10)
 
       fraction.fold(" " * 6)(p => f"${100.0 * p}%5.1f%%") + " [" +
-        ("#" * decile) + (" " * (10 - decile)) + "] " + downloaded +
+        "#" * decile + " " * (10 - decile) + "] " + downloaded +
         " source files formatted"
     }
   }
@@ -116,12 +116,14 @@ object TermDisplay extends TermUtils {
     def display(): String =
       if (isDone) (currentTimeOpt, remoteTimeOpt) match {
         case (Some(current), Some(remote)) =>
-          if (current < remote)
-            s"Updated since ${formatTimestamp(current)} (${formatTimestamp(remote)})"
+          if (current < remote) s"Updated since ${formatTimestamp(
+              current,
+            )} (${formatTimestamp(remote)})"
           else if (current == remote)
             s"No new update since ${formatTimestamp(current)}"
-          else
-            s"Warning: local copy newer than remote one (${formatTimestamp(current)} > ${formatTimestamp(remote)})"
+          else s"Warning: local copy newer than remote one (${formatTimestamp(
+              current,
+            )} > ${formatTimestamp(remote)})"
         case (Some(_), None) =>
           // FIXME Likely a 404 Not found, that should be taken into account by the cache
           "No modified time in response"
@@ -191,7 +193,7 @@ object TermDisplay extends TermUtils {
 
         val info = infos.remove(url)
 
-        if (success) doneQueue += (url -> update0(info))
+        if (success) doneQueue += url -> update0(info)
       }
 
       if (fallbackMode && success) {
@@ -227,7 +229,7 @@ object TermDisplay extends TermUtils {
 
           val extra0 =
             if (extra.length > baseExtraWidth) extra
-              .take((baseExtraWidth.max(extra.length - overflow)) - 1) + "…"
+              .take(baseExtraWidth.max(extra.length - overflow) - 1) + "…"
             else extra
 
           val total0 = url.length + 1 + extra0.length
@@ -235,7 +237,7 @@ object TermDisplay extends TermUtils {
 
           val url0 =
             if (total0 >= width) url.take(
-              ((width - baseExtraWidth - 1).max(url.length - overflow0)) - 1,
+              (width - baseExtraWidth - 1).max(url.length - overflow0) - 1,
             ) + "…"
             else url
 

@@ -600,7 +600,7 @@ optDef.getOrElse {
     bar, foo &&
     bar, baz) )
 }
->>> { stateVisits = 2133, stateVisits2 = 2101 }
+>>> { stateVisits = 2070, stateVisits2 = 2038 }
 optDef.getOrElse {
   abort(foo &&
     bar)
@@ -1399,9 +1399,9 @@ object a {
     captures = Nil)(prevArgsCount => varDefs.take(prevArgsCount).toList.map(_.ref))
   val rhs = genScalaArg(sym, index, formalArgsRegistry, param, static)(
     prevArgsCount => varDefs.take(prevArgsCount).toList.map(_.ref))
-  val rhs = genScalaArg(prevArgsCount =>
-    varDefs.take(prevArgsCount).toList.map(_.ref))(
-    sym, index, formalArgsRegistry, param, static, captures = Nil)
+  val rhs =
+    genScalaArg(prevArgsCount => varDefs.take(prevArgsCount).toList.map(_.ref))(
+      sym, index, formalArgsRegistry, param, static, captures = Nil)
 }
 <<< #4133 overflow with nested lambda and braces 1
 Block(norm.tail.map(sym => DefDef(sym, { vparamss: List[List[Symbol]] => EmptyTree })), ddef)

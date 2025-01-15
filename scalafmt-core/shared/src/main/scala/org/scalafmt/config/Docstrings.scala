@@ -15,13 +15,34 @@ import metaconfig._
   *     both below the two asterisks of the first line
   *   - AsteriskSpace: format intermediate lines with an asterisk and a space,
   *     both below the two asterisks of the first line
+  * @param forceBlankLineBefore
+  *   If true, always insert a blank line before docstrings, If false, preserves
+  *   blank line only if one exists before. Example:
+  *   {{{
+  *     // before
+  *     object Foo {
+  *       /** Docstring */
+  *       def foo = 2
+  *     }
+  *     // after, if forceBlankLineBefore=false
+  *     object Foo {
+  *       /** Docstring */
+  *       def foo = 2
+  *     }
+  *     // after, if forceBlankLineBefore=true
+  *     object Foo {
+  *
+  *       /** Docstring */
+  *       def foo = 2
+  *     }
+  *   }}}
   */
 case class Docstrings(
     oneline: Docstrings.Oneline = Docstrings.Oneline.keep,
     removeEmpty: Boolean = false,
     wrap: Docstrings.Wrap = Docstrings.Wrap.unfold,
     private[config] val wrapMaxColumn: Option[Int] = None,
-    forceBlankLineBefore: Option[Boolean] = None,
+    forceBlankLineBefore: Boolean = true,
     blankFirstLine: Option[Docstrings.BlankFirstLine] = None,
     style: Docstrings.Style = Docstrings.SpaceAsterisk,
 ) {
@@ -30,8 +51,8 @@ case class Docstrings(
   def withoutRewrites: Docstrings =
     copy(removeEmpty = false, wrap = Wrap.keep, style = Preserve)
 
-  def skipFirstLineIf(wasBlank: Boolean): Boolean = style.skipFirstLine
-    .orElse(blankFirstLine).exists {
+  def skipFirstLineIf(wasBlank: Boolean): Boolean = style
+    .skipFirstLine(blankFirstLine).exists {
       case BlankFirstLine.unfold => true
       case BlankFirstLine.fold => false
       case BlankFirstLine.keep => wasBlank
@@ -43,25 +64,28 @@ object Docstrings {
 
   implicit val surface: generic.Surface[Docstrings] = generic
     .deriveSurface[Docstrings]
-  implicit val codec: ConfCodecEx[Docstrings] = generic
-    .deriveCodecEx(Docstrings()).noTypos
+  implicit val codec: ConfCodecEx[Docstrings] = generic.deriveCodecEx(Docstrings())
+    .noTypos
 
   sealed abstract class Style {
-    def skipFirstLine: Option[BlankFirstLine]
+    def skipFirstLine(v: Option[BlankFirstLine]): Option[BlankFirstLine]
   }
   case object Preserve extends Style {
-    override def skipFirstLine: Option[BlankFirstLine] =
+    def skipFirstLine(v: Option[BlankFirstLine]): Option[BlankFirstLine] =
       Some(BlankFirstLine.keep)
   }
   case object Asterisk extends Style {
-    override def skipFirstLine: Option[BlankFirstLine] =
-      Some(BlankFirstLine.unfold)
+    def skipFirstLine(v: Option[BlankFirstLine]): Option[BlankFirstLine] =
+      v match {
+        case v @ Some(BlankFirstLine.fold) => v
+        case _ => Some(BlankFirstLine.unfold)
+      }
   }
   case object SpaceAsterisk extends Style {
-    override def skipFirstLine: Option[BlankFirstLine] = None
+    def skipFirstLine(v: Option[BlankFirstLine]): Option[BlankFirstLine] = v
   }
   case object AsteriskSpace extends Style {
-    override def skipFirstLine: Option[BlankFirstLine] = None
+    def skipFirstLine(v: Option[BlankFirstLine]): Option[BlankFirstLine] = v
   }
 
   implicit val reader: ConfCodecEx[Style] = ReaderUtil

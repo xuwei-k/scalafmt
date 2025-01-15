@@ -1,7 +1,7 @@
 package org.scalafmt.config
 
 import scala.meta._
-import scala.meta.tokens.Token
+import scala.meta.tokens.{Token => T}
 
 import metaconfig._
 
@@ -25,6 +25,12 @@ import metaconfig._
   *   Parent constructors are C and D in "class A extends B with C and D". If
   *   "Always", scalafmt will fit as many parent constructors on a single line.
   *   If "Never", each parent constructor gets its own line.
+  * @param importSelectors
+  *   Controls formatting of import selectors with multiple names from the same
+  *   package (default is currently `unfold`)
+  *   - If `fold`, arranged to fit within the maximum line width
+  *   - If `unfold`, broken to one per line
+  *   - If `singleLine`, kept on a single line
   */
 case class BinPack(
     @annotation.ExtraName("unsafeCallSite")
@@ -42,6 +48,7 @@ case class BinPack(
     literalsMinArgCount: Int = 5,
     literalsInclude: Seq[String] = Seq(".*"),
     literalsExclude: Seq[String] = Seq("String", "Term.Name"),
+    importSelectors: ImportSelectors = ImportSelectors.unfold,
 ) {
   def literalsRegex: FilterMatcher =
     FilterMatcher(literalsInclude, literalsExclude)
@@ -51,16 +58,14 @@ case class BinPack(
       style.newlines.keep && parentConstructors.eq(BinPack.ParentCtors.source)
 
   @inline
-  def callSiteFor(open: Token): BinPack.Site =
-    callSiteFor(open.is[Token.LeftBracket])
+  def callSiteFor(open: T): BinPack.Site = callSiteFor(open.is[T.LeftBracket])
   def callSiteFor(isBracket: Boolean): BinPack.Site =
     (if (isBracket) bracketCallSite else None).getOrElse(callSite)
   def callSiteFor(owner: Tree): BinPack.Site =
     callSiteFor(owner.is[Type.ArgClause])
 
   @inline
-  def defnSiteFor(open: Token): BinPack.Site =
-    defnSiteFor(open.is[Token.LeftBracket])
+  def defnSiteFor(open: T): BinPack.Site = defnSiteFor(open.is[T.LeftBracket])
   def defnSiteFor(isBracket: Boolean): BinPack.Site =
     (if (isBracket) bracketDefnSite else None).getOrElse(defnSite)
   def defnSiteFor(owner: Tree): BinPack.Site =
@@ -81,10 +86,18 @@ object BinPack {
     .deriveSurface[BinPack]
   implicit lazy val encoder: ConfEncoder[BinPack] = generic.deriveEncoder
 
-  def ctor(site: Site, parents: ParentCtors): BinPack =
-    BinPack(defnSite = site, callSite = site, parentConstructors = parents)
+  def ctor(
+      site: Site,
+      parents: ParentCtors,
+      imports: ImportSelectors = ImportSelectors.fold,
+  ): BinPack = BinPack(
+    defnSite = site,
+    callSite = site,
+    parentConstructors = parents,
+    importSelectors = imports,
+  )
 
-  val never = BinPack.ctor(Site.Never, ParentCtors.Never)
+  val never = BinPack.ctor(Site.Never, ParentCtors.Never, ImportSelectors.unfold)
   val always = BinPack.ctor(Site.Always, ParentCtors.Always)
   private val oneline = BinPack.ctor(Site.Oneline, ParentCtors.Oneline)
   private val onelineSjs = BinPack.ctor(Site.OnelineSjs, ParentCtors.Oneline)
@@ -105,6 +118,7 @@ object BinPack {
     case object keep extends ParentCtors
     case object Always extends ParentCtors
     case object Never extends ParentCtors
+    case object ForceBreak extends ParentCtors
     case object Oneline extends ParentCtors
     case object OnelineIfPrimaryOneline extends ParentCtors
 
@@ -114,6 +128,7 @@ object BinPack {
         keep,
         Always,
         Never,
+        ForceBreak,
         Oneline,
         OnelineIfPrimaryOneline,
       ) {

@@ -319,7 +319,7 @@ object a {
 }
 >>>
 object a {
-  b.c(d => e => { f; g })
+  b.c { d => e => f; g }
 }
 <<< #1027 2.1: parens to braces no
 newlines.afterInfix = keep
@@ -342,7 +342,54 @@ object a {
 }
 >>>
 object a {
-  b.c({ d => e + f })
+  b.c(d => e + f)
+}
+<<< #1027 2.2: one-arg parens to braces yes, one-line braces to parens yes
+rewrite.redundantBraces.oneStatApply.parensMaxSpan = 7
+rewrite.redundantBraces.oneStatApply.bracesMinSpan = 7
+===
+object a {
+  b.c ({d =>    e     + f})
+  b.c ({d => //
+      e     + f})
+}
+>>>
+object a {
+  b.c(d => e + f)
+  b.c(d => //
+    e + f
+  )
+}
+<<< #1027 2.2: one-arg parens to braces yes, one-line braces to parens no
+rewrite.redundantBraces.oneStatApply.parensMaxSpan = -1
+rewrite.redundantBraces.oneStatApply.bracesMinSpan = 1
+===
+object a {
+  b.c ({d =>    e     + f})
+  b.c ({d => //
+      e     + f})
+}
+>>>
+object a {
+  b.c { d => e + f }
+  b.c { d => //
+    e + f
+  }
+}
+<<< #1027 2.2: one-arg braces to parens yes
+rewrite.redundantBraces.oneStatApply.parensMaxSpan = 500
+===
+object a {
+  b.c ({d =>    e     + f})
+  b.c ({d => //
+      e     + f})
+}
+>>>
+object a {
+  b.c(d => e + f)
+  b.c(d => //
+    e + f
+  )
 }
 <<< #1027 3.1: with align
 align.preset = more
@@ -698,8 +745,10 @@ object a {
 }
 >>>
 object a {
-  val b = c(d => e) // comment1
-  /* comment2 */
+  val b = c(d =>
+    e // comment1
+    /* comment2 */
+  )
   /* comment3 */
 }
 <<< #1633 5.2: keep config style
@@ -1082,6 +1131,56 @@ object a {
     y
   }
 }
+<<< single-block function with block one-arg apply, can't use parens
+rewrite.redundantBraces.oneStatApply.parensMaxSpan = 500
+rewrite.redundantBraces.maxBreaks = 1
+===
+object a {
+  val foo = bar {
+    { x => y }
+  }
+  val foo = bar {
+    { { x => y } }
+  }
+  val foo = bar.baz {
+    { x => y }
+  }
+  val foo = bar.baz {
+    { { x => y } }
+  }
+}
+>>>
+object a {
+  val foo = bar(x => y)
+  val foo = bar(x => y)
+  val foo = bar.baz(x => y)
+  val foo = bar.baz(x => y)
+}
+<<< single-block function with block one-arg apply, use parens
+rewrite.redundantBraces.oneStatApply.parensMaxSpan = 500
+rewrite.redundantBraces.maxBreaks = 10
+===
+object a {
+  val foo = bar {
+    { x => y }
+  }
+  val foo = bar {
+    { { x => y } }
+  }
+  val foo = bar.baz {
+    { x => y }
+  }
+  val foo = bar.baz {
+    { { x => y } }
+  }
+}
+>>>
+object a {
+  val foo = bar(x => y)
+  val foo = bar(x => y)
+  val foo = bar.baz(x => y)
+  val foo = bar.baz(x => y)
+}
 <<< single-block partial function with parens one-arg apply
 object a {
   val foo = bar (
@@ -1153,6 +1252,204 @@ object a {
   val foo = bar.baz { case x =>
     y
   }
+}
+<<< single-block partial function with block one-arg apply, with comments
+object a {
+  val foo = bar { // c1
+    { // c2
+      case x => y
+      // c3
+    } // c4
+  }
+  val foo = bar { // c1
+    { // c2
+    { // c3
+      case x => y
+      // c4
+    } // c5
+    } // c6
+  }
+  val foo = bar { // c1
+    { // c2
+    { // c3
+    { // c4
+      case x => y
+      // c5
+    } // c6
+    } // c7
+    } // c8
+  }
+  val foo = bar.baz { // c1
+    { // c2
+      case x => y
+      // c3
+    } // c4
+  }
+  val foo = bar.baz { // c1
+    { // c2
+    { // c3
+      case x => y
+      // c4
+    } // c5
+    } // c6
+  }
+  val foo = bar.baz { // c1
+    { // c2
+    { // c3
+    { // c4
+      case x => y
+      // c5
+    } // c6
+    } // c7
+    } // c8
+  }
+}
+>>>
+object a {
+  val foo = bar { // c1
+    { // c2
+      case x => y
+      // c3
+    } // c4
+  }
+  val foo = bar { // c1
+    // c2
+    { // c3
+      case x => y
+      // c4
+    } // c5
+    // c6
+  }
+  val foo = bar { // c1
+    // c2
+    // c3
+    { // c4
+      case x => y
+      // c5
+    } // c6
+    // c7
+    // c8
+  }
+  val foo = bar.baz { // c1
+    { // c2
+      case x => y
+      // c3
+    } // c4
+  }
+  val foo = bar.baz { // c1
+    // c2
+    { // c3
+      case x => y
+      // c4
+    } // c5
+    // c6
+  }
+  val foo = bar.baz { // c1
+    // c2
+    // c3
+    { // c4
+      case x => y
+      // c5
+    } // c6
+    // c7
+    // c8
+  }
+}
+<<< single-block partial function with block one-arg apply, with comments and parens
+object a {
+  val foo = bar ( // c1
+    { // c2
+      case x => y
+      // c3
+    } // c4
+  )
+  val foo = bar ( // c1
+    { // c2
+    { // c3
+      case x => y
+      // c4
+    } // c5
+    } // c6
+  )
+  val foo = bar ( // c1
+    { // c2
+    { // c3
+    { // c4
+      case x => y
+      // c5
+    } // c6
+    } // c7
+    } // c8
+  )
+  val foo = bar.baz ( // c1
+    { // c2
+      case x => y
+      // c3
+    } // c4
+  )
+  val foo = bar.baz ( // c1
+    { // c2
+    { // c3
+      case x => y
+      // c4
+    } // c5
+    } // c6
+  )
+  val foo = bar.baz ( // c1
+    { // c2
+    { // c3
+    { // c4
+      case x => y
+      // c5
+    } // c6
+    } // c7
+    } // c8
+  )
+}
+>>>
+object a {
+  val foo = bar { // c1
+    // c2
+    case x => y
+    // c3
+  } // c4
+  val foo = bar { // c1
+    // c2
+    { // c3
+      case x => y
+      // c4
+    } // c5
+  } // c6
+  val foo = bar { // c1
+    // c2
+    // c3
+    { // c4
+      case x => y
+      // c5
+    } // c6
+    // c7
+  } // c8
+  val foo = bar.baz { // c1
+    // c2
+    case x => y
+    // c3
+  } // c4
+  val foo = bar.baz { // c1
+    // c2
+    { // c3
+      case x => y
+      // c4
+    } // c5
+  } // c6
+  val foo = bar.baz { // c1
+    // c2
+    // c3
+    { // c4
+      case x => y
+      // c5
+    } // c6
+    // c7
+  } // c8
 }
 <<< init-only secondary ctors
 class a(vi: Int, vs: String) {
@@ -1375,7 +1672,31 @@ object a {
 }
 >>>
 object a {
+  foo { bar = baz }
+  foo({ bar = baz }, qux)
+}
+<<< #3263 assign value to var, use as arg, try to use parens
+rewrite.redundantBraces.oneStatApply.parensMaxSpan = 500
+===
+object a {
   foo({ bar = baz })
+  foo({ bar = baz }, qux)
+}
+>>>
+object a {
+  foo { bar = baz }
+  foo({ bar = baz }, qux)
+}
+<<< #3263 assign value to var, use as arg, try to use braces
+rewrite.redundantBraces.oneStatApply.bracesMinSpan = 1
+===
+object a {
+  foo({ bar = baz })
+  foo({ bar = baz }, qux)
+}
+>>>
+object a {
+  foo { bar = baz }
   foo({ bar = baz }, qux)
 }
 <<< #3296
@@ -1395,11 +1716,11 @@ object A {
 >>>
 object A:
   implicit def map: Array[Any] => List[String] = a =>
-    a.map { ae =>
+    a.map(ae =>
       ae match
         case s: String => s
         case _         => ae.toString
-    }.toList
+    ).toList
 <<< #3540
 object Bar extends Foo[(Int, String)]({ case (i, s) => () })
 >>>
@@ -1414,10 +1735,10 @@ foo.mtd({
   },
 )
 >>>
-foo.mtd({
+foo.mtd {
   x + 1
   x + 2
-})
+}
 <<< rewrite with trailing commas: block simple, !allowFolding
 rewrite.trailingCommas.style = keep
 rewrite.trailingCommas.allowFolding = false
@@ -1428,10 +1749,10 @@ foo.mtd({
   },
 )
 >>>
-foo.mtd({
+foo.mtd {
   x + 1
   x + 2
-})
+}
 <<< rewrite with trailing commas: func, allowFolding
 rewrite.trailingCommas.style = keep
 rewrite.trailingCommas.allowFolding = true
@@ -1442,10 +1763,10 @@ foo.mtd1({ x =>
   },
 )
 >>>
-foo.mtd1({ x =>
+foo.mtd1 { x =>
   x + 1
   x + 2
-})
+}
 <<< rewrite with trailing commas: func, !allowFolding
 rewrite.trailingCommas.style = keep
 rewrite.trailingCommas.allowFolding = false
@@ -1456,10 +1777,10 @@ foo.mtd1({ x =>
   },
 )
 >>>
-foo.mtd1({ x =>
+foo.mtd1 { x =>
   x + 1
   x + 2
-})
+}
 <<< rewrite with trailing commas: func in parens, infix after, allowFolding
 rewrite.trailingCommas.style = keep
 rewrite.trailingCommas.allowFolding = true
@@ -1522,12 +1843,10 @@ foo.mtd(
     },
   )
 >>>
-foo.mtd(
-  { x =>
-    x + 1
-    x + 2
-  },
-)
+foo.mtd { x =>
+  x + 1
+  x + 2
+}
 <<< rewrite with trailing commas: func in parens and braces, !allowFolding
 rewrite.rules = [RedundantBraces, RedundantParens]
 rewrite.trailingCommas.style = keep
@@ -1540,12 +1859,10 @@ foo.mtd(
     },
   )
 >>>
-foo.mtd(
-  { x =>
-    x + 1
-    x + 2
-  },
-)
+foo.mtd { x =>
+  x + 1
+  x + 2
+}
 <<< rewrite with trailing commas: func in parens and braces, infix after, allowFolding
 rewrite.rules = [RedundantBraces, RedundantParens]
 rewrite.trailingCommas.style = keep
@@ -1571,22 +1888,16 @@ object a {
 }
 >>>
 object a {
-  mtd1(
-    { x =>
-      x + 1
-    },
-  ) + mtd2(
-    { x =>
-      x + 1
-      x + 2
-    },
-  ) + mtd3(
-    { x =>
-      x + 1
-      x + 2
-      x + 3
-    },
-  )
+  mtd1 { x =>
+    x + 1
+  } + mtd2 { x =>
+    x + 1
+    x + 2
+  } + mtd3 { x =>
+    x + 1
+    x + 2
+    x + 3
+  }
 }
 <<< rewrite with trailing commas: func in parens and braces, infix after, !allowFolding
 rewrite.rules = [RedundantBraces, RedundantParens]
@@ -1613,22 +1924,16 @@ object a {
 }
 >>>
 object a {
-  mtd1(
-    { x =>
-      x + 1
-    },
-  ) + mtd2(
-    { x =>
-      x + 1
-      x + 2
-    },
-  ) + mtd3(
-    { x =>
-      x + 1
-      x + 2
-      x + 3
-    },
-  )
+  mtd1 { x =>
+    x + 1
+  } + mtd2 { x =>
+    x + 1
+    x + 2
+  } + mtd3 { x =>
+    x + 1
+    x + 2
+    x + 3
+  }
 }
 <<< rewrite with trailing commas: partial func, allowFolding
 rewrite.trailingCommas.style = keep
@@ -1669,11 +1974,11 @@ foo.mtd({
   },
 )
 >>>
-foo.mtd({
+foo.mtd {
   bar match {
     case x => x + 1
   }
-})
+}
 <<< rewrite with trailing commas: match, !allowFolding
 rewrite.trailingCommas.style = keep
 rewrite.trailingCommas.allowFolding = false
@@ -1685,11 +1990,11 @@ foo.mtd({
   },
 )
 >>>
-foo.mtd({
+foo.mtd {
   bar match {
     case x => x + 1
   }
-})
+}
 <<< with infix (from sbt-scalafmt plugin)
 maxColumn = 80
 newlines.source = fold
@@ -1771,9 +2076,9 @@ object a {
       numBreaks: Int,
       nest: Int,
   ): Option[NumBlanks] = topStatBlankLinesSorted.iterator
-    .takeWhile(_.minBreaks <= numBreaks).find { x =>
-      x.checkNest(nest) && x.pattern.forall(_.matcher(prefix).find())
-    }.flatMap(_.blanks)
+    .takeWhile(_.minBreaks <= numBreaks)
+    .find(x => x.checkNest(nest) && x.pattern.forall(_.matcher(prefix).find()))
+    .flatMap(_.blanks)
 }
 <<< fold ctrl body with redundant braces, !trailing commas
 maxColumn = 80
@@ -1799,9 +2104,9 @@ object a {
       numBreaks: Int,
       nest: Int
   ): Option[NumBlanks] = topStatBlankLinesSorted.iterator
-    .takeWhile(_.minBreaks <= numBreaks).find { x =>
-      x.checkNest(nest) && x.pattern.forall(_.matcher(prefix).find())
-    }.flatMap(_.blanks)
+    .takeWhile(_.minBreaks <= numBreaks)
+    .find(x => x.checkNest(nest) && x.pattern.forall(_.matcher(prefix).find()))
+    .flatMap(_.blanks)
 }
 <<< #4108 try with redundant parens in block, scala212
 runner.dialect = scala212
@@ -2035,7 +2340,19 @@ run { worklist.push(startBlock); }
 <<< #4133 can't rewrite with parens if semicolon, without redundant parens
 run( { worklist.push(startBlock); } )
 >>>
-run({ worklist.push(startBlock); })
+run { worklist.push(startBlock); }
+<<< #4133 can't rewrite with parens if semicolon, even if explicitly requested
+rewrite.redundantBraces.oneStatApply.parensMaxSpan = 500
+===
+run( { worklist.push(startBlock); } )
+>>>
+run { worklist.push(startBlock); }
+<<< #4133 can't rewrite with parens if semicolon, but can with braces
+rewrite.redundantBraces.oneStatApply.bracesMinSpan = 1
+===
+run( { worklist.push(startBlock); } )
+>>>
+run { worklist.push { startBlock }; }
 <<< #4133 rewrites with assignment and infix chain
 maxColumn = 76
 rewrite.redundantBraces {
@@ -2075,7 +2392,8 @@ for (taskSet <- sortedTaskSets; maxLocality <- taskSet.myLocalityLevels) {
     shuffledOffers,
     availableCpus,
     tasks
-  ) while (launchedTask)
+  )
+  while (launchedTask)
 }
 <<< #4133 do-while within for, extra block
 rewrite.redundantBraces.maxLines = 100
@@ -2094,5 +2412,55 @@ for (taskSet <- sortedTaskSets; maxLocality <- taskSet.myLocalityLevels) {
     shuffledOffers,
     availableCpus,
     tasks
-  ) while (launchedTask)
+  )
+  while (launchedTask)
+}
+<<< body: do-while, braces, wide
+maxColumn = 25
+===
+object a {
+  do {foo} while (true)
+  do
+    {
+      a +
+       b
+    }
+  while (true)
+  do {
+      a +
+       b
+  } while (true)
+}
+>>>
+object a {
+  do foo while (true)
+  do a + b
+  while (true)
+  do a + b
+  while (true)
+}
+<<< body: do-while, braces, narrow
+maxColumn = 12
+===
+object a {
+  do {foo} while (true)
+  do
+    {
+      a +
+       b
+    }
+  while (true)
+  do {
+      a +
+       b
+  } while (true)
+}
+>>>
+object a {
+  do foo
+  while (true)
+  do a + b
+  while (true)
+  do a + b
+  while (true)
 }

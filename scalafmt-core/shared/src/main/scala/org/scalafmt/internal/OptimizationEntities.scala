@@ -3,8 +3,8 @@ package org.scalafmt.internal
 import org.scalafmt.Error
 import org.scalafmt.util._
 
-import scala.meta._
 import scala.meta.tokens.{Token => T}
+import scala.meta.{Token => _, _}
 
 import scala.collection.mutable
 import scala.reflect.ClassTag
@@ -15,9 +15,8 @@ class OptimizationEntities(
     val statementStarts: Map[Int, Tree],
 ) {
   def argumentAt(idx: Int): Option[Tree] = argumentStarts.get(idx)
-  def argument(implicit ft: FormatToken): Option[Tree] = argumentAt(ft.meta.idx)
-  def optionalNL(implicit ft: FormatToken): Boolean =
-    optionalNewlines(ft.meta.idx)
+  def argument(implicit ft: FT): Option[Tree] = argumentAt(ft.meta.idx)
+  def optionalNL(implicit ft: FT): Boolean = optionalNewlines(ft.meta.idx)
 }
 
 object OptimizationEntities {
@@ -86,12 +85,12 @@ object OptimizationEntities {
       case _ =>
     }
 
-    private def addStmtFT(stmt: Tree)(ft: FormatToken): Unit = {
-      val isComment = ft.left.is[Token.Comment]
+    private def addStmtFT(stmt: Tree)(ft: FT): Unit = {
+      val isComment = ft.left.is[T.Comment]
       val nft = if (isComment) ftoks.nextAfterNonComment(ft) else ft
       statements += nft.meta.idx -> stmt
     }
-    private def addStmtTok(stmt: Tree)(token: Token) =
+    private def addStmtTok(stmt: Tree)(token: T) =
       addStmtFT(stmt)(ftoks.after(token))
     private def addStmtTree(t: Tree, stmt: Tree) = ftoks.getHeadOpt(t)
       .foreach(addStmtFT(stmt))
@@ -102,7 +101,7 @@ object OptimizationEntities {
         mods: Seq[Mod],
         tree: Tree,
         what: String,
-        isMatch: Token => Boolean,
+        isMatch: T => Boolean,
     ): Unit = {
       // Each @annotation gets a separate line
       val annotations = mods.filter(_.is[Mod.Annot])
@@ -152,10 +151,11 @@ object OptimizationEntities {
         addDefn[T.KwDef](t.mods, t)
         addAllStmts(t.body.stats)
       // special handling for rewritten blocks
-      case t @ Term.Block(_ :: Nil) if t.tokens.headOption.exists { x =>
+      case t @ Term.Block(_ :: Nil)
+          if t.tokens.headOption.exists(x =>
             // ignore single-stat block if opening brace was removed
-            x.is[Token.LeftBrace] && ftoks(x).left.ne(x)
-          } =>
+            x.is[T.LeftBrace] && ftoks(x).left.ne(x),
+          ) =>
       case t: Term.EnumeratorsBlock =>
         var wasGuard = false
         t.enums.tail.foreach { x =>
@@ -173,13 +173,31 @@ object OptimizationEntities {
           if (TreeOps.getSingleStatExceptEndMarker(s).isEmpty) s else s.drop(1),
         )
         else s match {
-          case (_: Term.FunctionTerm) :: Nil =>
+          case x :: Nil
+              if skipBlockSingleStat(x, t.parent.is[Term.ArgClause]) =>
           case _ => addAllStmts(s)
         }
+      // handle argclause rewritten with braces
+      case t @ Term.ArgClause(s :: Nil, _)
+          if !s.isAny[Term.Block, Term.PartialFunction] &&
+            !skipBlockSingleStat(s, isInArgClause = true) =>
+        t.tokens.headOption.foreach(x =>
+          // check for single-stat arg if opening paren was replaced with brace
+          if (x.is[T.LeftParen] && ftoks(x).left.is[T.LeftBrace]) addOneStmt(s),
+        )
       case Tree.Block(s) => addAllStmts(s)
       case _ => // Nothing
     }
 
   }
+
+  private def skipBlockSingleStat(t: Tree, isInArgClause: => Boolean): Boolean =
+    t match {
+      case _: Term.FunctionTerm => true
+      case _ if !isInArgClause => false
+      case _: Term.Apply => true
+      case x: Term.AnonymousFunction => x.body.is[Term.Apply]
+      case _ => false
+    }
 
 }

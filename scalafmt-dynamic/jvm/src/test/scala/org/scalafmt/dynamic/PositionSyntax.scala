@@ -31,8 +31,8 @@ object PositionSyntax {
     def lineInput: String =
       s"${pos.input.syntax}:${pos.startLine + 1}:${pos.startColumn + 1}:"
 
-    def rangeNumber: String =
-      s"${pos.startLine + 1}:${pos.startColumn + 1}..${pos.endLine + 1}:${pos.endColumn + 1}"
+    def rangeNumber: String = s"${pos.startLine + 1}:${pos.startColumn +
+        1}..${pos.endLine + 1}:${pos.endColumn + 1}"
 
     def rangeText: String = pos match {
       case Position.None => ""
@@ -60,7 +60,7 @@ object PositionSyntax {
         val span = pos.end - pos.start
         val caret =
           if (span != 0 && pos.startLine == pos.endLine) "^" * span else "^"
-        (" " * pos.startColumn) + caret
+        " " * pos.startColumn + caret
     }
 
     private def lineContent(

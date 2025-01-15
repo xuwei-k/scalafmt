@@ -1,4 +1,5 @@
 rewrite.rules = [RedundantParens]
+rewrite.redundantParens.infixSide = some
 <<< basic
 object a {
   def c(b: List[Int]): List[Int] =
@@ -506,6 +507,7 @@ object a {
 }
 <<< #2194 6 match with parens and dot
 runner.dialect = scala3
+rewrite.redundantParens.infixSide = some
 ===
 object a {
   val b = c + (d.match{
@@ -538,6 +540,35 @@ object a {
 }
 <<< #2194 6 match with parens, dot and no braces
 runner.dialect = scala3
+===
+object a {
+  val b = c + (d.match
+      case true  => true
+      case false => false)
+  val b = c + (d.match
+      case true  => true
+      case false => false) + e
+  val b = c + (d match
+      case true  => true
+      case false => false
+  )
+}
+>>>
+object a {
+  val b = c + d.match
+    case true  => true
+    case false => false
+  val b = c + d.match
+    case true  => true
+    case false => false
+  + e
+  val b = c + (d match
+    case true  => true
+    case false => false)
+}
+<<< #2194 6 match with parens, dot and no braces, !infixSide
+runner.dialect = scala3
+rewrite.redundantParens.infixSide = null
 ===
 object a {
   val b = c + (d.match
@@ -940,6 +971,22 @@ object a {
 }
 >>>
 object a {
+  foo * new bar
+  foo * new bar(baz).qux
+  new foo * bar
+  new foo(bar).baz * qux
+}
+<<< infix with new, !infixSide
+rewrite.redundantParens.infixSide = null
+===
+object a {
+  foo * (new bar)
+  foo * (new bar(baz).qux)
+  (new foo) * bar
+  (new foo(bar).baz) * qux
+}
+>>>
+object a {
   foo * (new bar)
   foo * (new bar(baz).qux)
   (new foo) * bar
@@ -986,6 +1033,8 @@ object a {
   new foo(bar: baz)
 }
 <<< infix expressions with infixSide = null
+rewrite.redundantParens.infixSide = null
+===
 object a {
   // null+
   foo & (0) // literal
@@ -1155,6 +1204,10 @@ object a {
       + b
     )
   while (true)
+  do (
+      a
+      + b
+  ) while (true)
 }
 >>>
 object a {
@@ -1162,7 +1215,39 @@ object a {
   do (
     a
       + b
+  )
+  while (true)
+  do (
+    a
+      + b
   ) while (true)
+}
+<<< body: do-while, braces
+object a {
+  do {foo} while (true)
+  do
+    {
+      a +
+       b
+    }
+  while (true)
+  do {
+      a +
+       b
+  } while (true)
+}
+>>>
+object a {
+  do { foo } while (true)
+  do {
+    a +
+      b
+  }
+  while (true)
+  do {
+    a +
+      b
+  } while (true)
 }
 <<< body: case
 object a {
@@ -1678,3 +1763,106 @@ def newLine: Parser[String] = namedError(("\r" ?) ~> "\n", "End of line expected
 >>>
 def newLine: Parser[String] =
   namedError(("\r" ?) ~> "\n", "End of line expected")
+<<< #4133 infix in parens, single-line comment before infix op
+rewrite.redundantParens.infixSide = all
+===
+object a {
+    def stop(step: Double, ndir: Double, nx: Double): Boolean = {
+        ((step.isNaN) // NaN
+      || (step < 1e-7) // too small or negative
+      || (step > 1e40) // too small; almost certainly numerical problems
+      || (ndir < 1e-12 * nx) // gradient relatively too small
+      || (ndir < 1e-32) // gradient absolutely too small; numerical issues may lurk
+      )
+    }
+}
+>>>
+object a {
+  def stop(step: Double, ndir: Double, nx: Double): Boolean = {
+    (step.isNaN // NaN
+    || step < 1e-7 // too small or negative
+    || step > 1e40 // too small; almost certainly numerical problems
+    || ndir < 1e-12 * nx // gradient relatively too small
+    || ndir < 1e-32 // gradient absolutely too small; numerical issues may lurk
+    )
+  }
+}
+<<< #4645
+runner.dialect = scala3
+===
+given fooBar: (Foo & Bar) = new Foo with Bar {}
+>>>
+given fooBar: (Foo & Bar) = new Foo with Bar {}
+
+<<< remove parens but also remove blank line within infix [scala213]
+maxColumn = 80
+runner.dialect = scala213
+newlines.source = keep
+===
+val foo = (
+  defineFunction0(VarField.throwNullPointerException) {
+    Throw(maybeWrapInUBE(nullPointers, {
+      genScalaClassNew(NullPointerExceptionClass, NoArgConstructorName)
+    }))
+  } :::
+
+  // "checkNotNull", but with a very short name
+  defineFunction1(VarField.n) { x =>
+    Block(
+      If(x === Null(), genCallHelper(VarField.throwNullPointerException)),
+      Return(x)
+    )
+  }
+)
+>>>
+val foo =
+  defineFunction0(VarField.throwNullPointerException) {
+    Throw(maybeWrapInUBE(
+      nullPointers, {
+        genScalaClassNew(NullPointerExceptionClass, NoArgConstructorName)
+      }
+    ))
+  } :::
+    // "checkNotNull", but with a very short name
+    defineFunction1(VarField.n) { x =>
+      Block(
+        If(x === Null(), genCallHelper(VarField.throwNullPointerException)),
+        Return(x)
+      )
+    }
+<<< remove parens but also remove blank line within infix [scala3]
+maxColumn = 80
+runner.dialect = scala3
+newlines.source = keep
+===
+val foo = (
+  defineFunction0(VarField.throwNullPointerException) {
+    Throw(maybeWrapInUBE(nullPointers, {
+      genScalaClassNew(NullPointerExceptionClass, NoArgConstructorName)
+    }))
+  } :::
+
+  // "checkNotNull", but with a very short name
+  defineFunction1(VarField.n) { x =>
+    Block(
+      If(x === Null(), genCallHelper(VarField.throwNullPointerException)),
+      Return(x)
+    )
+  }
+)
+>>>
+val foo =
+  defineFunction0(VarField.throwNullPointerException) {
+    Throw(maybeWrapInUBE(
+      nullPointers, {
+        genScalaClassNew(NullPointerExceptionClass, NoArgConstructorName)
+      }
+    ))
+  } :::
+    // "checkNotNull", but with a very short name
+    defineFunction1(VarField.n) { x =>
+      Block(
+        If(x === Null(), genCallHelper(VarField.throwNullPointerException)),
+        Return(x)
+      )
+    }

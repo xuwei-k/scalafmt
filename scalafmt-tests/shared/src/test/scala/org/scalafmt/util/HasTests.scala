@@ -20,29 +20,12 @@ import java.util.regex.Pattern
 import scala.annotation.tailrec
 import scala.collection.mutable
 
-import metaconfig.Conf
-import metaconfig.Configured
+import metaconfig._
 import munit.Assertions._
 import munit.Location
 
 trait HasTests extends FormatAssertions {
   import HasTests._
-  import LoggerOps._
-
-  def scalafmtRunner(sr: ScalafmtRunner, dg: Debug): ScalafmtRunner = sr.copy(
-    debug = true,
-    maxStateVisits = sr.maxStateVisits.orElse(Some(150000)),
-    completeCallback = dg.completed,
-    eventCallback = {
-      case CreateFormatOps(ops) => dg.formatOps = ops
-      case Routes(routes) => dg.routes = routes
-      case explored: Explored if explored.n % 10000 == 0 =>
-        logger.elem(explored)
-      case Enqueue(split) => dg.enqueued(split)
-      case x: Written => dg.locations = x.formatLocations
-      case _ =>
-    },
-  )
 
   lazy val debugResults = mutable.ArrayBuilder.make[Result]
   val testDir = BuildInfo.resourceDirectory.toPath
@@ -76,8 +59,8 @@ trait HasTests extends FormatAssertions {
     val content = FileOps.readFile(filename)
     val sep =
       if (content.contains(System.lineSeparator)) System.lineSeparator else "\n"
-    val spec = BuildInfo.resourceDirectory.toPath
-      .relativize(Paths.get(filename)).getName(0).toString
+    val spec = BuildInfo.resourceDirectory.toPath.relativize(Paths.get(filename))
+      .getName(0).toString
 
     val split = content.split(s"(?:^|$sep)<<< ")
     if (split.length <= 1) return Seq.empty // RETURNING!!!
@@ -87,19 +70,18 @@ trait HasTests extends FormatAssertions {
     val moduleSkip = isSkip(head)
 
     def loadStyle(cfg: String, base: ScalafmtConfig, ln: Int): ScalafmtConfig =
-      ScalafmtConfig.fromHoconString(cfg, base).getOrRecover { c =>
+      ScalafmtConfig.fromHoconString(cfg, base).getOrRecover(c =>
         throw new IllegalArgumentException(
           s"""|Failed to parse line=$ln filename $filename:
               |$cfg
               |$c""".stripMargin,
-        )
-      }
+        ),
+      )
     val style: ScalafmtConfig = loadStyle(
       stripPrefixOpt(head, onlyPrefix).getOrElse(head), {
         val base = spec2style(spec)
-        filename2parse(filename).fold(base) { x =>
-          base.copy(runner = base.runner.withParser(x))
-        }
+        filename2parse(filename)
+          .fold(base)(x => base.copy(runner = base.runner.withParser(x)))
       },
       1,
     )
@@ -121,12 +103,12 @@ trait HasTests extends FormatAssertions {
       val name = matcher.group(1)
       val extraConfig = Option(matcher.group(2))
       val original = matcher.group(3)
-      val extra = Option(matcher.group(4)).flatMap { x =>
+      val extra = Option(matcher.group(4)).flatMap(x =>
         ConfParsed.fromString(x).conf match {
           case Configured.Ok(v) => Some(v)
           case _ => Some(Conf.Str(x))
-        }
-      }
+        },
+      )
       val expected = matcher.group(5)
       val testStyle = extraConfig.fold(style)(loadStyle(_, style, linenum))
 
@@ -245,15 +227,16 @@ object HasTests {
   private val testing = defaultConfig.copy(
     maxColumn = 79,
     assumeStandardLibraryStripMargin = false,
-    includeCurlyBraceInSelectChains = false,
     danglingParentheses = DanglingParentheses(false, false),
     align = defaultConfig.align.copy(
       tokens = Seq.empty,
       openParenCallSite = true,
       openParenDefnSite = true,
     ),
-    optIn = ScalafmtConfig.default.optIn
-      .copy(breakChainOnFirstMethodDot = false),
+    newlines = defaultConfig.newlines.copy(selectChains =
+      defaultConfig.newlines.selectChains
+        .copy(classicKeepFirst = false, classicCanStartWithBraceApply = false),
+    ),
     // The new aggressive config style breaks ~40 unit tests. The diff output
     // looks nice, but updating the unit tests would take too much time.
     // I can imagine that I will throw away most of the tests and replace them
@@ -274,5 +257,20 @@ object HasTests {
   private def stripPrefixOpt(name: String, prefix: String) =
     if (isPrefix(name, prefix)) Some(name.substring(prefix.length).trim)
     else None
+
+  def scalafmtRunner(sr: ScalafmtRunner, dg: Debug): ScalafmtRunner = sr.copy(
+    debug = true,
+    maxStateVisits = sr.maxStateVisits.orElse(Some(150000)),
+    completeCallback = dg.completed,
+    eventCallback = {
+      case CreateFormatOps(ops) => dg.formatOps = ops
+      case Routes(routes) => dg.routes = routes
+      case explored: Explored if explored.n % 10000 == 0 =>
+        org.scalafmt.util.LoggerOps.logger.elem(explored)
+      case Enqueue(split) => dg.enqueued(split)
+      case x: Written => dg.locations = x.formatLocations
+      case _ =>
+    },
+  )
 
 }

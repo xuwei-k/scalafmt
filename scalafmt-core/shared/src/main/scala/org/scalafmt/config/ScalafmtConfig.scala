@@ -1,19 +1,15 @@
 package org.scalafmt.config
 
 import org.scalafmt.Versions
-import org.scalafmt.rewrite.FormatTokensRewrite
-import org.scalafmt.rewrite.RedundantBraces
+import org.scalafmt.rewrite._
 import org.scalafmt.sysops.AbsoluteFile
 import org.scalafmt.sysops.OsSpecific._
-import org.scalafmt.util.LoggerOps
-import org.scalafmt.util.ValidationOps
+import org.scalafmt.util._
 
-import scala.meta.Dialect
-import scala.meta.Tree
-import scala.meta.Type
+import scala.meta._
+import scala.meta.tokens.{Token => T}
 
-import java.nio.file.FileSystems
-import java.nio.file.Path
+import java.nio.file._
 
 import scala.collection.mutable
 import scala.io.Codec
@@ -46,29 +42,6 @@ import metaconfig._
   *         longerArg3
   *     )
   *   }}}
-  * @param rewriteTokens
-  *   Map of tokens to rewrite. For example, Map("⇒" -> "=>") will rewrite
-  *   unicode arrows to regular ascii arrows.
-  * @param importSelectors
-  *   Controls formatting of import selectors with multiple names from the same
-  *   package
-  *   - If [[org.scalafmt.config.ImportSelectors.binPack]], import selectors are
-  *     arranged to fit within the maximum line width
-  *   - If [[org.scalafmt.config.ImportSelectors.noBinPack]], import selectors
-  *     are broken to one per line
-  *   - If [[org.scalafmt.config.ImportSelectors.singleLine]], import selectors
-  *     are kept on a single line The default setting is currently `noBinPack`.
-  * @param indentYieldKeyword
-  *   - If true, indents `yield` by two spaces
-  *     {{{
-  *       for (i <- j)
-  *         yield banana
-  *     }}}
-  *   - If false, treats `yield` like `else`
-  *     {{{
-  *       for (i <- j)
-  *       yield banana
-  *     }}}
   * @param lineEndings
   *   - If [[LineEndings.unix]], output will include only unix line endings
   *   - If [[LineEndings.windows]], output will include only windows line
@@ -107,12 +80,32 @@ import metaconfig._
   *       .filter(_ > 2)
   *   }}}
   */
+// scalafmt: { maxColumn = 120 }
+@annotation.SectionRename("optIn.configStyleArguments", "newlines.configStyle.fallBack.prefer") // v3.8.2
+@annotation.SectionRename("trailingCommas", "rewrite.trailingCommas.style") // v3.0.5
+@annotation.SectionRename("poorMansTrailingCommasInConfigStyle", "newlines.configStyle.beforeComma") // v3.8.4
+@annotation.SectionRename("optIn.forceBlankLineBeforeDocstring", "docstrings.forceBlankLineBefore") // v3.4.0
+@annotation.SectionRename("indentOperator", "indent.infix") // v3.8.4
+@annotation.SectionRename("verticalAlignMultilineOperators", "indent.infix", IndentOperator.boolToAssign) // v3.8.4
+@annotation.SectionRename("indentYieldKeyword", "indent.yieldKeyword") // v3.8.4
+@annotation.SectionRename("rewriteTokens", "rewrite.tokens") // v3.8.4
+@annotation.SectionRename("importSelectors", "binPack.importSelectors") // v3.8.4
+@annotation.SectionRename("binPackImportSelectors", "binPack.importSelectors") // v3.8.4
+// select chains
+@annotation.SectionRename("optIn.encloseClassicChains", "newlines.selectChains.enclose") // v3.8.4
+@annotation.SectionRename("optIn.breakChainOnFirstMethodDot", "newlines.selectChains.classicKeepFirst") // v3.8.4
+@annotation.SectionRename("optIn.breaksInsideChains", "newlines.selectChains.classicKeepAfterFirstBreak") // v3.8.4
+@annotation.SectionRename("includeNoParensInSelectChains", "newlines.selectChains.classicCanStartWithoutApply") // v3.8.4
+@annotation.SectionRename("includeCurlyBraceInSelectChains", "newlines.selectChains.classicCanStartWithBraceApply") // v3.8.4
+// annotations
+@annotation.SectionRename("optIn.annotationNewlines", "newlines.annotation") // v3.8.4
+@annotation.SectionRename("optIn.selfAnnotationNewline", "newlines.selfAnnotation") // v3.8.4
+// scalafmt: { maxColumn = 80 }
 case class ScalafmtConfig(
     version: String = org.scalafmt.Versions.stable,
     maxColumn: Int = 80,
     docstrings: Docstrings = Docstrings(),
     comments: Comments = Comments(),
-    optIn: OptIn = OptIn(),
     binPack: BinPack = BinPack(),
     @annotation.ExtraName("continuationIndent")
     indent: Indents = Indents(),
@@ -120,38 +113,19 @@ case class ScalafmtConfig(
     spaces: Spaces = Spaces(),
     literals: Literals = Literals(),
     lineEndings: Option[LineEndings] = None,
-    rewriteTokens: Map[String, String] = Map.empty[String, String],
     rewrite: RewriteSettings = RewriteSettings.default,
-    indentOperator: IndentOperator = IndentOperator(),
     newlines: Newlines = Newlines(),
     runner: ScalafmtRunner = ScalafmtRunner.default,
-    // Settings which belong to no group
-    indentYieldKeyword: Boolean = true,
-    @annotation.ExtraName("binPackImportSelectors")
-    importSelectors: ImportSelectors = ImportSelectors.noBinPack,
-    includeCurlyBraceInSelectChains: Boolean = true,
-    includeNoParensInSelectChains: Boolean = false,
     assumeStandardLibraryStripMargin: Boolean = false,
     danglingParentheses: DanglingParentheses = DanglingParentheses.default,
-    @annotation.DeprecatedName(
-      "poorMansTrailingCommasInConfigStyle",
-      "Scala supports trailing commas after 2.12.2. Use trailingCommas instead",
-      "2.5.0",
-    )
-    poorMansTrailingCommasInConfigStyle: Boolean = false,
-    @annotation.DeprecatedName(
-      "trailingCommas",
-      "use rewrite.trailingCommas.style instead",
-      "3.0.5",
-    )
-    private val trailingCommas: Option[TrailingCommas.Style] = None,
     verticalMultiline: VerticalMultiline = VerticalMultiline(),
-    verticalAlignMultilineOperators: Boolean = false,
     onTestFailure: String = "",
     encoding: Codec = "UTF-8",
     project: ProjectFiles = ProjectFiles(),
     fileOverride: Conf.Obj = Conf.Obj.empty,
     xmlLiterals: XmlLiterals = XmlLiterals(),
+    private val formatOn: List[String] = ScalafmtConfig.defaultFormatOn,
+    private val formatOff: List[String] = ScalafmtConfig.defaultFormatOff,
 ) {
   import ScalafmtConfig._
 
@@ -218,9 +192,8 @@ case class ScalafmtConfig(
       val cfg = conf match {
         case x: Conf.Str => withDialect(NamedDialect.codec.read(None, x).get)
         case x =>
-          val styleOpt = eitherPat.left.toOption.flatMap { lang =>
-            project.layout.map(_.withLang(lang, this))
-          }
+          val styleOpt = eitherPat.left.toOption
+            .flatMap(lang => project.layout.map(_.withLang(lang, this)))
           decoder.read(styleOpt.orElse(Some(this)), x).get
       }
       eitherPat -> cfg
@@ -237,12 +210,12 @@ case class ScalafmtConfig(
 
   private def getConfigViaLayoutInfoFor(absfile: AbsoluteFile)(
       f: (ProjectFiles.Layout, String) => ScalafmtConfig,
-  ): Option[ScalafmtConfig] = project.layout.flatMap { layout =>
+  ): Option[ScalafmtConfig] = project.layout.flatMap(layout =>
     layout.getInfo(absfile).map { info =>
       val style = f(layout, info.lang)
       if (info.isTest) style.forTest else style.forMain
-    }
-  }
+    },
+  )
 
   def getConfigFor(filename: String): Try[ScalafmtConfig] = {
     val absfile = AbsoluteFile(filename)
@@ -262,9 +235,6 @@ case class ScalafmtConfig(
     }
   }
 
-  private[scalafmt] lazy val encloseSelectChains = optIn.encloseClassicChains ||
-    newlines.source.ne(Newlines.classic)
-
   private[scalafmt] lazy val docstringsWrapMaxColumn: Int = docstrings
     .wrapMaxColumn.getOrElse(maxColumn)
 
@@ -279,42 +249,18 @@ case class ScalafmtConfig(
 
   // used in ScalafmtReflectConfig
   def withoutRewrites: ScalafmtConfig = copy(
-    trailingCommas = None,
     docstrings = docstrings.withoutRewrites,
     rewrite = rewrite.withoutRewrites,
   )
-
-  lazy val forceNewlineBeforeDocstring: Boolean = docstrings
-    .forceBlankLineBefore.getOrElse(optIn.forceBlankLineBeforeDocstring)
-
-  def breakAfterInfix(tree: => Tree): Newlines.AfterInfix = newlines.afterInfix
-    .getOrElse {
-      val useSome = newlines.source == Newlines.classic &&
-        tree.is[Type.ApplyInfix] && dialect.useInfixTypePrecedence
-      if (useSome) Newlines.AfterInfix.some else newlines.breakAfterInfix
-    }
-
-  def formatInfix(tree: => Tree): Boolean = breakAfterInfix(tree) ne
-    Newlines.AfterInfix.keep
 
   def getFewerBraces(): Indents.FewerBraces =
     if (indent.getSignificant < 2) Indents.FewerBraces.never
     else indent.fewerBraces
 
-  private def getOptInConfigStyle: Newlines.ConfigStyleElement = Newlines
-    .ConfigStyleElement(prefer = optIn.configStyleArguments)
-
-  lazy val configStyleCallSite: Newlines.ConfigStyleElement = newlines
-    .configStyleCallSite.getOrElse(getOptInConfigStyle)
-
-  lazy val configStyleDefnSite: Newlines.ConfigStyleElement = newlines
-    .configStyleDefnSite.getOrElse(getOptInConfigStyle)
-
   def forScalaJs: ScalafmtConfig = copy(
     binPack = BinPack.always,
     danglingParentheses = DanglingParentheses(false, false),
     indent = Indents(callSite = 4, defnSite = 4),
-    importSelectors = ImportSelectors.binPack,
     newlines = newlines.copy(
       avoidInResultType = true,
       neverBeforeJsNative = true,
@@ -338,6 +284,16 @@ case class ScalafmtConfig(
     align.copy(tokens = if (tokens.isEmpty) AlignToken.default else tokens),
   )
 
+  @inline
+  def isFormatOn(token: T.Comment): Boolean = isFormatIn(token, formatOn)
+  @inline
+  def isFormatOn(token: T): Boolean = isFormatIn(token, formatOn)
+
+  @inline
+  def isFormatOff(token: T.Comment): Boolean = isFormatIn(token, formatOff)
+  @inline
+  def isFormatOff(token: T): Boolean = isFormatIn(token, formatOff)
+
 }
 
 object ScalafmtConfig {
@@ -355,7 +311,10 @@ object ScalafmtConfig {
   val intellij: ScalafmtConfig = default.copy(
     indent = Indents(callSite = 2, defnSite = 2),
     align = default.align.copy(openParenCallSite = false),
-    optIn = default.optIn.copy(configStyleArguments = false),
+    newlines = default.newlines.copy(configStyle =
+      default.newlines.configStyle
+        .copy(fallBack = Newlines.ConfigStyleElement(prefer = false)),
+    ),
     danglingParentheses = DanglingParentheses.shortcutTrue,
   )
 
@@ -378,9 +337,8 @@ object ScalafmtConfig {
 
   private def readActiveStylePresets(conf: Conf): Configured[ScalafmtConfig] =
     (conf match {
-      case Conf.Str(x) => availableStyles.get(x.toLowerCase).map { style =>
-          Configured.ok(style)
-        }
+      case Conf.Str(x) => availableStyles.get(x.toLowerCase)
+          .map(style => Configured.ok(style))
       case _ => None
     }).getOrElse {
       val alternatives = activeStyles.keys.mkString(", ")
@@ -389,7 +347,7 @@ object ScalafmtConfig {
     }
 
   private def validate(cfg: ScalafmtConfig): Configured[ScalafmtConfig] = {
-    // scalafmt: { maxColumn = 130 }
+    // scalafmt: { maxColumn = 140 }
     import cfg._
     import ValidationOps._
     val errDialect = s" (no support in Scala dialect ${runner.dialectName})"
@@ -398,12 +356,12 @@ object ScalafmtConfig {
       implicit val errors = new mutable.ArrayBuffer[String]
       if (newlines.sourceIgnored) {
         newlines.beforeOpenParenCallSite.fold(addIfDirect(
-          configStyleCallSite.prefer && align.openParenCallSite,
-          "newlines.configStyleCallSite && align.openParenCallSite && !newlines.beforeOpenParenCallSite",
+          newlines.configStyle.getParenCallSite.prefer && align.openParenCallSite,
+          "newlines.configStyle.callSite && align.openParenCallSite && !newlines.beforeOpenParenCallSite",
         ))(x => addIfDirect(x.src eq Newlines.keep, "newlines.beforeOpenParenCallSite.src = keep"))
         newlines.beforeOpenParenDefnSite.fold(addIfDirect(
-          configStyleDefnSite.prefer && align.openParenDefnSite,
-          "newlines.configStyleDefnSite && align.openParenDefnSite && !newlines.beforeOpenParenDefnSite",
+          newlines.configStyle.getParenDefnSite.prefer && align.openParenDefnSite,
+          "newlines.configStyle.defnSite && align.openParenDefnSite && !newlines.beforeOpenParenDefnSite",
         ))(x => addIfDirect(x.src eq Newlines.keep, "newlines.beforeOpenParenDefnSite.src = keep"))
         def mustIgnoreSourceSplit(what: sourcecode.Text[Option[Newlines.IgnoreSourceSplit]]) = what.value
           .foreach(x => addIfDirect(!x.ignoreSourceSplit, s"${what.source}=$x"))
@@ -411,14 +369,10 @@ object ScalafmtConfig {
         mustIgnoreSourceSplit(newlines.beforeMultilineDef)
         addIf(newlines.beforeTypeBounds eq Newlines.keep)
         addIf(binPack.parentConstructors eq BinPack.ParentCtors.keep)
-        addIf(newlines.selectChains.exists(_ eq Newlines.keep))
+        addIf(newlines.selectChains.style.orNull eq Newlines.keep)
         addIf(getTrailingCommas.eq(TrailingCommas.keep))
       }
       if (newlines.source == Newlines.unfold) addIf(align.arrowEnumeratorGenerator)
-      if (newlines.source != Newlines.classic) {
-        addIf(optIn.breaksInsideChains)
-        addIf(!includeCurlyBraceInSelectChains)
-      }
       if (errors.nonEmpty) {
         allErrors += s"newlines.source=${newlines.source} and ["
         errors.foreach(x => allErrors += "\t" + x)
@@ -445,8 +399,11 @@ object ScalafmtConfig {
         addIf(rewrite.scala3.removeEndMarkerMaxLines >= rewrite.scala3.insertEndMarkerMinLines)
       addIf(rewrite.insertBraces.minLines != 0 && rewrite.scala3.insertEndMarkerMinLines != 0)
       addIf(rewrite.insertBraces.minLines != 0 && rewrite.scala3.removeOptionalBraces.oldSyntaxToo)
-      if (rewrite.insertBraces.minLines != 0 && rewrite.rules.contains(RedundantBraces))
-        addIf(rewrite.insertBraces.minLines < rewrite.redundantBraces.maxBreaks)
+      if (RedundantBraces.usedIn(rewrite)) {
+        if (rewrite.insertBraces.minLines != 0) addIf(rewrite.insertBraces.minLines < rewrite.redundantBraces.maxBreaks)
+        if (rewrite.redundantBraces.oneStatApply.bracesMinSpan >= 0)
+          addIf(rewrite.redundantBraces.oneStatApply.bracesMinSpan < rewrite.redundantBraces.oneStatApply.parensMaxSpan)
+      }
       addIf(align.beforeOpenParenDefnSite && !align.closeParenSite)
       addIf(align.beforeOpenParenCallSite && !align.closeParenSite)
       addIf(rewrite.scala3.removeOptionalBraces.fewerBracesMinSpan <= 0)
@@ -461,14 +418,14 @@ object ScalafmtConfig {
   }
 
   private val baseDecoder = generic.deriveDecoderEx(default).noTypos
+    .detectSectionRenames
 
   implicit final val decoder: ConfDecoderEx[ScalafmtConfig] =
     (stateOpt, conf) => {
       val stylePreset = conf match {
         case x: Conf.Obj =>
-          val section = Seq(Presets.presetKey, "style").flatMap { y =>
-            x.field(y).map(y -> _)
-          }
+          val section = Seq(Presets.presetKey, "style")
+            .flatMap(y => x.field(y).map(y -> _))
           section.headOption.map { case (field, obj) =>
             obj -> Conf.Obj((x.map - field).toList)
           }
@@ -491,12 +448,8 @@ object ScalafmtConfig {
             }
         case _ => baseDecoder.read(stateOpt, conf)
       }
-      parsed.map { cfg =>
-        cfg.trailingCommas.fold(cfg) { tc =>
-          val rt = cfg.rewrite.trailingCommas.copy(style = tc)
-          cfg.copy(rewrite = cfg.rewrite.copy(trailingCommas = rt))
-        }
-      }.andThen(validate)
+      val res = parsed.andThen(validate)
+      res
     }
 
   def fromHoconString(
@@ -513,5 +466,22 @@ object ScalafmtConfig {
       path: Option[String] = None,
   ): Configured[ScalafmtConfig] =
     Configured(default)
+
+  private lazy val (defaultFormatOn, defaultFormatOff) = {
+    val prefixes = List(
+      "@formatter:", // IntelliJ
+      "format: ", // scalariform
+    )
+    (prefixes.map(_ + "on"), prefixes.map(_ + "off"))
+  }
+
+  @inline
+  private def isFormatIn(token: T.Comment, set: List[String]): Boolean = set
+    .contains(token.value.trim.toLowerCase)
+
+  private def isFormatIn(token: T, set: List[String]): Boolean = token match {
+    case t: T.Comment => isFormatIn(t, set)
+    case _ => false
+  }
 
 }

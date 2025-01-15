@@ -105,8 +105,8 @@ object CliArgParser {
             |${FileFetchMode.help}
             |""".stripMargin,
       )
-      opt[Unit]("diff")
-        .action((_, c) => c.copy(mode = Option(DiffFiles("master")))).text(
+      opt[Unit]("diff").action((_, c) => c.copy(mode = Option(DiffFiles("master"))))
+        .text(
           s"""|Format files listed in `git diff` against master.
               |Deprecated: use --mode diff instead""".stripMargin,
         )
@@ -138,11 +138,11 @@ object CliArgParser {
             |""".stripMargin,
       )
 
-      checkConfig { c =>
+      checkConfig(c =>
         if (c.config.isDefined && c.configStr.isDefined)
           failure("may not specify both --config and --config-str")
-        else success
-      }
+        else success,
+      )
     }
   def buildInfo =
     s"""|build commit: ${Versions.commit}

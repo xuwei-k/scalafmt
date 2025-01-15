@@ -7,50 +7,46 @@ import org.scalafmt.util.TokenOps
 import org.scalafmt.util.TokenTraverser
 import org.scalafmt.util.TreeOps
 
-import scala.meta._
 import scala.meta.tokens.{Token => T}
 import scala.meta.transversers.SimpleTraverser
+import scala.meta.{Token => _, _}
 
 import scala.collection.mutable
 
 import metaconfig.ConfCodecEx
 
 case class RewriteCtx(style: ScalafmtConfig, input: Input, tree: Tree) {
+  import RewriteCtx._
+
   implicit val dialect: Dialect = style.dialect
 
   private val patchBuilder = mutable.Map.empty[(Int, Int), TokenPatch]
 
   val tokens = tree.tokens
-  val tokenTraverser = new TokenTraverser(tokens, input)
-  val matchingParens = TreeOps.getMatchingParentheses(tokens)(identity)
+  val tokenTraverser = new TokenTraverser(tokens, input)(style)
+  val matchingParens = TreeOps
+    .getMatchingParentheses(tokens)(TokenOps.hash)(identity)
 
   @inline
-  def getMatching(a: Token): Token = matchingParens(TokenOps.hash(a))
+  def getMatching(a: T): T = matchingParens(TokenOps.hash(a))
 
   @inline
-  def getMatchingOpt(a: Token): Option[Token] = matchingParens
-    .get(TokenOps.hash(a))
+  def getMatchingOpt(a: T): Option[T] = matchingParens.get(TokenOps.hash(a))
 
   @inline
-  def isMatching(a: Token, b: => Token) = getMatchingOpt(a).exists(_ eq b)
+  def isMatching(a: T, b: => T) = getMatchingOpt(a).exists(_ eq b)
 
   @inline
-  def getIndex(token: Token) = tokenTraverser.getIndex(token)
+  def getIndex(token: T) = tokenTraverser.getIndex(token)
 
   def applyPatches: String = tokens.iterator
-    .map(x => patchBuilder.get(x.start -> x.end).fold(x.syntax)(_.newTok))
-    .mkString
+    .map(x => patchBuilder.get(lookupKey(x)).fold(x.text)(_.newTok)).mkString
 
-  def addPatchSet(patches: TokenPatch*): Unit =
-    if (!patches.exists(x => tokenTraverser.isExcluded(x.tok))) patches
-      .foreach { patch =>
-        val key = (patch.tok.start, patch.tok.end)
-        val value = patchBuilder.get(key) match {
-          case Some(prev) => Patch.merge(prev, patch)
-          case None => patch
-        }
-        patchBuilder.update(key, value)
-      }
+  def addPatchSet(ps: TokenPatch*): Unit =
+    if (!ps.exists(p => tokenTraverser.isExcluded(p.tok))) ps.foreach(p =>
+      patchBuilder
+        .updateWith(lookupKey(p.tok))(v => Some(v.fold(p)(TokenPatch.merge(_, p)))),
+    )
 
   def onlyWhitespaceBefore(index: Int): Boolean = tokenTraverser
     .findAtOrBefore(index - 1) {
@@ -60,8 +56,8 @@ case class RewriteCtx(style: ScalafmtConfig, input: Input, tree: Tree) {
     }.isDefined
 
   def findNonWhitespaceWith(
-      f: (Token => Option[Boolean]) => Option[Token],
-  ): Option[(Token, Option[T.AtEOL])] = {
+      f: (T => Option[Boolean]) => Option[T],
+  ): Option[(T, Option[T.AtEOL])] = {
     var lf: Option[T.AtEOL] = None
     val nonWs = f {
       case t: T.AtEOL =>
@@ -83,16 +79,6 @@ case class RewriteCtx(style: ScalafmtConfig, input: Input, tree: Tree) {
     case _: T.HSpace => None
     case _ => Some(false)
   }
-
-  // special case for Select which might contain a space instead of dot
-  def isPrefixExpr(expr: Tree): Boolean = RewriteCtx
-    .isSimpleExprOr(expr) { case t: Term.Select =>
-      val maybeDot = tokenTraverser.findBefore(t.name.tokens.head) {
-        case _: T.Trivia => None
-        case x => Some(x.is[T.Dot])
-      }
-      maybeDot.isDefined
-    }
 
 }
 
@@ -140,13 +126,9 @@ object Rewrite {
 
   val default: Seq[Rewrite] = name2rewrite.values.toSeq
 
-  def apply(
-      input: Input,
-      style: ScalafmtConfig,
-      toInput: String => Input,
-  ): Input = {
+  def apply(input: Input, style: ScalafmtConfig): Option[String] = {
     val rewrites = style.rewrite.rewriteFactoryRules
-    if (rewrites.isEmpty) input
+    if (rewrites.isEmpty) None
     else style.runner.parse(input) match {
       case Parsed.Success(ast) =>
         val ctx = RewriteCtx(style, input, ast)
@@ -158,8 +140,8 @@ object Rewrite {
           }
         }
         traverser(ast)
-        toInput(ctx.applyPatches)
-      case _ => input
+        Some(ctx.applyPatches)
+      case _ => None
     }
   }
 
@@ -174,14 +156,22 @@ object RewriteCtx {
     case _: Lit | _: Name | _: Term.Interpolate => true
     case _: Term.New | _: Term.NewAnonymous => true
     case _: Term.Apply | _: Term.ApplyUnary => true
+    case _: Term.Select | _: Term.SelectMatch | _: Term.PartialFunction => true
     case _ => orElse.applyOrElse(expr, (_: Tree) => false)
   }
 
   @inline
+  def isPrefixExpr(expr: Tree): Boolean =
+    isSimpleExprOr(expr)(PartialFunction.empty)
+
+  @inline
   def isPostfixExpr(expr: Tree)(implicit style: ScalafmtConfig): Boolean =
     isSimpleExprOr(expr) {
-      case _: Term.Select | _: Term.ApplyInfix => true
-      case _: Term.Match if style.dialect.allowMatchAsOperator => true
+      case _: Term.SelectPostfix | _: Term.ApplyInfix => true
+      case _: Term.Match => style.dialect.allowMatchAsOperator
     }
+
+  @inline
+  private def lookupKey(tok: T) = tok.start -> tok.end
 
 }

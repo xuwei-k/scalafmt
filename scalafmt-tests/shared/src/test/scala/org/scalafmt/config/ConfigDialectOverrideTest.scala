@@ -10,25 +10,25 @@ class ConfigDialectOverrideTest extends FunSuite {
 
   // toplevelSeparator is never actually used,
   // but as the only non-boolean Dialect value it makes for a good test
-  test("dialect override - non boolean setting") {
+  test("dialect override - non boolean setting")(
     ScalafmtConfig.fromHoconString(
       """|
          |runner.dialectOverride.toplevelSeparator = ">"
          |runner.dialect = scala213
          |""".stripMargin,
-    ).get
-  }
+    ).get,
+  )
 
-  test("throws on an incorrect type of setting") {
-    intercept[java.util.NoSuchElementException] {
+  test("throws on an incorrect type of setting")(
+    intercept[java.util.NoSuchElementException](
       ScalafmtConfig.fromHoconString(
         """|
            |runner.dialectOverride.toplevelSeparator = true
            |runner.dialect = scala213
            |""".stripMargin,
-      ).get
-    }
-  }
+      ).get,
+    ),
+  )
 
   def testBooleanFlag(
       methodName: String,
@@ -42,7 +42,7 @@ class ConfigDialectOverrideTest extends FunSuite {
             |runner.dialect = scala213
             |""".stripMargin,
       ).get
-    Seq(true, false).foreach { flag =>
+    Seq(true, false).foreach(flag =>
       test(s"boolean flag: $methodName($flag)") {
         if (testDirectly)
           assertEquals(getter(generatedMap(methodName)(Scala213, flag)), flag)
@@ -54,8 +54,8 @@ class ConfigDialectOverrideTest extends FunSuite {
           getter(makeBooleanConfig(methodName, flag).runner.getDialect),
           flag,
         )
-      }
-    }
+      },
+    )
   }
 
   testBooleanFlag("allowFewerBraces", _.allowFewerBraces, testDirectly = false)
@@ -103,8 +103,7 @@ class ConfigDialectOverrideTest extends FunSuite {
       "withAllowPatUnquotes", // unimplemented in scalameta (???)
     )
     val baseDialect = Scala213
-    generatedMap.keys.filter(!omittedMethods.contains(_)).foreach { key =>
-      generatedMap(key)(baseDialect, true)
-    }
+    generatedMap.keys.filter(!omittedMethods.contains(_))
+      .foreach(key => generatedMap(key)(baseDialect, true))
   }
 }

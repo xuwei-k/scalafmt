@@ -7378,3 +7378,1020 @@ object a:
        z <-
          loremipsumdolorsitametconsecteturadipiscingelitseddoeiusmodtemporincididu
      ) yield x + y
+<<< #4133 avoid braces-to-parens restrictions on break
+runner.maxStateVisits = 1000
+rewrite.rules = [RedundantBraces]
+===
+processTreeOpt(s) { s match
+    case td: TypeDef if !td.symbol.flags.is(Flags.Synthetic) && (!td.symbol.flags.is(Flags.Case) || !td.symbol.flags.is(Flags.Enum)) =>
+      Some(parseTypeDef(td, c))
+
+    case vd: ValDef if !isSyntheticField(vd.symbol) && (!vd.symbol.flags.is(Flags.Case) || !vd.symbol.flags.is(Flags.Enum)) =>
+      Some(parseValDef(c, vd))
+
+    case c: ClassDef if c.symbol.shouldDocumentClasslike =>
+      Some(parseClasslike(c))
+}
+>>>
+processTreeOpt(s) {
+  s match
+     case td: TypeDef
+         if !td.symbol.flags.is(Flags.Synthetic) && (!td.symbol.flags.is(
+           Flags.Case
+         ) || !td.symbol.flags.is(Flags.Enum)) =>
+       Some(parseTypeDef(td, c))
+
+     case vd: ValDef
+         if !isSyntheticField(vd.symbol) && (!vd.symbol.flags.is(
+           Flags.Case
+         ) || !vd.symbol.flags.is(Flags.Enum)) =>
+       Some(parseValDef(c, vd))
+
+     case c: ClassDef if c.symbol.shouldDocumentClasslike =>
+       Some(parseClasslike(c))
+}
+<<< #4133 semicolon after removed brace, no folding
+maxColumn = 78
+runner.dialect = scala3
+newlines.avoidForSimpleOverflow = [tooLong, punct, slc]
+rewrite {
+  rules = [RedundantBraces, RedundantParens]
+  scala3 {
+    insertEndMarkerMinLines = 5
+    convertToNewSyntax = true,
+    removeOptionalBraces = yes
+  }
+  redundantBraces.ifElseExpressions = true
+}
+===
+private[this] def __computeSerializedSize(): _root_.scala.Int = {
+  var __size = 0
+  if (sealedValue.nullConstant.isDefined) {
+    val __value = sealedValue.nullConstant.get
+    __size += 1 + SemanticdbOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
+  };
+  __size
+}
+>>>
+private[this] def __computeSerializedSize(): _root_.scala.Int =
+   var __size = 0
+   if sealedValue.nullConstant.isDefined then
+      val __value = sealedValue.nullConstant.get
+      __size += 1 + SemanticdbOutputStream.computeUInt32SizeNoTag(
+        __value.serializedSize
+      ) + __value.serializedSize;
+   end if
+   __size
+<<< expression with long `then` block and multi-line `else` block
+final case class UserCheck(
+  options: PublishSetupOptions,
+  configDb: () => ConfigDb,
+  workspace: os.Path,
+  logger: Logger
+) extends OptionCheck:
+  def defaultValue(pubOpt: BPublishOptions): Either[BuildException, OptionCheck.DefaultValue] =
+    either (
+      if options.publishParams.setupCi then
+        val user0 = options.publishRepo.user match
+          case None =>
+            value(userOpt(pubOpt)) match
+              case Some(user) =>
+                logger.message(
+                  s"  using ${Keys.publishCredentials.fullName} from Scala CLI configuration"
+                )
+                user
+              case None =>
+                value (
+                  Left (
+                    new MissingPublishOptionError(
+                      "publish user",
+                      "--user",
+                      "publish.credentials",
+                      configKeys = Seq(Keys.publishCredentials.fullName)
+                    )
+                  )
+                )
+
+        OptionCheck.DefaultValue.simple(
+          Nil,
+        )
+        //
+      else
+        CheckUtils.getHostOpt(
+          logger
+        ) match {
+          case a =>
+          case b =>
+        }
+    )
+>>>
+final case class UserCheck(
+    options: PublishSetupOptions,
+    configDb: () => ConfigDb,
+    workspace: os.Path,
+    logger: Logger
+) extends OptionCheck:
+   def defaultValue(
+       pubOpt: BPublishOptions
+   ): Either[BuildException, OptionCheck.DefaultValue] =
+     either(
+       if options.publishParams.setupCi then
+          val user0 = options.publishRepo.user match
+             case None =>
+               value(userOpt(pubOpt)) match
+                  case Some(user) =>
+                    logger.message(
+                      s"  using ${Keys.publishCredentials.fullName} from Scala CLI configuration"
+                    )
+                    user
+                  case None =>
+                    value(
+                      Left(
+                        new MissingPublishOptionError(
+                          "publish user",
+                          "--user",
+                          "publish.credentials",
+                          configKeys = Seq(Keys.publishCredentials.fullName)
+                        )
+                      )
+                    )
+
+          OptionCheck.DefaultValue.simple(
+            Nil
+          )
+          //
+       else
+          CheckUtils.getHostOpt(
+            logger
+          ) match {
+            case a =>
+            case b =>
+          }
+     )
+<<< #4133 convert to new syntax: add then at possible line end
+maxColumn = 74
+rewrite.scala3.convertToNewSyntax = true
+===
+foo match {
+  case Literal(value) => 
+    if (value.tag != UnitTag) (value.tag, expectedType) match {
+      case (IntTag,   LONG  ) => bc.lconst(value.longValue);       generatedType = LONG
+      case (FloatTag, DOUBLE) => bc.dconst(value.doubleValue);     generatedType = DOUBLE
+      case (NullTag,  _     ) => bc.emit(asm.Opcodes.ACONST_NULL); generatedType = srNullRef
+      case _                  => genConstant(value);               generatedType = tpeTK(tree)
+    }
+}
+>>>
+foo match {
+  case Literal(value) =>
+    if value.tag != UnitTag then
+       (value.tag, expectedType) match {
+         case (IntTag, LONG) =>
+           bc.lconst(value.longValue); generatedType = LONG
+         case (FloatTag, DOUBLE) =>
+           bc.dconst(value.doubleValue); generatedType = DOUBLE
+         case (NullTag, _) =>
+           bc.emit(asm.Opcodes.ACONST_NULL); generatedType = srNullRef
+         case _ => genConstant(value); generatedType = tpeTK(tree)
+       }
+}
+<<< #4133 single-quote interpolation with partial function
+maxColumn = 70
+===
+names {
+  s"`$name0${index.toString.toCharArray.nn.map {x => (x - '0' + '₀').toChar}.mkString}`"
+}
+>>>
+names {
+  s"`$name0${index.toString.toCharArray.nn.map { x =>
+      (x - '0' + '₀').toChar
+    }.mkString}`"
+}
+<<< #4507 partial func within func
+val bar: Int => Pf =
+  _ =>
+    case msg: Int => msg + 1
+>>>
+val bar: Int => Pf =
+  _ =>
+     case msg: Int => msg + 1
+<<< #4507 partial func within if-then-else
+val bar: Int => Pf =
+  if foo then
+    case msg1: Int => msg1 + 1
+  else
+    case msg2: Int => msg2 + 2
+>>>
+val bar: Int => Pf =
+  if foo then
+     case msg1: Int => msg1 + 1
+  else
+     case msg2: Int => msg2 + 2
+<<< #4507 partial func within if-else
+val bar: Int => Pf =
+  if (foo)
+    case msg1: Int => msg1 + 1
+  else
+    case msg2: Int => msg2 + 2
+>>>
+val bar: Int => Pf =
+  if (foo)
+     case msg1: Int => msg1 + 1
+  else
+     case msg2: Int => msg2 + 2
+<<< #4507 partial func within assignment
+val bar: Int => Pf =
+  case msg: Int => msg + 1
+>>>
+val bar: Int => Pf =
+   case msg: Int => msg + 1
+<<< #4133 braceless in `match` with a semicolon between cases
+tag match
+  case TYPEREFsymbol | TYPEREFdirect | TERMREFsymbol | TERMREFdirect =>
+    node.refPrivate = in0.readByte() == PRIVATE;
+  case _ =>
+>>>
+tag match
+   case TYPEREFsymbol | TYPEREFdirect | TERMREFsymbol | TERMREFdirect =>
+     node.refPrivate = in0.readByte() == PRIVATE;
+   case _ =>
+<<< #4133 lambda in parens rewritten to braces
+maxColumn = 80
+rewrite {
+  rules = [RedundantBraces]
+  scala3.removeOptionalBraces = yes
+}
+===
+object Build {
+  lazy val scaladoc = project.in(file("scaladoc")).
+    settings(
+      generateScalaDocumentation := Def.inputTaskDyn {
+        val outputDirOverride = extraArgs.headOption.fold(identity[GenerationConfig](_))(newDir => {
+          config: GenerationConfig => config.add(OutputDir(newDir))
+        })
+        val justAPI = justAPIArg.fold(identity[GenerationConfig](_))(_ => {
+          config: GenerationConfig => config.remove[SiteRoot]
+        })
+      }.evaluated,
+    )
+}
+>>>
+object Build:
+   lazy val scaladoc = project
+     .in(file("scaladoc"))
+     .settings(
+       generateScalaDocumentation := Def.inputTaskDyn {
+         val outputDirOverride =
+           extraArgs.headOption.fold(identity[GenerationConfig](_)) { newDir =>
+             config: GenerationConfig => config.add(OutputDir(newDir))
+           }
+         val justAPI = justAPIArg.fold(identity[GenerationConfig](_)) { _ =>
+           config: GenerationConfig => config.remove[SiteRoot]
+         }
+       }.evaluated
+     )
+<<< AvoidInfix with match, excludeMatch
+rewrite.rules = [AvoidInfix]
+rewrite.avoidInfix.excludeMatch = true
+===
+object a {
+  a b c match
+    case _ =>
+}
+>>>
+object a {
+  a.b(c) match
+     case _ =>
+}
+<<< AvoidInfix with match, !excludeMatch
+rewrite.rules = [AvoidInfix]
+rewrite.avoidInfix.excludeMatch = false
+===
+object a {
+  a b c match
+    case _ =>
+}
+>>>
+object a {
+  a.b(c)
+    .match
+       case _ =>
+}
+<<< AvoidInfix with match within applyinfix, excludeMatch
+rewrite.rules = [AvoidInfix]
+rewrite.avoidInfix.excludeMatch = true
+===
+object a {
+  a b c match {
+    case _ =>
+  } d e
+}
+>>>
+object a {
+  (a.b(c) match {
+    case _ =>
+  }).d(e)
+}
+<<< AvoidInfix with match within applyinfix, !excludeMatch
+rewrite.rules = [AvoidInfix]
+rewrite.avoidInfix.excludeMatch = false
+===
+object a {
+  a b c match {
+    case _ =>
+  } d e
+}
+>>>
+object a {
+  a.b(c)
+    .match { case _ =>
+    }
+    .d(e)
+}
+<<< AvoidInfix with match, with dot, excludeMatch
+rewrite.rules = [AvoidInfix]
+rewrite.avoidInfix.excludeMatch = true
+===
+object a {
+  (a.b(c)).match
+      case _ =>
+}
+>>>
+object a {
+  (a.b(c))
+    .match
+       case _ =>
+}
+<<< AvoidInfix with match, with dot, !excludeMatch
+rewrite.rules = [AvoidInfix]
+rewrite.avoidInfix.excludeMatch = false
+===
+object a {
+  (a.b(c)).match
+      case _ =>
+}
+>>>
+object a {
+  (a.b(c))
+    .match
+       case _ =>
+}
+<<< AvoidInfix with match, with annotation, excludeMatch
+rewrite.rules = [AvoidInfix]
+rewrite.avoidInfix.excludeMatch = true
+===
+object a {
+  a(b): @c match
+      case _ =>
+}
+>>>
+object a {
+  a(b): @c match
+     case _ =>
+}
+<<< AvoidInfix with match, with annotation, !excludeMatch
+rewrite.rules = [AvoidInfix]
+rewrite.avoidInfix.excludeMatch = false
+===
+object a {
+  a(b): @c match
+      case _ =>
+}
+>>>
+object a {
+  (a(b): @c).match
+     case _ =>
+}
+<<< match with dot, trailing case comment
+object a:
+      b.c.match
+        case d if e => f
+          // comment
+>>>
+object a:
+   b.c.match
+      case d if e => f
+      // comment
+<<< match without dot, trailing case comment
+object a:
+      b.c match
+        case d if e => f
+          // comment
+>>>
+object a:
+   b.c match
+      case d if e => f
+      // comment
+<<< implicit parameter type conversion with "into" modifier 1
+runner.dialect = scala3future
+===
+object a:
+  def ++ (elems: into IterableOnce[A]): List[A]
+>>>
+object a:
+   def ++(elems: into IterableOnce[A]): List[A]
+<<< implicit parameter type conversion with "into" modifier 2
+runner.dialect = scala3future
+===
+object a:
+  def ++ (elems: => into IterableOnce[A]): List[A]
+>>>
+object a:
+   def ++(elems: => into IterableOnce[A]): List[A]
+<<< implicit parameter type conversion with "into" modifier 3
+runner.dialect = scala3future
+===
+object a:
+  def flatMap[B](f: into A => IterableOnce[B]): List[B]
+>>>
+object a:
+   def flatMap[B](f: into A => IterableOnce[B]): List[B]
+<<< implicit parameter type conversion with "into" modifier 4
+runner.dialect = scala3future
+===
+object a:
+  def flatMap[B](f: A => into IterableOnce[B]): List[B]
+>>>
+object a:
+   def flatMap[B](f: A => into IterableOnce[B]): List[B]
+<<< implicit parameter type conversion with "into" modifier 5
+runner.dialect = scala3future
+===
+object a:
+  def concatAll(xss: (into IterableOnce[Char])*): List[Char]
+>>>
+object a:
+   def concatAll(xss: (into IterableOnce[Char])*): List[Char]
+<<< pure type functions 1
+runner.dialect = scala3future
+===
+object a:
+  val func: A -> B = foo
+>>>
+object a:
+   val func: A -> B = foo
+<<< pure type functions 2
+runner.dialect = scala3future
+===
+object a:
+  def func(f: A -> B): Unit
+>>>
+object a:
+   def func(f: A -> B): Unit
+<<< pure type functions 3
+runner.dialect = scala3future
+===
+object a:
+  def map[T <: (A -> B)](f: T): A -> B = ???
+>>>
+object a:
+   def map[T <: (A -> B)](f: T): A -> B = ???
+<<< pure type functions 4
+runner.dialect = scala3future
+===
+object a:
+  val func: A ?-> B = foo
+>>>
+object a:
+   val func: A ?-> B = foo
+<<< pure type functions 5
+runner.dialect = scala3future
+===
+object a:
+  def func(f: A ?-> B): Unit
+>>>
+object a:
+   def func(f: A ?-> B): Unit
+<<< pure type functions 6
+runner.dialect = scala3future
+===
+object a:
+  def map[T <: (A ?-> B)](f: T): A ?-> B = ???
+>>>
+object a:
+   def map[T <: (A ?-> B)](f: T): A ?-> B = ???
+<<< pure type functions 7
+runner.dialect = scala3future
+===
+object a:
+  def func(f: -> B): Unit
+>>>
+object a:
+   def func(f: -> B): Unit
+<<< capability capture checking 1
+runner.dialect = scala3future
+===
+object a:
+  class Logger(fs: FileSystem^)
+>>>
+object a:
+   class Logger(fs: FileSystem^)
+<<< capability capture checking 2
+runner.dialect = scala3future
+===
+object a:
+  val l: Logger^{fs} = Logger(fs)
+>>>
+object a:
+   val l: Logger^{fs} = Logger(fs)
+<<< capability capture checking 3
+runner.dialect = scala3future
+===
+object a:
+  def tail: LazyList[A]^{this}
+>>>
+object a:
+   def tail: LazyList[A]^{this}
+<<< capability capture checking 4
+runner.dialect = scala3future
+===
+object a:
+  def p: Pair[Int ->{ct} String, Logger^{fs}] = Pair(x, y)
+>>>
+object a:
+   def p: Pair[Int ->{ct} String, Logger^{fs}] = Pair(x, y)
+<<< capability capture checking 5
+runner.dialect = scala3future
+===
+object a:
+  def map[T <: (A ?->{a, c} B)](f: T): A ?-> B = ???
+>>>
+object a:
+   def map[T <: (A ?->{a, c} B)](f: T): A ?-> B = ???
+<<< capability capture checking 6
+runner.dialect = scala3future
+===
+object a:
+  def func(f: ->{a, b, c} B): Unit
+>>>
+object a:
+   def func(f: ->{a, b, c} B): Unit
+<<< #4133 select with braced apply and single function arg, within interpolation
+maxColumn = 70
+rewrite.rules = [RedundantBraces]
+===
+s"`$name0${index.toString.toCharArray.nn.map {x => (x - '0' + '₀').toChar}.mkString}`"
+>>>
+s"`$name0${index.toString.toCharArray.nn.map { x =>
+    (x - '0' + '₀').toChar
+  }.mkString}`"
+<<< #4133 select with braced apply, single function arg in second clause
+maxColumn = 66
+rewrite.rules = [RedundantBraces]
+===
+next.fold {
+  resultsDiv.appendChild(m.toHTML)
+} { next =>
+  resultsDiv.insertBefore(m.toHTML, next)
+}
+>>>
+next.fold {
+  resultsDiv.appendChild(m.toHTML)
+} { next =>
+  resultsDiv.insertBefore(m.toHTML, next)
+}
+<<< #4133 select with braced apply, single function arg, within another apply
+maxColumn = 66
+rewrite.rules = [RedundantBraces]
+===
+lazy val onlyImplicitOrTypeParams = paramss.forall(
+  _.exists { sym =>
+    sym.isType || sym.is(Implicit) || sym.is(Given)
+  }
+)
+>>>
+lazy val onlyImplicitOrTypeParams = paramss.forall(
+  _.exists { sym =>
+    sym.isType || sym.is(Implicit) || sym.is(Given)
+  }
+)
+<<< scala-3.6 given 1
+maxColumn = 40
+===
+given [A] =>
+ Seq[A] = foo
+>>>
+given [A] =>
+  Seq[A] = foo
+<<< scala-3.6 given 2
+maxColumn = 40
+===
+given [A] => (Seq[A] =>
+ List[A]) => List[A] = foo
+>>>
+given [A] => (Seq[A] => List[A]) =>
+  List[A] = foo
+<<< scala-3.6 given 3
+maxColumn = 40
+===
+given foo: (a: A) =>
+ [B, C <: AnyRef] => (b: B[A], C) => List[A] = foo
+>>>
+given foo: (a: A) =>
+  [B, C <: AnyRef] => (b: B[A], C) =>
+  List[A] = foo
+<<< don't rewrite complex infix to braces
+rewrite.redundantBraces.oneStatApply.bracesMinSpan = 1
+rewrite.rules = [RedundantBraces, RedundantParens]
+===
+  val simpleVersionString: String = {
+    val v = scalaPropOrElse("version.number", "(unknown)")
+    v + (
+      if (v.contains("SNAPSHOT") || v.contains("NIGHTLY"))
+        "-git-" + scalaPropOrElse("git.hash", "(unknown)")
+      else
+        ""
+    )
+  }
+>>>
+val simpleVersionString: String = {
+  val v = scalaPropOrElse("version.number", "(unknown)")
+  v + (
+    if (v.contains { "SNAPSHOT" } || v.contains { "NIGHTLY" })
+      "-git-" + scalaPropOrElse("git.hash", "(unknown)")
+    else
+      ""
+  )
+}
+<<< don't rewrite complex infix to parens
+rewrite.redundantBraces.oneStatApply.parensMaxSpan = 500
+rewrite.rules = [RedundantBraces, RedundantParens]
+===
+  val simpleVersionString: String = {
+    val v = scalaPropOrElse("version.number", "(unknown)")
+    v + {
+      if (v.contains("SNAPSHOT") || v.contains("NIGHTLY"))
+        "-git-" + scalaPropOrElse("git.hash", "(unknown)")
+      else
+        ""
+    }
+  }
+>>>
+val simpleVersionString: String = {
+  val v = scalaPropOrElse("version.number", "(unknown)")
+  v + {
+    if (v.contains("SNAPSHOT") || v.contains("NIGHTLY"))
+      "-git-" + scalaPropOrElse("git.hash", "(unknown)")
+    else
+      ""
+  }
+}
+<<< do not rewrite infix to parens
+rewrite.redundantBraces.oneStatApply.parensMaxSpan = 500
+rewrite.rules = [RedundantBraces, RedundantParens]
+===
+val privateFlag = !sym.isClass && (sym.is(Private) || (sym.isPrimaryConstructor && sym.owner.isTopLevelModuleClass))
+>>>
+val privateFlag = !sym.isClass && (sym.is(
+  Private
+) || (sym.isPrimaryConstructor && sym.owner.isTopLevelModuleClass))
+<<< do not rewrite infix to braces
+rewrite.redundantBraces.oneStatApply.bracesMinSpan = 1
+rewrite.rules = [RedundantBraces, RedundantParens]
+===
+val privateFlag = !sym.isClass && (sym.is(Private) || (sym.isPrimaryConstructor && sym.owner.isTopLevelModuleClass))
+>>>
+val privateFlag = !sym.isClass && (sym.is {
+  Private
+} || (sym.isPrimaryConstructor && sym.owner.isTopLevelModuleClass))
+<<< rewrite infix function to braces
+rewrite.redundantBraces.oneStatApply.bracesMinSpan = 1
+rewrite.rules = [RedundantBraces, RedundantParens]
+===
+foo map (x => // force break
+  x + 1) 
+>>>
+foo map { x => // force break
+  x + 1
+}
+<<< rewrite to parens with repeated
+rewrite.redundantBraces.oneStatApply.parensMaxSpan = 500
+rewrite.rules = [RedundantBraces, RedundantParens]
+rewrite.scala3.convertToNewSyntax = true
+rewrite.scala3.removeOptionalBraces = true
+===
+object a:
+    def apply(first: AttrArg, rest: AttrArg*): T = apply((first +: rest):_*)()
+    def apply(attrs: AttrArg*)(tags: TagArg*): T =
+      val elem: T = elemFactory()
+      def unpackTags(tags: TagArg*): Unit = tags.foreach {
+        case e: domhtml.Element => elem.appendChild(e)
+        case s: String => elem.appendChild(textNode(s))
+        case elemSeq: (Seq[domhtml.Element | String] @unchecked) => unpackTags(elemSeq*)
+      }
+>>>
+object a:
+   def apply(first: AttrArg, rest: AttrArg*): T = apply((first +: rest)*)()
+   def apply(attrs: AttrArg*)(tags: TagArg*): T =
+      val elem: T = elemFactory()
+      def unpackTags(tags: TagArg*): Unit = tags.foreach {
+        case e: domhtml.Element => elem.appendChild(e)
+        case s: String          => elem.appendChild(textNode(s))
+        case elemSeq: (Seq[domhtml.Element | String] @unchecked) =>
+          unpackTags(elemSeq*)
+      }
+<<< rewrite to braces with repeated
+rewrite.redundantBraces.oneStatApply.bracesMinSpan = 1
+rewrite.rules = [RedundantBraces, RedundantParens]
+rewrite.scala3.convertToNewSyntax = true
+rewrite.scala3.removeOptionalBraces = true
+===
+object a:
+    def apply(first: AttrArg, rest: AttrArg*): T = apply((first +: rest):_*)()
+    def apply(attrs: AttrArg*)(tags: TagArg*): T =
+      val elem: T = elemFactory()
+      def unpackTags(tags: TagArg*): Unit = tags.foreach {
+        case e: domhtml.Element => elem.appendChild(e)
+        case s: String => elem.appendChild(textNode(s))
+        case elemSeq: (Seq[domhtml.Element | String] @unchecked) => unpackTags(elemSeq*)
+      }
+>>>
+object a:
+   def apply(first: AttrArg, rest: AttrArg*): T = apply((first +: rest)*)()
+   def apply(attrs: AttrArg*)(tags: TagArg*): T =
+      val elem: T = elemFactory()
+      def unpackTags(tags: TagArg*): Unit = tags.foreach {
+        case e: domhtml.Element => elem.appendChild(e)
+        case s: String          => elem.appendChild { textNode(s) }
+        case elemSeq: (Seq[domhtml.Element | String] @unchecked) =>
+          unpackTags(elemSeq*)
+      }
+<<< do not rewrite to braces with `using`
+rewrite.redundantBraces.oneStatApply.bracesMinSpan = 1
+rewrite.rules = [RedundantBraces, RedundantParens]
+===
+throw MatchError(tree.show( // using clause
+using Printer.TreeStructure))
+>>>
+throw MatchError {
+  tree.show( // using clause
+    using Printer.TreeStructure
+  )
+}
+<<< handle rewritten-to-braces argclause as optimization zone
+rewrite.redundantBraces.oneStatApply.bracesMinSpan = 1
+rewrite.rules = [RedundantBraces, RedundantParens]
+===
+object a {
+  sortedRegionEntries.zipWithIndex.collectFirst {
+    case (RegionEntry(region, _, shards), i)
+        if shards.contains(neighbor) && shards.size < optimalNumberOfShards(i, sortedRegionEntries.size) + overfill =>
+      region
+  }
+}
+>>>
+object a {
+  sortedRegionEntries.zipWithIndex.collectFirst {
+    case (RegionEntry(region, _, shards), i) if shards.contains {
+          neighbor
+        } && shards.size < optimalNumberOfShards(i, sortedRegionEntries.size) + overfill =>
+      region
+  }
+}
+<<< handle rewritten-to-parens argclause with function in parens with block body
+rewrite.redundantBraces.oneStatApply.parensMaxSpan = 500
+rewrite.rules = [RedundantBraces, RedundantParens]
+===
+object a {
+  private def isIgnoredByPackages(file: File): Boolean = {
+    val ignoredByPackages = ignoredPackages.exists(pkg => {
+      getPackageName(file.toURI.toString) match {
+        case Some(packageName) =>
+          val ignored = packageName.startsWith(pkg)
+          if (ignored) {
+            stdoutLogger.debug(
+              s"$descriptor ignored file with pkg:$pkg for package:$packageName file:[${file.toPath}] ")
+          }
+          ignored
+        case None => false
+      }
+    })
+    ignoredByPackages
+  }
+}
+>>>
+object a {
+  private def isIgnoredByPackages(file: File): Boolean = {
+    val ignoredByPackages = ignoredPackages.exists(pkg =>
+      getPackageName(file.toURI.toString) match {
+        case Some(packageName) =>
+          val ignored = packageName.startsWith(pkg)
+          if (ignored) {
+            stdoutLogger.debug(
+              s"$descriptor ignored file with pkg:$pkg for package:$packageName file:[${file.toPath}] "
+            )
+          }
+          ignored
+        case None => false
+      }
+    )
+    ignoredByPackages
+  }
+}
+<<< handle rewritten-to-parens argclause with function in braces
+rewrite.redundantBraces.oneStatApply.parensMaxSpan = 500
+rewrite.rules = [RedundantBraces, RedundantParens]
+===
+object a {
+    within(3.seconds) {
+      awaitAssert {
+        additionaSystems.foreach { s =>
+          withClue(s"${Cluster(s).selfAddress}:") {
+            Cluster(s).isTerminated should be(true)
+          }
+        }
+      }
+    } 
+}
+>>>
+object a {
+  within(3.seconds)(
+    awaitAssert(
+      additionaSystems.foreach(s =>
+        withClue(s"${Cluster(s).selfAddress}:")(
+          Cluster(s).isTerminated should be(true)
+        )
+      )
+    )
+  )
+}
+<<< rewrite argclause to parens and braces
+rewrite.redundantBraces.oneStatApply.parensMaxSpan = 80
+rewrite.redundantBraces.oneStatApply.bracesMinSpan = 80
+rewrite.rules = [RedundantBraces, RedundantParens]
+===
+object a {
+    within(3.seconds) (
+      awaitAssert (
+        additionaSystems.foreach { s =>
+          withClue(s"${Cluster(s).selfAddress}:") {
+            Cluster(s).isTerminated should be(true)
+          }
+        }
+      )
+    )
+}
+>>>
+object a {
+  within(3.seconds) {
+    awaitAssert {
+      additionaSystems.foreach(s =>
+        withClue(s"${Cluster(s).selfAddress}:")(
+          Cluster(s).isTerminated should be(true)
+        )
+      )
+    }
+  }
+}
+<<< rewrite to parens a call with a tuple
+rewrite.redundantBraces.oneStatApply.parensMaxSpan = 500
+rewrite.rules = [RedundantBraces, RedundantParens]
+===
+object a {
+  val (document, module, psiFile) = inReadAction {
+    (
+      FileDocumentManager.getInstance().getDocument(vf),
+      ProjectRootManager.getInstance(project).getFileIndex.getModuleForFile(vf),
+      PsiManager.getInstance(project).findFile(vf)
+    )
+  }
+
+  val (document, module, psiFile) = inReadAction (
+    (
+      FileDocumentManager.getInstance().getDocument(vf),
+      ProjectRootManager.getInstance(project).getFileIndex.getModuleForFile(vf),
+      PsiManager.getInstance(project).findFile(vf)
+    )
+  )
+}
+>>>
+object a {
+  val (document, module, psiFile) = inReadAction(
+    (
+      FileDocumentManager.getInstance().getDocument(vf),
+      ProjectRootManager.getInstance(project).getFileIndex.getModuleForFile(vf),
+      PsiManager.getInstance(project).findFile(vf)
+    )
+  )
+
+  val (document, module, psiFile) = inReadAction(
+    (
+      FileDocumentManager.getInstance().getDocument(vf),
+      ProjectRootManager.getInstance(project).getFileIndex.getModuleForFile(vf),
+      PsiManager.getInstance(project).findFile(vf)
+    )
+  )
+}
+<<< rewrite to parens nested apply calls
+rewrite.redundantBraces.oneStatApply.parensMaxSpan = 500
+rewrite.rules = [RedundantBraces, RedundantParens]
+===
+object a {
+  val resultIterator = Iterator.continually {
+    transformers.foldLeft(false) { (hadApply, transformer) =>
+      val elementIterator = range.map(elementsIn(file, _)).getOrElse(file.depthFirst())
+      val hasApply = elementIterator.foldLeft(false) { (hadApply, element) =>
+        val (result, marker) = applyTransformer(element, transformer, document)
+        marker.foreach(markers ::= _)
+        hadApply || result
+      } 
+      hadApply || hasApply
+    }
+  }
+}
+>>>
+object a {
+  val resultIterator = Iterator.continually(
+    transformers.foldLeft(false) { (hadApply, transformer) =>
+       val elementIterator =
+         range.map(elementsIn(file, _)).getOrElse(file.depthFirst())
+       val hasApply = elementIterator.foldLeft(false) { (hadApply, element) =>
+          val (result, marker) =
+            applyTransformer(element, transformer, document)
+          marker.foreach(markers ::= _)
+          hadApply || result
+       }
+       hadApply || hasApply
+    }
+  )
+}
+<<< do not rewrite to braces with an ascribe argument
+rewrite.redundantBraces.oneStatApply.bracesMinSpan = 1
+rewrite.rules = [RedundantBraces, RedundantParens]
+===
+object a {
+  Option( //
+    (
+      foo match {
+        case bar => baz
+      }
+    ): Foo => Baz
+  ).map(qux(_))
+}
+>>>
+object a {
+  Option( //
+    (
+      foo match {
+        case bar => baz
+      }
+    ): Foo => Baz
+  ).map { qux(_) }
+}
+<<< rewrite to parens or braces while also adding new scala3 syntax (changes span)
+rewrite {
+  rules = [RedundantBraces]
+  redundantBraces {
+    preset = all
+    oneStatApply {
+      parensMaxSpan = 100
+      bracesMinSpan = 100
+    }
+  }
+  scala3 {
+    convertToNewSyntax = yes
+  }
+}
+===
+object a:
+  def ensureOuterAccessors(cls: ClassSymbol)(using Context): Unit =
+    atPhase(explicitOuterPhase.next) {
+      if (!hasOuter(cls))
+        newOuterAccessors(cls).foreach(_.enteredAfter(explicitOuterPhase.asInstanceOf[DenotTransformer]))
+    }
+>>>
+object a:
+   def ensureOuterAccessors(cls: ClassSymbol)(using Context): Unit =
+     atPhase(explicitOuterPhase.next)(
+       if !hasOuter(cls) then
+          newOuterAccessors(cls).foreach(
+            _.enteredAfter(explicitOuterPhase.asInstanceOf[DenotTransformer])
+          )
+     )
+<<< #4705
+newlines.infix.typeSite.style = many
+===
+object Foo {
+  def oldStyle: Traverse[Option] with MonadError[Option, Unit] with Alternative[Option] with CommutativeMonad[Option] with CoflatMap[Option] with Align[Option] =
+    ???
+
+  def newStyle: Traverse[Option] & MonadError[Option, Unit] & Alternative[Option] & CommutativeMonad[Option] & CoflatMap[Option] & Align[Option] =
+    Traverse[Option] & MonadError[Option, Unit] & Alternative[Option] & CommutativeMonad[Option] & CoflatMap[Option] & Align[Option]
+}
+>>>
+object Foo {
+  def oldStyle: Traverse[Option]
+    with MonadError[Option, Unit]
+    with Alternative[Option]
+    with CommutativeMonad[Option]
+    with CoflatMap[Option]
+    with Align[Option] =
+    ???
+
+  def newStyle: Traverse[Option] & MonadError[Option, Unit] &
+    Alternative[Option] & CommutativeMonad[Option] & CoflatMap[Option] &
+    Align[Option] =
+    Traverse[Option] & MonadError[Option, Unit] & Alternative[
+      Option
+    ] & CommutativeMonad[Option] & CoflatMap[Option] & Align[Option]
+}

@@ -1,10 +1,8 @@
 package org.scalafmt.config
 
-import java.util.regex.Matcher
-import java.util.regex.Pattern
+import java.util.regex._
 
 import metaconfig._
-import metaconfig.generic.Surface
 
 case class AvoidInfixSettings(
     // partial match
@@ -12,7 +10,9 @@ case class AvoidInfixSettings(
     // strict match
     private[config] val excludeFilters: Seq[AvoidInfixSettings.Filter],
     private val excludeScalaTest: Option[Boolean] = None,
-    excludePlaceholderArg: Option[Boolean] = None,
+    excludePlaceholderArg: Boolean = true,
+    excludePostfix: Boolean = false,
+    excludeMatch: Boolean = true,
 ) {
   // if the user completely redefined (rather than appended), we don't touch
   @inline
@@ -80,7 +80,7 @@ object AvoidInfixSettings {
   }
 
   private[config] object Filter {
-    implicit lazy val surface: Surface[Filter] = generic.deriveSurface
+    implicit lazy val surface: generic.Surface[Filter] = generic.deriveSurface
     implicit lazy val encoder: ConfEncoder[Filter] = ConfEncoder
       .instance(x => Conf.Str(x.pattern))
     implicit lazy val decoder: ConfDecoderEx[Filter] = ConfDecoderEx
@@ -99,7 +99,8 @@ object AvoidInfixSettings {
     def apply(value: String): Filter = parse(value).get
   }
 
-  implicit lazy val surface: Surface[AvoidInfixSettings] = generic.deriveSurface
+  implicit lazy val surface: generic.Surface[AvoidInfixSettings] =
+    generic.deriveSurface
   implicit lazy val codec: ConfCodecEx[AvoidInfixSettings] = generic
     .deriveCodecEx(default).noTypos
 
