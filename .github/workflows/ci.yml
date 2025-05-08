@@ -6,20 +6,24 @@ on:
     tags_ignore:
       - '*'
   pull_request:
-  release:
-    types: [published]
 
 permissions:
   contents: read
 
 jobs:
   test:
-    if: github.event_name != 'release'
     strategy:
       fail-fast: false
       matrix:
-        java: [ '11', '21' ]
-        os: [windows-latest, ubuntu-latest]
+        java:
+          - '11'
+          - '21'
+        os:
+          - windows-2022
+          - ubuntu-22.04
+        scala:
+          - '2.12.20'
+          - '2.13.16'
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -32,46 +36,26 @@ jobs:
           distribution: 'temurin'
           cache: 'sbt'
       - uses: sbt/setup-sbt@v1
-      - run:
-          # for GitOps tests
-          git config --global user.email "scalafmt@scalameta.org" && git config --global user.name "scalafmt"
-      - run: TEST="2.12" sbt ci-test-jvm
-        shell: bash
-      - run: TEST="2.13" sbt ci-test-jvm
-        shell: bash
-  test-scala-native:
-    if: github.event_name != 'release'
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [windows-latest, ubuntu-latest]
-    runs-on: ${{ matrix.os }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Set up JVM
-        uses: actions/setup-java@v4
-        with:
-          java-version: '21'
-          distribution: 'temurin'
-          cache: 'sbt'
-      - uses: sbt/setup-sbt@v1
-      - run:
-          # for GitOps tests
-          git config --global user.email "scalafmt@scalameta.org" && git config --global user.name "scalafmt"
-      - run: TEST="2.12" sbt ci-test-native
-        shell: bash
-      - run: TEST="2.13" sbt ci-test-native
-        shell: bash
+      - name: Set git config for GitOps tests
+        id: gitconfig
+        run: git config --global user.email "scalafmt@scalameta.org" && git config --global user.name "scalafmt"
+      - run: sbt ++${{ matrix.scala }} test-jvm
+        if: ${{ (success() || failure()) && steps.gitconfig.outcome == 'success' }}
+      - run: sbt ++${{ matrix.scala }} test-js
+        if: ${{ (success() || failure()) && steps.gitconfig.outcome == 'success' }}
+      - run: sbt ++${{ matrix.scala }} test-native
+        if: ${{ (success() || failure()) && steps.gitconfig.outcome == 'success' }}
+      - run: sbt ++${{ matrix.scala }} publishLocal
+        if: ${{ (success() || failure()) && steps.gitconfig.outcome == 'success' }}
+      - run: sbt ++${{ matrix.scala }} docs/run
+        if: ${{ (success() || failure()) && steps.gitconfig.outcome == 'success' }}
   community-test:
-    if: github.event_name != 'release'
     strategy:
       fail-fast: false
       matrix:
         java: [ '11' ]
-        os: [windows-latest, ubuntu-latest]
-        group: [Scala2, Scala3, Spark, Intellij, Other]
+        os: [ windows-latest, ubuntu-latest ]
+        group: [ Scala2, Scala3, Spark, Intellij, Other ]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -86,7 +70,6 @@ jobs:
       - uses: sbt/setup-sbt@v1
       - run: sbt communityTests${{ matrix.group }}/test
   formatting:
-    if: github.event_name != 'release'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -98,31 +81,28 @@ jobs:
       - run: ./scalafmt --test
       - run: yarn install
       - run: yarn format-check
-  native-image:
+  native-image: # deprecated, will soon be removed
     permissions:
       contents: write  # for actions/upload-release-asset to upload release asset
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [macOS-latest, ubuntu-latest]
-        libc: [default, musl]
+        os: [ macOS-latest, ubuntu-latest ]
+        libc: [ default, musl ]
         exclude:
           - os: macOS-latest
             libc: musl
         include:
           - os: macOS-latest
-            artifact: scalafmt-macos
             env:
               NATIVE_IMAGE_STATIC: none
           - os: ubuntu-latest
             libc: default
-            artifact: scalafmt-linux-glibc
             env:
               NATIVE_IMAGE_STATIC: nolibc
           - os: ubuntu-latest
             libc: musl
-            artifact: scalafmt-linux-musl
             env:
               NATIVE_IMAGE_STATIC: musl
     env: ${{ matrix.env }}
@@ -139,46 +119,3 @@ jobs:
       - run: bin/build-native-image.sh
         env:
           CI: true
-      - uses: actions/upload-artifact@master
-        with:
-          name: ${{ matrix.artifact }}
-          path: scalafmt
-      - name: Upload release
-        if: github.event_name == 'release'
-        uses: actions/upload-release-asset@v1.0.2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ github.event.release.upload_url }}
-          asset_path: scalafmt
-          asset_name: ${{ matrix.artifact }}
-          asset_content_type: application/zip
-  dockerize:
-    needs: [native-image,test]
-    runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/v') && github.event_name != 'release'
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Docker Meta
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: scalameta/scalafmt
-          tags: type=semver,pattern={{raw}}
-      - name: Downloading scalafmt-linux-musl for Docker Build
-        uses: actions/download-artifact@v4
-        with:
-          name: scalafmt-linux-musl
-          path: tmp/scalafmt-linux-musl
-      - name: Login to DockerHub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
-      - name: Build and push
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}

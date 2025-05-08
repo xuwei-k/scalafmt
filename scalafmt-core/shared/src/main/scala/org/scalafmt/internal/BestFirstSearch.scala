@@ -26,7 +26,7 @@ private class BestFirstSearch private (range: Set[Range])(implicit
   /** Precomputed table of splits for each token.
     */
   val routes: Array[Seq[Split]] = {
-    val router = new Router(formatOps)
+    val router = new Router
     val result = Array.newBuilder[Seq[Split]]
     tokens.foreach(t => result += router.getSplits(t))
     result.result()
@@ -38,7 +38,7 @@ private class BestFirstSearch private (range: Set[Range])(implicit
 
   private def getBlockCloseToRecurse(ft: FT)(implicit
       style: ScalafmtConfig,
-  ): Option[Int] = getEndOfBlock(ft, parensToo = true).collect {
+  ): Option[Int] = getEndOfBlock(ft, parens = true).collect {
     // Block must span at least 3 lines to be worth recursing.
     case close if tokens.width(ft, close) > style.maxColumn * 3 => close.idx
   }
@@ -392,7 +392,7 @@ object BestFirstSearch {
 
   class StateStats private (
       tokens: FormatTokens,
-      runner: ScalafmtRunner,
+      runner: RunnerSettings,
       pruneSlowStates: ScalafmtOptimizer.PruneSlowStates,
   ) {
     var explored = 0
@@ -400,7 +400,7 @@ object BestFirstSearch {
     val best = mutable.Map.empty[Int, State]
     val visits = new Array[Int](tokens.length)
 
-    def this(tokens: FormatTokens, runner: ScalafmtRunner) =
+    def this(tokens: FormatTokens, runner: RunnerSettings) =
       this(tokens, runner, runner.optimizer.pruneSlowStates)
 
     /** Returns true if it's OK to skip over state.

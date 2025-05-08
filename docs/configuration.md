@@ -16,6 +16,10 @@ using [HOCON](https://github.com/lightbend/config) syntax.
 Here is an example `.scalafmt.conf`:
 
 ```scala config
+version = @STABLE_VERSION@    // mandatory
+runner.dialect = scala213    // mandatory, see below for available dialects
+
+// here are some examples of optional settings
 align.preset = more    // For pretty alignment.
 maxColumn = 1234
 ```
@@ -3610,6 +3614,16 @@ or selector, as follows:
 
 > Since v3.0.0.
 
+Let's define some terminology: an import statement consists of several parts:
+
+- keyword: `import` or `export`
+- one or more comma-separated _importers_
+  - for instance, `import foo.bar, foo.baz.{qux => quux}` contains two
+    importers, `foo.bar` and `foo.baz.{qux => quux}`
+- each importer is split, on the final dot, into
+  - _reference_: `foo` and `foo.baz` in the example above
+  - _selectors_: `bar` and `{qux => quux}` above
+
 #### Imports: `expand`
 
 This parameter will attempt to create a separate line for each selector
@@ -3636,6 +3650,21 @@ import a.{
     _
   }
 ```
+
+#### Imports: sorting
+
+Sorting is applied as follows:
+
+- if disabled, no sorting
+- if enabled, it applies to import _selectors_ within one _importer_
+- if [`groups`](#imports-groups) are used, sorting will also apply to importers
+  in the same group
+  - without groups, multiple import statements will **not** be sorted
+  - importers are sorted one dot-separated label at a time
+    - importers `foo.bar.baz` and `foo.bar as fbar` will compare:
+      - `foo` and `foo`: equal
+      - `bar` and `bar as fbar`: `bar` comes earlier, just like it does
+        with equivalent scala2 selector syntax `{bar => fbar}`
 
 #### Imports: `sort = none`
 
@@ -3697,8 +3726,9 @@ import foo._
 > rule like `OrganizeImports`. However, on a large codebase, the overhead
 > of using semantic `scalafix` rules might be substantial.
 
-This rule will separate all import statements into groups. If sorting is
-enabled (i.e., not `none`), imports will also be sorted within each group.
+This rule will separate all import statements (or, to be more precise, all
+[importers](#imports) from all import statements) into groups. If sorting
+is enabled (i.e., not `none`), imports will also be sorted within each group.
 
 The rule accepts the following parameters:
 
@@ -3715,6 +3745,7 @@ The rule accepts the following parameters:
     (source, package, template etc.)
 
 ```scala mdoc:scalafmt
+runner.dialect = scala3
 rewrite.rules = [Imports]
 rewrite.imports.sort = ascii
 rewrite.imports.groups = [
@@ -3722,6 +3753,7 @@ rewrite.imports.groups = [
   ["bar\\..*", "baz\\..*"]
 ]
 ---
+import bar.bar as bbar
 import bar.bar.{Random, bar, ~>, `symbol`}
 import baz.Baz.{bar => xyz, _}
 import qux.`qux`.{Random, bar, ~>, `symbol`}
@@ -4672,6 +4704,12 @@ The parameter also allows the following shortcuts:
 
 ### `spaces.beforeContextBoundColon`
 
+This parameter controls if a space should be used before a colon that precedes
+type context bounds and takes values `never`, `always`, `ifMultipleBounds`, and
+(added in v3.8.6) `ifMultipleContextBounds`. The difference between the latter
+two is: the first considers all bounds (including subtype and supertype),
+whereas the second only the context bounds.
+
 ```scala mdoc:defaults
 spaces.beforeContextBoundColon
 ```
@@ -4698,6 +4736,60 @@ spaces.beforeContextBoundColon=IfMultipleBounds
 def method[A: Bound]: B
 def method[A : Bound]: B
 def method[A: Bound: Bound2]: B
+def method[A <: Bound: Bound2]: B
+```
+
+```scala mdoc:scalafmt
+spaces.beforeContextBoundColon=IfMultipleContextBounds
+---
+def method[A: Bound]: B
+def method[A : Bound]: B
+def method[A: Bound: Bound2]: B
+def method[A <: Bound: Bound2]: B
+```
+
+### `spaces.withinContextBoundBraces`
+
+This parameter controls if a space should be used within braces which surround
+type context bounds and takes the same values as
+[`beforeContextBoundColon`](#spacesbeforecontextboundcolon) above. Added in v3.8.6.
+
+```scala mdoc:defaults
+spaces.withinContextBoundBraces
+```
+
+```scala mdoc:scalafmt
+runner.dialect = scala3
+spaces.withinContextBoundBraces=Never
+---
+def method[A: {Bound}]: B
+def method[A: {Bound, Bound2}]: B
+```
+
+```scala mdoc:scalafmt
+runner.dialect = scala3
+spaces.withinContextBoundBraces=Always
+---
+def method[A: {Bound}]: B
+def method[A: {Bound, Bound2}]: B
+```
+
+```scala mdoc:scalafmt
+runner.dialect = scala3
+spaces.withinContextBoundBraces=IfMultipleBounds
+---
+def method[A: {Bound}]: B
+def method[A <: Bound : {Bound2}]: B
+def method[A: {Bound, Bound2}]: B
+```
+
+```scala mdoc:scalafmt
+runner.dialect = scala3
+spaces.withinContextBoundBraces=IfMultipleContextBounds
+---
+def method[A: {Bound}]: B
+def method[A <: Bound : {Bound2}]: B
+def method[A: {Bound, Bound2}]: B
 ```
 
 ### `spaces.inImportCurlyBraces`

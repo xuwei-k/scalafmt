@@ -3,7 +3,7 @@ package org.scalafmt.util
 import org.scalafmt.Error.FormatterChangedAST
 import org.scalafmt.Error.FormatterOutputDoesNotParse
 import org.scalafmt.Scalafmt
-import org.scalafmt.config.ScalafmtRunner
+import org.scalafmt.config.RunnerSettings
 
 import org.scalameta.logger
 import scala.meta.Dialect
@@ -23,7 +23,7 @@ trait FormatAssertions {
       filename: String,
       original: String,
       obtained: String,
-      runner: ScalafmtRunner,
+      runner: RunnerSettings,
   ): Unit = assertFormatPreservesAst(filename, original, obtained)(
     runner.getParser,
     runner.getDialectForParser,
@@ -84,13 +84,14 @@ trait FormatAssertions {
     val lines = obtained.linesIterator
     val linesBeforeCaret = lines.slice(startLine - range + 1, startLine + 1)
     val linesAfterCaret = lines.take(range)
-    Seq(
-      e.shortMessage,
-      linesBeforeCaret.mkString("\n"),
-      " " * e.pos.startColumn + "^", // arrow
-      linesAfterCaret.mkString("\n"),
-      "====== full result: ======",
-      obtained.stripTrailing(),
-    ).filter(_.nonEmpty).mkString("", "\n", "\n")
+    val sb = new StringBuilder()
+    def add(str: String): Unit = if (str.nonEmpty) sb.append(str).append('\n')
+    add(e.shortMessage)
+    linesBeforeCaret.foreach(add)
+    add(" " * e.pos.startColumn + "^") // arrow
+    linesAfterCaret.foreach(add)
+    add("====== full result: ======")
+    add(obtained.trim())
+    sb.result()
   }
 }

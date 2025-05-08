@@ -1,42 +1,40 @@
 package org.scalafmt.cli
 
 import org.scalafmt.Versions.{stable => stableVersion}
+import org.scalafmt.sysops.FileOps
+import org.scalafmt.sysops.PlatformFileOps
+import org.scalafmt.sysops.PlatformRunOps
 
-import java.nio.file.Files
-import java.nio.file.Paths
-
-import scala.io.Source
-import scala.util.Using
-import scala.util.control.NoStackTrace
+import scala.concurrent.Future
+import scala.util.Failure
+import scala.util.Success
 
 object Cli extends CliUtils {
 
-  private def throwIfError(exit: ExitCode): Unit = if (exit != ExitCode.Ok)
-    throw new RuntimeException(exit.toString) with NoStackTrace
+  import PlatformRunOps.parasiticExecutionContext
 
-  def main(args: Array[String]): Unit = {
-    val exit = mainWithOptions(args, CliOptions.default)
-    sys.exit(exit.code)
+  /** Wrap mainWithOptions in a Future, to make sure `inputExecutionContext` is
+    * initialized before this method completes.
+    *
+    * When `main` returns, JVM will exit unless there are running non-daemon
+    * threads, so let's make sure these threads exist.
+    */
+  def main(args: Array[String]): Unit = Future.unit.flatMap(_ =>
+    mainWithOptions(CliOptions.default, args: _*),
+  )(PlatformRunOps.inputExecutionContext).onComplete {
+    case Failure(ex) =>
+      ex.printStackTrace()
+      PlatformRunOps.exit(ExitCode.UnexpectedError.code)
+    case Success(exit) => PlatformRunOps.exit(exit.code)
   }
 
-  def exceptionThrowingMain(args: Array[String]): Unit =
-    exceptionThrowingMainWithOptions(args, CliOptions.default)
-
-  def exceptionThrowingMainWithOptions(
-      args: Array[String],
-      options: CliOptions,
-  ): Unit = {
-    val exit = mainWithOptions(args, options)
-    throwIfError(exit)
-  }
-
-  def mainWithOptions(args: Array[String], options: CliOptions): ExitCode =
-    getConfig(args, options) match {
+  def mainWithOptions(options: CliOptions, args: String*): Future[ExitCode] =
+    getConfig(options, args: _*) match {
       case Some(x) => run(x)
-      case None => ExitCode.CommandLineArgumentError
+      case None => ExitCode.CommandLineArgumentError.future
     }
 
-  def getConfig(args: Array[String], init: CliOptions): Option[CliOptions] = {
+  def getConfig(init: CliOptions, args: String*): Option[CliOptions] = {
     val expandedArguments = expandArguments(args)
     CliArgParser.scoptParser.parse(expandedArguments, init).map(CliOptions.auto)
   }
@@ -46,28 +44,52 @@ object Cli extends CliUtils {
     args.foreach { arg =>
       val atFile = arg.stripPrefix("@")
       if (atFile == arg) builder += arg // doesn't start with @
-      else if (atFile == "-") builder ++= Source.stdin.getLines()
-      else if (!Files.isRegularFile(Paths.get(atFile))) builder += arg
-      else Using.resource(Source.fromFile(atFile))(builder ++= _.getLines())
+      else if (atFile == "-") builder ++= readInputLines
+      else {
+        val path = FileOps.getPath(atFile)
+        if (!PlatformFileOps.isRegularFile(path)) builder += arg
+        else PlatformFileOps.readFile(path).split('\n')
+          .foreach(builder += _.trim)
+      }
     }
     builder.result()
   }
 
-  private[cli] def run(options: CliOptions): ExitCode =
+  private[cli] def run(options: CliOptions): Future[ExitCode] =
     findRunner(options) match {
       case Left(message) =>
         options.common.err.println(message)
-        ExitCode.UnsupportedVersion
-      case Right(runner) => runWithRunner(options, runner)
+        ExitCode.UnsupportedVersion.future
+      case Right(runner) =>
+        val termDisplayMessage =
+          if (options.writeMode != WriteMode.Test) "Reformatting..."
+          else "Looking for unformatted files..."
+        options.common.debug.println("Working directory: " + options.cwd)
+        runner.run(options, termDisplayMessage).map(postProcess(options))
     }
 
-  private val isNative: Boolean = isScalaNative ||
-    "true" == System.getProperty("scalafmt.native-image", "false")
+  private val isNativeImage: Boolean = "true" ==
+    System.getProperty("scalafmt.native-image", "false")
 
   private def getProposedConfigVersion(options: CliOptions): String =
     s"version = $stableVersion"
 
   private type MaybeRunner = Either[String, ScalafmtRunner]
+
+  private def noDynamicRunner(version: String, options: CliOptions) = {
+    val path = options.configPath
+    s"""|error: invalid Scalafmt version.
+        |
+        |This Scalafmt installation has version '$stableVersion' and the version configured in '$path' is '$version'.
+        |To fix this problem, add the following line to .scalafmt.conf:
+        |```
+        |version = $stableVersion
+        |```
+        |
+        |NOTE: this error happens only when running a native Scalafmt binary.
+        |Scalafmt automatically installs and invokes the correct version of Scalafmt when running on the JVM.
+        |""".stripMargin
+  }
 
   private def findRunner(options: CliOptions): MaybeRunner = options.hoconOpt
     .fold[MaybeRunner](Left(
@@ -98,39 +120,15 @@ object Cli extends CliUtils {
         case Right(`stableVersion`) =>
           options.common.debug.println(s"Using core runner [$stableVersion]")
           Right(ScalafmtCoreRunner)
-        case Right(v) if isNative =>
-          Left {
-            s"""|error: invalid Scalafmt version.
-                |
-                |This Scalafmt installation has version '$stableVersion' and the version configured in '${options
-                 .configPath}' is '$v'.
-                |To fix this problem, add the following line to .scalafmt.conf:
-                |```
-                |version = $stableVersion
-                |```
-                |
-                |NOTE: this error happens only when running a native Scalafmt binary.
-                |Scalafmt automatically installs and invokes the correct version of Scalafmt when running on the JVM.
-                |""".stripMargin
-          }
         case Right(v) =>
-          options.common.debug.println(s"Using dynamic runner [$v]")
-          Right(getDynamicRunner())
+          val runnerOpt = if (isNativeImage) None else getDynamicRunner
+          if (runnerOpt.isDefined) options.common.debug
+            .println(s"Using dynamic runner [$v]")
+          runnerOpt.toRight(noDynamicRunner(v, options))
       }
     }
 
-  private[cli] def runWithRunner(
-      options: CliOptions,
-      runner: ScalafmtRunner,
-  ): ExitCode = {
-    val termDisplayMessage =
-      if (options.writeMode == WriteMode.Test)
-        "Looking for unformatted files..."
-      else "Reformatting..."
-    options.common.debug.println("Working directory: " + options.cwd)
-
-    val exit = runner.run(options, termDisplayMessage)
-
+  private def postProcess(options: CliOptions)(exit: ExitCode): ExitCode = {
     if (options.writeMode == WriteMode.Test)
       if (exit.isOk) options.common.out
         .println("All files are formatted with scalafmt :)")

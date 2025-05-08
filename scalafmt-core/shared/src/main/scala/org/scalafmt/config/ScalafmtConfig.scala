@@ -2,14 +2,13 @@ package org.scalafmt.config
 
 import org.scalafmt.Versions
 import org.scalafmt.rewrite._
-import org.scalafmt.sysops.AbsoluteFile
-import org.scalafmt.sysops.OsSpecific._
+import org.scalafmt.sysops._
 import org.scalafmt.util._
 
 import scala.meta._
 import scala.meta.tokens.{Token => T}
 
-import java.nio.file._
+import java.nio.file.Path
 
 import scala.collection.mutable
 import scala.io.Codec
@@ -85,9 +84,6 @@ import metaconfig._
 @annotation.SectionRename("trailingCommas", "rewrite.trailingCommas.style") // v3.0.5
 @annotation.SectionRename("poorMansTrailingCommasInConfigStyle", "newlines.configStyle.beforeComma") // v3.8.4
 @annotation.SectionRename("optIn.forceBlankLineBeforeDocstring", "docstrings.forceBlankLineBefore") // v3.4.0
-@annotation.SectionRename("indentOperator", "indent.infix") // v3.8.4
-@annotation.SectionRename("verticalAlignMultilineOperators", "indent.infix", IndentOperator.boolToAssign) // v3.8.4
-@annotation.SectionRename("indentYieldKeyword", "indent.yieldKeyword") // v3.8.4
 @annotation.SectionRename("rewriteTokens", "rewrite.tokens") // v3.8.4
 @annotation.SectionRename("importSelectors", "binPack.importSelectors") // v3.8.4
 @annotation.SectionRename("binPackImportSelectors", "binPack.importSelectors") // v3.8.4
@@ -100,6 +96,11 @@ import metaconfig._
 // annotations
 @annotation.SectionRename("optIn.annotationNewlines", "newlines.annotation") // v3.8.4
 @annotation.SectionRename("optIn.selfAnnotationNewline", "newlines.selfAnnotation") // v3.8.4
+// indent
+@annotation.SectionRename("continuationIndent", "indent") // v3.8.5
+@annotation.SectionRename("indentOperator", "indent.infix") // v3.8.4
+@annotation.SectionRename("verticalAlignMultilineOperators", "indent.infix", IndentOperator.boolToAssign) // v3.8.4
+@annotation.SectionRename("indentYieldKeyword", "indent.yieldKeyword") // v3.8.4
 // scalafmt: { maxColumn = 80 }
 case class ScalafmtConfig(
     version: String = org.scalafmt.Versions.stable,
@@ -107,7 +108,6 @@ case class ScalafmtConfig(
     docstrings: Docstrings = Docstrings(),
     comments: Comments = Comments(),
     binPack: BinPack = BinPack(),
-    @annotation.ExtraName("continuationIndent")
     indent: Indents = Indents(),
     align: Align = Align(),
     spaces: Spaces = Spaces(),
@@ -115,7 +115,7 @@ case class ScalafmtConfig(
     lineEndings: Option[LineEndings] = None,
     rewrite: RewriteSettings = RewriteSettings.default,
     newlines: Newlines = Newlines(),
-    runner: ScalafmtRunner = ScalafmtRunner.default,
+    runner: RunnerSettings = RunnerSettings.default,
     assumeStandardLibraryStripMargin: Boolean = false,
     danglingParentheses: DanglingParentheses = DanglingParentheses.default,
     verticalMultiline: VerticalMultiline = VerticalMultiline(),
@@ -134,12 +134,11 @@ case class ScalafmtConfig(
       k -> v.getMatcher
     }
 
-  private[scalafmt] def withDialect(dialect: NamedDialect): ScalafmtConfig =
-    copy(runner = runner.withDialect(dialect))
+  def withDialect(nd: NamedDialect): ScalafmtConfig =
+    copy(runner = runner.withDialect(nd))
 
-  private[scalafmt] def withDialect(
-      dialect: Option[NamedDialect],
-  ): ScalafmtConfig = dialect.fold(this)(withDialect)
+  def withDialect(nd: Option[NamedDialect]): ScalafmtConfig = nd
+    .fold(this)(withDialect)
 
   def withDialect(dialect: Dialect, name: String): ScalafmtConfig =
     withDialect(NamedDialect(name, dialect))
@@ -199,11 +198,10 @@ case class ScalafmtConfig(
       eitherPat -> cfg
     }
     val langResult = patStyles.collect { case (Left(lang), cfg) => lang -> cfg }
-    val fs = FileSystems.getDefault
     val pmResult = patStyles.collect { case (Right(pat), cfg) =>
       val pattern =
-        if (pat(0) == '.') "glob:**" + pat else pat.inPathMatcherForm
-      fs.getPathMatcher(pattern) -> cfg
+        if (pat(0) == '.') "glob:**" + pat else OsSpecific.inPathMatcherForm(pat)
+      PlatformPathMatcher(pattern) -> cfg
     }
     (langResult, pmResult)
   }
@@ -387,9 +385,8 @@ object ScalafmtConfig {
       }
       if (!dialect.allowSignificantIndentation) addIf(newlines.beforeOpenParenCallSite.nonEmpty, errDialect)
       addIfDirect( // can't use addIf on multiline conditions
-        !(binPack.callSite == BinPack.Site.Never && binPack.defnSite == BinPack.Site.Never) && {
-          newlines.implicitParamListModifierForce.nonEmpty || newlines.implicitParamListModifierPrefer.nonEmpty
-        },
+        !(binPack.callSite == BinPack.Site.Never && binPack.defnSite == BinPack.Site.Never) &&
+          { newlines.implicitParamListModifierForce.nonEmpty || newlines.implicitParamListModifierPrefer.nonEmpty },
         "binPack.xxxSite && newlines.implicitParamListModifierXXX (not implemented)",
       )
       checkPositive(indent.main, indent.callSite, indent.defnSite, indent.commaSiteRelativeToExtends)

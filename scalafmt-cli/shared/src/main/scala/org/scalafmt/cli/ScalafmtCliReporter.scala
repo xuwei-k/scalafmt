@@ -1,13 +1,11 @@
 package org.scalafmt.cli
 
-import org.scalafmt.Error._
-import org.scalafmt.dynamic.exceptions.ScalafmtException
-import org.scalafmt.interfaces.PositionException
-import org.scalafmt.interfaces.ScalafmtReporter
+import org.scalafmt.interfaces._
 
 import java.io.OutputStreamWriter
 import java.io.PrintWriter
 import java.nio.file.Path
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicReference
 
 import scala.annotation.tailrec
@@ -15,27 +13,39 @@ import scala.util.control.NoStackTrace
 
 class ScalafmtCliReporter(options: CliOptions) extends ScalafmtReporter {
   private val exitCode = new AtomicReference(ExitCode.Ok)
+  private val exitCodePerFile = new ConcurrentHashMap[String, ExitCode]()
 
   def getExitCode: ExitCode = exitCode.get()
+  def getExitCode(file: Path): ExitCode = exitCodePerFile.get(file.toString)
+
+  private def updateExitCode(code: ExitCode, file: Path): Unit = if (!code.isOk) {
+    exitCodePerFile.put(file.toString, code)
+    exitCode.getAndUpdate(ExitCode.merge(code, _))
+  }
 
   override def error(file: Path, message: String): Unit =
     if (!options.ignoreWarnings) {
       options.common.err.println(s"$message: $file")
-      exitCode.getAndUpdate(ExitCode.merge(ExitCode.UnexpectedError, _))
+      updateExitCode(ExitCode.UnexpectedError, file)
     }
-  @tailrec
-  override final def error(file: Path, e: Throwable): Unit = e match {
-    case WithCode(e, _) => error(file, e)
-    case _: PositionException if !options.ignoreWarnings =>
-      options.common.err.println(s"${e.toString}: $file")
-      exitCode.getAndUpdate(ExitCode.merge(ExitCode.ParseError, _))
-    case MisformattedFile(_, diff) =>
-      options.common.err.println(diff)
-      exitCode.getAndUpdate(ExitCode.merge(ExitCode.TestError, _))
-    case ScalafmtException(_, cause) => error(file, cause)
-    case _ if !options.ignoreWarnings =>
-      new FailedToFormat(file.toString, e).printStackTrace(options.common.err)
-      exitCode.getAndUpdate(ExitCode.merge(ExitCode.UnexpectedError, _))
+  override final def error(file: Path, e: Throwable): Unit =
+    updateExitCode(fail(e)(file), file)
+  private[cli] final def fail(e: Throwable)(file: Path): ExitCode = {
+    @tailrec
+    def iter(e: Throwable): ExitCode = e match {
+      case _: PositionException =>
+        options.common.err.println(s"${e.toString}: $file")
+        ExitCode.ParseError
+      case _ =>
+        val cause = e.getCause
+        if (cause ne null) iter(cause)
+        else {
+          new FailedToFormat(file.toString, e)
+            .printStackTrace(options.common.err)
+          ExitCode.UnexpectedError
+        }
+    }
+    if (options.ignoreWarnings) ExitCode.Ok else iter(e)
   }
 
   override def excluded(file: Path): Unit = options.common.debug

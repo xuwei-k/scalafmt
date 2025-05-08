@@ -47,8 +47,8 @@ class FormatWriter(formatOps: FormatOps) {
       ft.left match {
         case _ if entry.previous.formatToken.meta.formatOff => sb.append(ltext) // checked the state for left
         case _: T.Comment => entry.formatComment
-        case _: T.Interpolation.Part | _: T.Constant.String => sb
-            .append(entry.formatMarginized)
+        case _: T.Interpolation.Part | _: T.Constant.String =>
+          entry.formatMarginized
         case _: T.Constant.Int => LiteralOps.prettyPrintInteger(ltext)
         case _: T.Constant.Long => LiteralOps.prettyPrintInteger(ltext)
         case _: T.Constant.Float => LiteralOps.prettyPrintFloat(ltext)
@@ -137,7 +137,7 @@ class FormatWriter(formatOps: FormatOps) {
         replaceRedundantBraces(result)
     }
 
-    new FormatLocations(result, if (useCRLF > 0) "\r\n" else "\n")
+    new FormatLocations(result, LineEndings.eol(useCRLF > 0))
   }
 
   private def replaceRedundantBraces(locations: Array[FormatLocation]): Unit = {
@@ -532,7 +532,7 @@ class FormatWriter(formatOps: FormatOps) {
         }
       }
 
-      def formatMarginized: String = {
+      def formatMarginized(implicit sb: StringBuilder): Unit = {
         val text = tok.meta.left.text
         val tupleOpt = tok.left match {
           case _ if !style.assumeStandardLibraryStripMargin => None
@@ -556,9 +556,18 @@ class FormatWriter(formatOps: FormatOps) {
               }
           case _ => None
         }
-        tupleOpt.fold(text) { case (pipe, indent) =>
-          val spaces = getIndentation(indent)
-          RegexCompat.replaceAllStripMargin(text, spaces, pipe)
+        tupleOpt match {
+          case Some((pipe, indent)) =>
+            val spaces = getIndentation(indent)
+            val matcher = RegexCompat.getStripMarginPattern(pipe).matcher(text)
+            var pos = 0
+            while (matcher.find()) {
+              sb.add(text, pos, matcher.start()).append(eol)
+              if (matcher.start(1) >= 0) sb.append(spaces).append(pipe)
+              pos = matcher.end()
+            }
+            sb.add(text, pos, text.length)
+          case _ => sb.append(text)
         }
       }
 
@@ -671,36 +680,29 @@ class FormatWriter(formatOps: FormatOps) {
           if (lines == 0 && style.comments.wrapSingleLineMlcAsSlc) sb
             .setCharAt(begpos - 1, '/')
           else sb.append(" */")
-
-        protected def append(csq: CharSequence, beg: Int, end: Int) = sb
-          .append(CharBuffer.wrap(csq, beg, end))
-
       }
 
       private class FormatSlc(text: String)(implicit sb: StringBuilder)
           extends FormatCommentBase(style.maxColumn) {
         def format(): Unit = {
-          val trimmed = removeTrailingWhiteSpace(text)
+          val len = State.getLineLength(text, 0, text.length)
           val isCommentedOut = prevState.mod match {
             case m: NewlineT if m.noIndent => true
             case _ => indent == 0
           }
-          if (isCommentedOut) sb.append(trimmed)
+          if (isCommentedOut) sb.add(text, 0, len)
           else {
-            val nonSlash = trimmed.indexWhere(_ != '/')
+            val nonSlash = text.indexWhere(_ != '/', 2)
             val hasSpace = nonSlash < 0 || // else space not needed
-              Character.isWhitespace(trimmed.charAt(nonSlash))
-            val column = prevState.column - text.length + trimmed.length +
+              !State.nonSpace(text.charAt(nonSlash))
+            val column = prevState.column - text.length + len +
               (if (hasSpace) 0 else 1)
-            if (column > maxColumn && canRewrite) reFormat(trimmed)
-            else if (hasSpace) sb.append(trimmed)
-            else {
-              append(trimmed, 0, nonSlash).append(' ')
-              append(trimmed, nonSlash, trimmed.length)
-            }
+            if (column > maxColumn && canRewrite) reFormat(nonSlash, len)
+            else if (hasSpace) sb.add(text, 0, len)
+            else sb.add(text, 0, nonSlash).append(' ').add(text, nonSlash, len)
           }
         }
-        private def reFormat(text: String): Unit = {
+        private def reFormat(nonSlash: Int, end: Int): Unit = {
           val useSlc = breakBefore && style.comments.wrapStandaloneSlcAsSlc
           val appendLineBreak: () => Unit =
             if (useSlc) {
@@ -710,7 +712,8 @@ class FormatWriter(formatOps: FormatOps) {
               val spaces: String = getIndentation(indent + 1)
               () => startNewLine(spaces).append('*')
             }
-          val contents = text.substring(2).trim
+          val beg = text.indexWhere(State.nonSpace, 2.max(nonSlash))
+          val contents = CharBuffer.wrap(text, beg, end)
           val wordIter = splitAsIterator(slcDelim)(contents)
           sb.append(if (useSlc) "//" else "/*")
           val curlen = sb.length
@@ -768,8 +771,18 @@ class FormatWriter(formatOps: FormatOps) {
             val lines = iterSections(sectionIter)
             terminateMlc(curlen, lines)
           } else {
-            val trimmed = removeTrailingWhiteSpace(text)
-            sb.append(RegexCompat.replaceAllLeadingAsterisk(trimmed, spaces))
+            val matcher = RegexCompat.leadingAsteriskSpace.matcher(text)
+            var pos = 0
+            while (matcher.find()) {
+              sb.add(text, pos, matcher.start()).append(eol)
+              val end = matcher.end()
+              val endMargin = matcher.end(1)
+              if (endMargin == end) // no asterisk
+                pos = if (end < text.length) matcher.start(1) else text.length
+              else { sb.append(spaces); pos = endMargin }
+            }
+            val lastLength = State.getLineLength(text, pos, text.length)
+            sb.add(text, pos, pos + lastLength)
           }
 
         private def appendLineBreak(): Unit = startNewLine(spaces).append('*')
@@ -939,15 +952,29 @@ class FormatWriter(formatOps: FormatOps) {
         ): Unit = {
           def likeNonText(word: String): Boolean = // if parser can be confused
             word.startsWith("```") || word.startsWith("~~~") || // code fence
-              word.length > 1 && word.charAt(0) == '@' &&
-              !Character.isWhitespace(word.charAt(1)) || // tag
+              word.length > 1 &&
+              word.charAt(0) == '@' && State.nonSpace(word.charAt(1)) || // tag
               word.startsWith("=") || // heading
               word.startsWith("|") || word.startsWith("+-") || // table
               word == "-" || // list, this and next
               word.length == 2 && word(1) == '.' && "1aiI".contains(word(0))
 
           val wf = new WordFormatter(appendBreak, termIndent, likeNonText)
-          val words = text.parts.iterator.map(_.syntax)
+          val wordIter = text.parts.iterator.buffered
+          val words = wordIter.map { info =>
+            val text = info.part.syntax
+            wordIter.headOption match {
+              case Some(next) if next.attachedToPrevious =>
+                val partsb = new StringBuilder()
+                partsb.append(text)
+                while ({ // poor man's do-while
+                  partsb.append(wordIter.next().part.syntax)
+                  wordIter.headOption.exists(_.attachedToPrevious)
+                }) {}
+                partsb.result()
+              case _ => text
+            }
+          }
           val lineLength = math.max(lineLengthSoFar, termIndent.length)
           wf(words, lineLength, lineLengthSoFar == 0, false)
           appendBreak()
@@ -991,7 +1018,7 @@ class FormatWriter(formatOps: FormatOps) {
               offsetOpt match {
                 case Some((offset, lineStart)) =>
                   sb.append(offset)
-                  append(x, lineStart, x.length)
+                  sb.add(x, lineStart, x.length)
                 case _ => sb.append(x)
               }
             }
@@ -1005,6 +1032,7 @@ class FormatWriter(formatOps: FormatOps) {
         ): Boolean = {
           val codeStyle = style.copy(
             runner = style.runner.forCodeBlock,
+            lineEndings = Some(LineEndings.unix),
             // let's not wrap docstrings, to avoid recursion
             docstrings = style.docstrings.withoutRewrites,
             maxColumn = style.maxColumn - spaces.length - termIndent.length - 1,
@@ -1069,15 +1097,23 @@ class FormatWriter(formatOps: FormatOps) {
 
         private def formatNoWrap(): Unit = {
           // remove "/*" (keep one asterisk) and "*/"
-          val trimmed = CharBuffer.wrap(text, 2, text.length - 2)
-          val matcher = docstringLine.matcher(trimmed)
+          val off = 2 // matcher.region is broken in scala-native
+          val matcher = docstringLine
+            .matcher(CharBuffer.wrap(text, off, text.length - 2))
           sb.append("/**")
           val sbLen = sb.length
           @tailrec
           def iter(prevWasBlank: Boolean): Unit = if (matcher.find()) {
-            val contentBeg = matcher.start(2)
-            val contentEnd = matcher.end(2)
-            if (contentBeg == contentEnd) iter(true)
+            val (marginBeg, marginEnd) = {
+              val beg2 = matcher.start(2)
+              // +1 is for leading asterisk
+              if (beg2 >= 0) (beg2 + 1, matcher.end(2))
+              else (matcher.start(), matcher.end(1))
+            }
+            val contentBeg = marginEnd + off
+            val contentLen = State
+              .getLineLength(text, contentBeg, off + matcher.end())
+            if (contentLen == 0) iter(true)
             else {
               if (sb.length != sbLen) {
                 if (prevWasBlank) appendBreak()
@@ -1085,10 +1121,9 @@ class FormatWriter(formatOps: FormatOps) {
               } else if (style.docstrings.skipFirstLineIf(prevWasBlank))
                 appendBreak().append(margin)
               else sb.append(' ')
-              val extraMargin = matcher.end(1) - matcher.start(1) -
-                margin.length
+              val extraMargin = marginEnd - marginBeg - margin.length
               if (extraMargin > 0) sb.append(getIndentation(extraMargin))
-              append(trimmed, contentBeg, contentEnd)
+              sb.add(text, contentBeg, contentBeg + contentLen)
               iter(false)
             }
           }
@@ -1882,11 +1917,9 @@ object FormatWriter {
   private def getIndentation(len: Int): String =
     if (len < indentations.length) indentations(len) else " " * len
 
-  private def removeTrailingWhiteSpace(str: String): String = trailingSpace
-    .matcher(str).replaceAll("")
-
-  private def splitAsIterator(regex: Pattern)(value: String): Iterator[String] =
-    regex.split(value).iterator
+  private def splitAsIterator(regex: Pattern)(
+      value: CharSequence,
+  ): Iterator[String] = regex.split(value).iterator
 
   /** [[https://dotty.epfl.ch/docs/reference/other-new-features/indentation.html#the-end-marker]]
     */
@@ -1946,5 +1979,11 @@ object FormatWriter {
 
   def isEmptyDocstring(text: String): Boolean = emptyDocstring.matcher(text)
     .matches()
+
+  private implicit class ImplicitStringBuilder(private val sb: StringBuilder)
+      extends AnyVal {
+    def add(csq: CharSequence, beg: Int, end: Int): StringBuilder = sb
+      .append(CharBuffer.wrap(csq, beg, end))
+  }
 
 }

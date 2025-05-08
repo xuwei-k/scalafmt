@@ -21,10 +21,10 @@ object PolicyOps {
     override val noDequeue: Boolean = false
     override def terminal: Boolean = false
     private val checkSyntax = noSyntaxNL || !style.newlines.ignoreInSyntax
+    def failsSyntaxNL(ft: FT): Boolean = checkSyntax && ft.rightHasNewline
     override val f: Policy.Pf = {
       case Decision(ft, s) if penalizeLambdas || !ft.left.is[T.RightArrow] =>
-        if (checkSyntax && ft.leftHasNewline) s.penalize(penalty)
-        else s.penalizeNL(penalty)
+        if (failsSyntaxNL(ft)) s.penalize(penalty) else s.penalizeNL(penalty)
     }
     override def prefix: String = s"PNL+$penalty"
   }
@@ -75,10 +75,11 @@ object PolicyOps {
     override def terminal: Boolean = true
     override val prefix: String = "SLB"
     private val checkSyntax = noSyntaxNL || !style.newlines.ignoreInSyntax
+    def failsLeftSyntaxNL(ft: FT): Boolean = checkSyntax && ft.leftHasNewline
     override val f: Policy.Pf = {
       case Decision(ft, s)
           if !(ft.right.is[T.EOF] || okSLC && isLeftCommentThenBreak(ft)) =>
-        if (checkSyntax && ft.leftHasNewline) Seq.empty else s.filterNot(_.isNL)
+        if (failsLeftSyntaxNL(ft)) Seq.empty else s.filterNot(_.isNL)
     }
   }
 
@@ -200,9 +201,10 @@ object PolicyOps {
       fileLine: FileLine,
   ): Policy = decideNewlinesOnlyBeforeClose(0)(close)
 
-  def decideNewlinesOnlyBeforeClose(rank: Int)(close: FT)(implicit
-      fileLine: FileLine,
-  ): Policy = decideNewlinesOnlyBeforeClose(Split(Newline, 0), rank)(close)
+  def decideNewlinesOnlyBeforeClose(
+      rank: Int,
+  )(close: FT)(implicit fileLine: FileLine): Policy =
+    decideNewlinesOnlyBeforeClose(Split(Newline, 0, rank = -1), rank)(close)
 
   def decideNewlinesOnlyBeforeClose(split: Split, rank: Int = 0)(close: FT)(
       implicit fileLine: FileLine,
@@ -229,9 +231,10 @@ object PolicyOps {
       fileLine: FileLine,
   ): Policy = decideNewlinesOnlyAfterClose(0)(close)
 
-  def decideNewlinesOnlyAfterClose(rank: Int)(close: FT)(implicit
-      fileLine: FileLine,
-  ): Policy = decideNewlinesOnlyAfterClose(Split(Newline, 0), rank)(close)
+  def decideNewlinesOnlyAfterClose(
+      rank: Int,
+  )(close: FT)(implicit fileLine: FileLine): Policy =
+    decideNewlinesOnlyAfterClose(Split(Newline, 0, rank = -1), rank)(close)
 
   def decideNewlinesOnlyAfterClose(split: Split, rank: Int = 0)(close: FT)(
       implicit fileLine: FileLine,

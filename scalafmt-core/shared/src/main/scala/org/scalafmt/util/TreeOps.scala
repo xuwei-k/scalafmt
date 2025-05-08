@@ -130,9 +130,6 @@ object TreeOps {
       throw new IllegalArgumentException(s"Mismatching parens ($o, $c)")
   }
 
-  final def childOf(child: Tree, tree: Tree): Boolean =
-    findTreeOrParentSimple(child)(_ eq tree).isDefined
-
   @tailrec
   final def numParents(tree: Tree, cnt: Int = 0)(f: Tree => Boolean): Int =
     tree.parent match {
@@ -244,8 +241,9 @@ object TreeOps {
     case _ => None
   }
 
-  val ColonDeclTpeLeft = new FT.ExtractFromMeta(x => colonDeclType(x.leftOwner))
-  val ColonDeclTpeRight = new FT.ExtractFromMeta(x => colonDeclType(x.rightOwner))
+  object ColonDeclType {
+    def unapply(tree: Tree): Option[Type] = colonDeclType(tree)
+  }
 
   def isParamClauseSite(tree: Tree): Boolean = tree match {
     case _: Type.ParamClause => !tree.parent.is[Type.Lambda]
@@ -289,26 +287,13 @@ object TreeOps {
     case _: Term.Super => true
     case t: Member.ArgClause => !t.parent.is[Member.Infix]
     case _: Member.ParamClause => tree.parent.exists {
-        case _: Term.FunctionTerm => false
+        case _: Member.Function => false
         case t: Ctor.Primary => t.mods.isEmpty ||
           !t.paramClauses.headOption.contains(tree)
         case _ => true
       }
     case _ => false
   }
-
-  def isModPrivateProtected(tree: Tree): Boolean = tree match {
-    case _: Mod.Private | _: Mod.Protected => true
-    case _ => false
-  }
-
-  val DefValAssignLeft = new FT.ExtractFromMeta(_.leftOwner match {
-    case _: Enumerator => None // it's WithBody
-    case t: Ctor.Secondary => Some(t.body.init)
-    case t: Tree.WithBody => Some(t.body)
-    case t: Term.Param => t.default
-    case _ => None
-  })
 
   /** How many parents of tree are Term.Apply?
     */
@@ -388,13 +373,14 @@ object TreeOps {
       style: ScalafmtConfig,
   ): Boolean = !style.dialect.allowFewerBraces || {
     val params = func.paramClause
-    params.values match {
+    params.mod.nonEmpty ||
+    (params.values match {
       case param :: Nil => param.decltpe match {
           case Some(_: Type.Name) => ftoks.isEnclosedInMatching(params)
           case _ => true
         }
       case _ => true
-    }
+    })
   }
 
   @tailrec
@@ -440,13 +426,16 @@ object TreeOps {
   }
 
   @tailrec
-  def findNextInfixInParent(tree: Tree, scope: Tree): Option[Name] =
-    tree.parent match {
-      case Some(t: Member.ArgClause) => findNextInfixInParent(t, scope)
-      case Some(t: Member.Infix) if tree ne scope =>
-        if (t.lhs eq tree) Some(t.op) else findNextInfixInParent(t, scope)
-      case _ => None
-    }
+  def findNextInfixInParent(tree: Tree, scope: Tree)(implicit
+      ftoks: FormatTokens,
+  ): Option[Name] = tree.parent match {
+    case Some(t: Member.ArgClause) => findNextInfixInParent(t, scope)
+    case Some(t: Term.Block) if !ftoks.isEnclosedInBraces(t) =>
+      findNextInfixInParent(t, scope)
+    case Some(t: Member.Infix) if tree ne scope =>
+      if (t.lhs eq tree) Some(t.op) else findNextInfixInParent(t, scope)
+    case _ => None
+  }
 
   def infixSequenceLength(app: Member.Infix): Int = {
     val queue = new mutable.Queue[Member.Infix]()
@@ -602,12 +591,6 @@ object TreeOps {
   def hasImplicitParamList(kwOwner: Tree): Boolean =
     getImplicitParamList(kwOwner).isDefined
 
-  def isChildOfCaseClause(tree: Tree): Boolean = findTreeWithParent(tree) {
-    case t: Case => Some(tree ne t.body)
-    case _: Pat | _: Pat.ArgClause => None
-    case _ => Some(false)
-  }.isDefined
-
   def getEndOfFirstCall(tree: Tree)(implicit ftoks: FormatTokens) = {
     @tailrec
     def traverse(tree: Tree, res: Option[Tree]): Option[Tree] = tree match {
@@ -734,7 +717,15 @@ object TreeOps {
   ): Boolean = {
     def owner = ft.meta.rightOwner
     def isArgOrParamClauseSite(tree: Tree) = !whenNL || isArgClauseSite(tree) ||
-      isParamClauseSite(tree)
+      isParamClauseSite(tree) &&
+      (tree match { // exclude extended instance; type/`using` clause is ok
+        case t: Term.ParamClause if t.mod.isEmpty && isSeqSingle(t.values) =>
+          tree.parent.forall {
+            case p: Member.ParamClauseGroup => !p.parent.is[Defn.ExtensionGroup]
+            case _ => true
+          }
+        case _ => true
+      })
     // skip empty parens/braces/brackets
     ft.right match {
       case _: T.RightBrace => !left.is[T.LeftBrace] && owner.is[Importer]
@@ -899,11 +890,6 @@ object TreeOps {
       else baseStyle.copy(newlines = checkedNewlines)
     (initStyle, ownersMap.result())
   }
-
-  val ParamClauseParentLeft = new FT.ExtractFromMeta(_.leftOwner match {
-    case ParamClauseParent(p) => Some(p)
-    case _ => None
-  })
 
   def isFewerBraces(
       tree: Term.Apply,

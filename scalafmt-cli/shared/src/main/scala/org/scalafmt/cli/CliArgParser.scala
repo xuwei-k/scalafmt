@@ -1,6 +1,7 @@
 package org.scalafmt.cli
 
 import org.scalafmt.Versions
+import org.scalafmt.sysops.PlatformRunOps
 
 import java.nio.file.Path
 import java.nio.file.Paths
@@ -38,7 +39,7 @@ object CliArgParser {
           includeUsage: Boolean,
       )(ignore: Unit, c: CliOptions): CliOptions = {
         if (includeUsage) displayToOut(usage) else displayToOut(header)
-        sys.exit
+        PlatformRunOps.exit(0)
         c
       }
 
@@ -115,8 +116,9 @@ object CliArgParser {
           s"""|Format files listed in `git diff` against given git ref.
               |Deprecated: use --mode diff-ref=<ref> instead""".stripMargin,
         )
-      opt[Unit]("build-info").action { (_, _) => println(buildInfo); sys.exit }
-        .text("prints build information")
+      opt[Unit]("build-info").action { (_, _) =>
+        println(buildInfo); PlatformRunOps.exit(0)
+      }.text("prints build information")
       opt[Unit]("quiet").action((_, c) => c.copy(quiet = true))
         .text("don't print out stuff to console.")
       opt[Unit]("debug").action((_, c) => c.copy(debug = true))
@@ -130,6 +132,12 @@ object CliArgParser {
         val offset = if (from == to) 0 else -1
         c.copy(range = c.range + Range(from - 1, to + offset))
       }.text("(experimental) only format line range from=to")
+      opt[Unit]("async-format").action((_, c) => c.copy(asyncFormat = true))
+        .text(
+          """|Use a dedicated thread pool for formatting, rather than
+             |continuing after read completes, thus separating I/O-bound
+             |input and CPU-bound formatting thread pools.""".stripMargin,
+        )
 
       note(
         s"""|Examples:

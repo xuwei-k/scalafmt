@@ -6692,7 +6692,7 @@ object a {
         g.asInstanceOf[Tuple18[_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _] => Any].apply((x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15, x16, x17, x18))).asInstanceOf[F]
   )
 }
->>> { stateVisits = 2441, stateVisits2 = 2441 }
+>>> { stateVisits = 2723 }
 object a {
   def tupledFunction18[F, G]: TupledFunction[F, G] = TupledFunction[F, G](
       untupledImpl = (g: G) =>
@@ -7647,27 +7647,41 @@ lazy val onlyImplicitOrTypeParams = paramss.forall(_.exists { sym =>
 })
 <<< scala-3.6 given 1
 maxColumn = 40
+runner.parser = source
 ===
 given [A] =>
  Seq[A] = foo
+given [A]
+ => Seq[A] = foo
 >>>
+given [A] => Seq[A] = foo
 given [A] => Seq[A] = foo
 <<< scala-3.6 given 2
 maxColumn = 40
+runner.parser = source
 ===
 given [A] => (Seq[A] =>
  List[A]) => List[A] = foo
+given [A] => (Seq[A]
+ => List[A]) => List[A] = foo
 >>>
-given [A] => (Seq[A] => List[A]) =>
-  List[A] = foo
+given [A] => (Seq[A] => List[A])
+  => List[A] = foo
+given [A] => (Seq[A] => List[A])
+  => List[A] = foo
 <<< scala-3.6 given 3
 maxColumn = 40
+runner.parser = source
 ===
 given foo: (a: A) =>
  [B, C <: AnyRef] => (b: B[A], C) => List[A] = foo
+given foo: (a: A)
+ => [B, C <: AnyRef] => (b: B[A], C) => List[A] = foo
 >>>
-given foo: (a: A) => [B, C <: AnyRef] =>
-  (b: B[A], C) => List[A] = foo
+given foo: (a: A) => [B, C <: AnyRef]
+  => (b: B[A], C) => List[A] = foo
+given foo: (a: A) => [B, C <: AnyRef]
+  => (b: B[A], C) => List[A] = foo
 <<< don't rewrite complex infix to braces
 rewrite.redundantBraces.oneStatApply.bracesMinSpan = 1
 rewrite.rules = [RedundantBraces, RedundantParens]
@@ -8058,3 +8072,141 @@ object Foo {
     Alternative[Option] & CommutativeMonad[Option] & CoflatMap[Option] &
     Align[Option]
 }
+<<< grouped context bounds: before = always, within = always
+runner.parser = source
+spaces.beforeContextBoundColon = always
+spaces.withinContextBoundBraces = always
+===
+given [A: {Foo}] => A = ???
+given [B: {Bar, Baz}] => B = ???
+>>>
+given [A : { Foo }] => A = ???
+given [B : { Bar, Baz }] => B = ???
+<<< grouped context bounds: before = never, within = always
+runner.parser = source
+spaces.beforeContextBoundColon = never
+spaces.withinContextBoundBraces = always
+===
+given [A: {Foo}] => A = ???
+given [B: {Bar, Baz}] => B = ???
+>>>
+given [A: { Foo }] => A = ???
+given [B: { Bar, Baz }] => B = ???
+<<< grouped context bounds: before = IfMultipleContextBounds, within = always
+runner.parser = source
+spaces.beforeContextBoundColon = IfMultipleContextBounds
+spaces.withinContextBoundBraces = always
+===
+given [A: {Foo}] => A = ???
+given [B: {Bar, Baz}] => B = ???
+>>>
+given [A: { Foo }] => A = ???
+given [B : { Bar, Baz }] => B = ???
+<<< grouped context bounds: before = always, within = never
+runner.parser = source
+spaces.beforeContextBoundColon = always
+spaces.withinContextBoundBraces = never
+===
+given [A: {Foo}] => A = ???
+given [B: {Bar, Baz}] => B = ???
+>>>
+given [A : {Foo}] => A = ???
+given [B : {Bar, Baz}] => B = ???
+<<< grouped context bounds: before = never, within = never
+runner.parser = source
+spaces.beforeContextBoundColon = never
+spaces.withinContextBoundBraces = never
+===
+given [A: {Foo}] => A = ???
+given [B: {Bar, Baz}] => B = ???
+>>>
+given [A: {Foo}] => A = ???
+given [B: {Bar, Baz}] => B = ???
+<<< grouped context bounds: before = IfMultipleContextBounds, within = never
+runner.parser = source
+spaces.beforeContextBoundColon = IfMultipleContextBounds
+spaces.withinContextBoundBraces = never
+===
+given [A: {Foo}] => A = ???
+given [B: {Bar, Baz}] => B = ???
+>>>
+given [A: {Foo}] => A = ???
+given [B : {Bar, Baz}] => B = ???
+<<< grouped context bounds: before = always, within = IfMultipleContextBounds
+runner.parser = source
+spaces.beforeContextBoundColon = always
+spaces.withinContextBoundBraces = IfMultipleContextBounds
+===
+given [A: {Foo}] => A = ???
+given [B: {Bar, Baz}] => B = ???
+>>>
+given [A : {Foo}] => A = ???
+given [B : { Bar, Baz }] => B = ???
+<<< grouped context bounds: before = never, within = IfMultipleContextBounds
+runner.parser = source
+spaces.beforeContextBoundColon = never
+spaces.withinContextBoundBraces = IfMultipleContextBounds
+===
+given [A: {Foo}] => A = ???
+given [B: {Bar, Baz}] => B = ???
+>>>
+given [A: {Foo}] => A = ???
+given [B: { Bar, Baz }] => B = ???
+<<< grouped context bounds: before = IfMultipleContextBounds, within = IfMultipleContextBounds
+runner.parser = source
+spaces.beforeContextBoundColon = IfMultipleContextBounds
+spaces.withinContextBoundBraces = IfMultipleContextBounds
+===
+given [A: {Foo}] => A = ???
+given [B: {Bar, Baz}] => B = ???
+>>>
+given [A: {Foo}] => A = ???
+given [B : { Bar, Baz }] => B = ???
+<<< #4744 cfgstyle
+optIn.configStyleArguments = true
+===
+object a {
+  val _ = println( //
+    x = "string"
+  )
+}
+>>>
+object a {
+  val _ = println( //
+    x = "string"
+  )
+}
+<<< #4744 !cfgstyle
+optIn.configStyleArguments = false
+===
+object a {
+  val _ = println( //
+    x = "string"
+  )
+}
+>>>
+object a {
+  val _ = println( //
+    x = "string"
+  )
+}
+<<< #4857
+for
+  foo <- Some(42)
+yield
+  case Some(x) => foo
+>>>
+for foo <- Some(42)
+yield
+   case Some(x) => foo
+<<< scalaz nested refined types
+def foldStep(
+  onGosub: ~>[({type l[a] = (S[a], a => Free[S, A])})#l, ({type l[a] = B})#l]
+): B = ???
+>>>
+def foldStep(
+    onGosub: ~>[
+      ({ type l[a] = (S[a], a => Free[S, A]) })#l,
+      ({ type l[a] = B })#l
+    ]
+): B = ???

@@ -2,19 +2,11 @@ package org.scalafmt.util
 
 import org.scalafmt.Debug
 import org.scalafmt.Scalafmt
-import org.scalafmt.config.ConfParsed
-import org.scalafmt.config.DanglingParentheses
-import org.scalafmt.config.FormatEvent._
-import org.scalafmt.config.Indents
-import org.scalafmt.config.NamedDialect
-import org.scalafmt.config.ScalafmtConfig
-import org.scalafmt.config.ScalafmtOptimizer
-import org.scalafmt.config.ScalafmtParser
-import org.scalafmt.config.ScalafmtRunner
-import org.scalafmt.sysops.FileOps
+import org.scalafmt.config._
+import org.scalafmt.sysops.PlatformFileOps
 import org.scalafmt.tests.BuildInfo
 
-import java.nio.file.Paths
+import java.nio.file.Path
 import java.util.regex.Pattern
 
 import scala.annotation.tailrec
@@ -55,19 +47,26 @@ trait HasTests extends FormatAssertions {
 
   def extension(filename: String): String = filename.replaceAll(".*\\.", "")
 
-  def parseDiffTests(filename: String): Seq[DiffTest] = {
-    val content = FileOps.readFile(filename)
+  def parseDiffTests(path: Path, notOnly: Boolean): Seq[DiffTest] = {
+    val filename = path.toString
+    val content = PlatformFileOps.readFile(path)
+    val moduleOnly = isOnly(content)
+    val moduleSkip = isSkip(content)
     val sep =
       if (content.contains(System.lineSeparator)) System.lineSeparator else "\n"
-    val spec = BuildInfo.resourceDirectory.toPath.relativize(Paths.get(filename))
-      .getName(0).toString
+    if (notOnly) if (moduleOnly || content.contains(s"$sep<<< $onlyPrefix")) sys
+      .error(
+        s"""|Please remove ONLY from file '$filename'.
+            |Tests with ONLY will not be merged, this feature is only meant to be used for local development.
+            |           """.stripMargin,
+      )
+    val spec = BuildInfo.resourceDirectory.toPath.relativize(path).getName(0)
+      .toString
 
     val split = content.split(s"(?:^|$sep)<<< ")
     if (split.length <= 1) return Seq.empty // RETURNING!!!
 
     val (head, tail) = (split.head, split.tail)
-    val moduleOnly = isOnly(head)
-    val moduleSkip = isSkip(head)
 
     def loadStyle(cfg: String, base: ScalafmtConfig, ln: Int): ScalafmtConfig =
       ScalafmtConfig.fromHoconString(cfg, base).getOrRecover(c =>
@@ -208,7 +207,9 @@ trait HasTests extends FormatAssertions {
 
 object HasTests {
 
-  private val defaultDialect = NamedDialect("scala213", NamedDialect.scala213)
+  import scala.meta.dialects
+
+  private val defaultDialect = NamedDialect("scala213", dialects.Scala213)
 
   private def withoutSlowStates(cfg: ScalafmtConfig): ScalafmtConfig = cfg
     .copy(runner =
@@ -220,8 +221,7 @@ object HasTests {
 
   private val defaultConfig =
     withoutSlowStates(ScalafmtConfig.default.withDialect(defaultDialect))
-  private val scala3Config = defaultConfig
-    .withDialect(NamedDialect.scala3, "scala3")
+  private val scala3Config = defaultConfig.withDialect(dialects.Scala3, "scala3")
   private val scalaJsConfig = defaultConfig.forScalaJs.copy(maxColumn = 79)
 
   private val testing = defaultConfig.copy(
@@ -258,17 +258,17 @@ object HasTests {
     if (isPrefix(name, prefix)) Some(name.substring(prefix.length).trim)
     else None
 
-  def scalafmtRunner(sr: ScalafmtRunner, dg: Debug): ScalafmtRunner = sr.copy(
+  def scalafmtRunner(sr: RunnerSettings, dg: Debug): RunnerSettings = sr.copy(
     debug = true,
     maxStateVisits = sr.maxStateVisits.orElse(Some(150000)),
     completeCallback = dg.completed,
     eventCallback = {
-      case CreateFormatOps(ops) => dg.formatOps = ops
-      case Routes(routes) => dg.routes = routes
-      case explored: Explored if explored.n % 10000 == 0 =>
+      case FormatEvent.CreateFormatOps(ops) => dg.formatOps = ops
+      case FormatEvent.Routes(routes) => dg.routes = routes
+      case explored: FormatEvent.Explored if explored.n % 10000 == 0 =>
         org.scalafmt.util.LoggerOps.logger.elem(explored)
-      case Enqueue(split) => dg.enqueued(split)
-      case x: Written => dg.locations = x.formatLocations
+      case FormatEvent.Enqueue(split) => dg.enqueued(split)
+      case x: FormatEvent.Written => dg.locations = x.formatLocations
       case _ =>
     },
   )

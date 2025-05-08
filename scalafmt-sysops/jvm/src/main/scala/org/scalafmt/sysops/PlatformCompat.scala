@@ -1,10 +1,11 @@
 package org.scalafmt.sysops
 
 private[scalafmt] object PlatformCompat {
+  def isJS = false
+  def isJVM = true
   def isScalaNative = false
-  def prepareCommand(cmd: Seq[String]) = cmd
-  def fixPathOnNativeWindows(path: String) = path
-  def isNativeOnWindows() = false
-  def relativize(base: AbsoluteFile, path: AbsoluteFile) = base.toUri
-    .relativize(path.toUri)
+  def isNativeOnWindows = false
+
+  def relativize(cwd: AbsoluteFile, file: AbsoluteFile): String = cwd.toUri
+    .relativize(file.toUri).toString
 }

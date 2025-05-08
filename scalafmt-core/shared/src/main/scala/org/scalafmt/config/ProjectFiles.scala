@@ -1,7 +1,6 @@
 package org.scalafmt.config
 
-import org.scalafmt.sysops.AbsoluteFile
-import org.scalafmt.sysops.OsSpecific._
+import org.scalafmt.sysops._
 
 import scala.meta.Dialect
 import scala.meta.dialects
@@ -43,10 +42,6 @@ object ProjectFiles {
   val defaultIncludePaths =
     Seq("glob:**.scala", "glob:**.sbt", "glob:**.sc", "glob:**.mill")
 
-  private sealed abstract class PathMatcher {
-    def matches(path: file.Path): Boolean
-  }
-
   object FileMatcher {
     def apply(
         pf: ProjectFiles,
@@ -59,28 +54,17 @@ object ProjectFiles {
     }
 
     private def create(seq: Seq[String], f: String => PathMatcher) = seq
-      .map(_.inPathMatcherForm).distinct.map(f)
-    private def regex(seq: Seq[String]) = create(seq, new Regex(_))
+      .map(OsSpecific.inPathMatcherForm).distinct.map(f)
+    private def nio(seq: Seq[String]) = create(seq, PlatformPathMatcher.apply)
+    private def regex(seq: Seq[String]) = create(seq, PathMatcher.Regex.apply)
 
-    private final class Regex(regex: String) extends PathMatcher {
-      private val pattern =
-        try java.util.regex.Pattern.compile(regex)
-        catch {
-          case e: java.util.regex.PatternSyntaxException =>
-            throw new ScalafmtConfigException(
-              s"""|Illegal regex in configuration: $regex
-                  |reason: ${e.getMessage()}""".stripMargin,
-            )
-        }
-
-      def matches(path: file.Path): Boolean = pattern.matcher(path.toString)
-        .find()
-    }
   }
 
   class FileMatcher(include: Seq[PathMatcher], exclude: Seq[PathMatcher]) {
     def matchesPath(path: file.Path): Boolean = include
       .exists(_.matches(path)) && !exclude.exists(_.matches(path))
+    def matches(filename: String): Boolean =
+      matchesPath(FileOps.getPath(filename))
     def matchesFile(file: AbsoluteFile): Boolean = matchesPath(file.path)
   }
 
@@ -105,7 +89,7 @@ object ProjectFiles {
 
       override def getInfo(af: AbsoluteFile): Option[FileInfo] = {
         val parent = af.path.getParent
-        val depth = parent.getNameCount()
+        val depth = parent.getNameCount
         val dirs = new Array[String](depth)
         for (i <- 0 until depth) dirs(i) = parent.getName(i).toString
         getInfo(dirs, depth)
@@ -137,13 +121,12 @@ object ProjectFiles {
         dialect.allowSignificantIndentation
 
       @inline
-      private[config] def nd(text: sourcecode.Text[Dialect]) =
-        Some(NamedDialect(text))
-      private[config] val s210 = nd(dialects.Scala210)
-      private[config] val s211 = nd(dialects.Scala211)
-      private[config] val s212 = nd(NamedDialect.scala212)
-      private[config] val s213 = nd(NamedDialect.scala213)
-      private[config] val s3 = nd(NamedDialect.scala3)
+      private[config] def opt(nd: NamedDialect) = Some(nd)
+      private[config] val s210 = opt(dialects.Scala210)
+      private[config] val s211 = opt(dialects.Scala211)
+      private[config] val s212 = opt(dialects.Scala212)
+      private[config] val s213 = opt(dialects.Scala213)
+      private[config] val s3 = opt(dialects.Scala3)
 
       override protected[config] def getDialectByLang(
           lang: String,

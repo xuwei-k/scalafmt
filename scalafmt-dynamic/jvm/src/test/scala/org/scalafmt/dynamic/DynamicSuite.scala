@@ -217,15 +217,15 @@ class DynamicSuite extends FunSuite {
   check("missing-version")(f => f.assertMissingVersion())
 
   check("excluded-file") { f =>
-    val config = """|
-                    |project.includeFilters = [
-                    |  ".*Spec\\.scala$"
-                    |]
-                    |project.excludeFilters = [
-                    |  "UserSpec\\.scala$"
-                    |]
-                    |"""
-      .stripMargin
+    val config =
+      """|
+         |project.includeFilters = [
+         |  ".*Spec\\.scala$"
+         |]
+         |project.excludeFilters = [
+         |  "UserSpec\\.scala$"
+         |]
+         |""".stripMargin
     def check(version: String): Unit = {
       f.setVersion(version, "scala211", config)
       f.assertNotIgnored("path/FooSpec.scala")
@@ -237,15 +237,15 @@ class DynamicSuite extends FunSuite {
   }
 
   check("ignore-exclude-filters", _.withRespectProjectFilters(false)) { f =>
-    val config = """|
-                    |project.includeFilters = [
-                    |  ".*Spec\\.scala$"
-                    |]
-                    |project.excludeFilters = [
-                    |  "UserSpec\\.scala$"
-                    |]
-                    |"""
-      .stripMargin
+    val config =
+      """|
+         |project.includeFilters = [
+         |  ".*Spec\\.scala$"
+         |]
+         |project.excludeFilters = [
+         |  "UserSpec\\.scala$"
+         |]
+         |""".stripMargin
     def check(version: String): Unit = {
       f.setVersion(version, "scala211", config)
       f.assertNotIgnored("path/App.pm")
@@ -277,11 +277,9 @@ class DynamicSuite extends FunSuite {
           |]
           |""".stripMargin,
     )
-    val err = f.assertThrows[ScalafmtDynamicError.ConfigParseError]().getMessage
     assertNoDiff(
-      err.takeRight(120),
-      """|Invalid config: Illegal regex in configuration: .*foo(
-         |reason: Unclosed group near index 6
+      f.assertThrows[ScalafmtDynamicError.ConfigParseError]().getMessage,
+      """|Invalid config: Invalid path patcher regex: /.*foo(/; Unclosed group near index 6
          |.*foo(
          |""".stripMargin,
     )
@@ -297,10 +295,7 @@ class DynamicSuite extends FunSuite {
           |""".stripMargin,
     )
     val err = f.assertThrows[ScalafmtDynamicError.ConfigParseError]().getMessage
-    assertNoDiff(
-      err.takeRight(120),
-      "Invalid config: Illegal pattern in configuration: foo.scala",
-    )
+    assertNoDiff(err, "Invalid config: Invalid path matcher pattern: foo.scala")
   }
 
   check("config-cache") { f =>
@@ -422,30 +417,30 @@ class DynamicSuite extends FunSuite {
   checkExhaustive("continuation-indent-callSite-and-defnSite")(_ =>
     "continuationIndent { callSite = 5, defnSite = 3 }",
   ) { (f, _) =>
-    val original = """|class A {
-                      |  function1(
-                      |  argument1,
-                      |  ""
-                      |  )
-                      |
-                      |  def function2(
-                      |  argument1: Type1
-                      |  ): ReturnType
-                      |}
-                      |      """
-      .stripMargin
-    val expected = """|class A {
-                      |  function1(
-                      |       argument1,
-                      |       ""
-                      |  )
-                      |
-                      |  def function2(
-                      |     argument1: Type1
-                      |  ): ReturnType
-                      |}
-                      |"""
-      .stripMargin
+    val original =
+      """|class A {
+         |  function1(
+         |  argument1,
+         |  ""
+         |  )
+         |
+         |  def function2(
+         |  argument1: Type1
+         |  ): ReturnType
+         |}
+         |      """.stripMargin
+    val expected =
+      """|class A {
+         |  function1(
+         |       argument1,
+         |       ""
+         |  )
+         |
+         |  def function2(
+         |     argument1: Type1
+         |  ): ReturnType
+         |}
+         |""".stripMargin
     f.assertFormat(original, expected)
   }
 

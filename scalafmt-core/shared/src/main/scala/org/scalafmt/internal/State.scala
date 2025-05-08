@@ -396,9 +396,13 @@ object State {
     private def compareSplitOrigin(s1: State, s2: State): Int = {
       // We assume the same number of splits, see compareSplitsLength
       // Break ties by the last split's line origin.
-      val r = s1.split.fileLineStack.compare(s2.split.fileLineStack)
-      if (r != 0 || s1.prev.depth == 0) r
-      else compareSplitOrigin(s1.prev, s2.prev)
+      val r = s1.split.rank.compare(s2.split.rank)
+      if (r != 0) r
+      else {
+        val r = s1.split.fileLineStack.compare(s2.split.fileLineStack)
+        if (r != 0 || s1.prev.depth == 0) r
+        else compareSplitOrigin(s1.prev, s2.prev)
+      }
     }
   }
 
@@ -422,7 +426,7 @@ object State {
       val firstLineLength = column + syntaxLen
       (firstLineLength, firstLineLength)
     } else {
-      val firstLength = column + firstNL
+      val firstLength = column + getLineLength(syntax, 0, firstNL)
       tok match {
         case _: T.Constant.String =>
           val margin: Int => Int = stringMargin
@@ -453,6 +457,12 @@ object State {
     _ => adjusted
   } else identity)
 
+  def nonSpace(ch: Char): Boolean = // isWhitespace excludes non-breaking space
+    !Character.isSpaceChar(ch) && !Character.isWhitespace(ch)
+
+  def getLineLength(syntax: String, lineBeg: Int, lineEnd: Int): Int =
+    (syntax.lastIndexWhere(nonSpace, lineEnd - 1) + 1 - lineBeg).max(0)
+
   private def getColumnsFromMultiline(
       syntax: String,
       firstNL: Int,
@@ -461,7 +471,9 @@ object State {
     @tailrec
     def iter(prevMaxLength: Int, lineBeg: Int): (Int, Int) = {
       val nextNL = syntax.indexOf('\n', lineBeg)
-      val length = (if (nextNL < 0) syntax.length else nextNL) - lineBeg
+      val length =
+        if (nextNL < 0) syntax.length - lineBeg
+        else getLineLength(syntax, lineBeg, nextNL)
       val maxLength = math.max(prevMaxLength, length)
       if (nextNL < 0) (maxLength, length) else iter(maxLength, nextNL + 1)
     }

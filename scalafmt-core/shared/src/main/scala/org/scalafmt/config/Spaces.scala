@@ -2,6 +2,7 @@ package org.scalafmt.config
 
 import org.scalafmt.util.TokenOps
 
+import scala.meta.Type
 import scala.meta.tokens.{Token => T}
 
 import metaconfig._
@@ -49,6 +50,8 @@ import metaconfig._
 case class Spaces(
     beforeContextBoundColon: Spaces.BeforeContextBound =
       Spaces.BeforeContextBound.Never,
+    withinContextBoundBraces: Spaces.BeforeContextBound =
+      Spaces.BeforeContextBound.Never,
     beforeApplyArgInParens: Spaces.BeforeArgInParens =
       Spaces.BeforeArgInParens.Never,
     beforeInfixArgInParens: Spaces.BeforeArgInParens =
@@ -62,22 +65,11 @@ case class Spaces(
     afterKeywordBeforeParen: Boolean = true,
     inByNameTypes: Boolean = true,
     afterSymbolicDefs: Boolean = false,
-    private val afterColonInMatchPattern: Spaces.AfterColonInMatchPattern =
+    afterColonInMatchPattern: Spaces.AfterColonInMatchPattern =
       Spaces.AfterColonInMatchPattern.Always,
 ) {
   def isSpaceAfterKeyword(tokenAfter: T): Boolean = afterKeywordBeforeParen ||
     !tokenAfter.is[T.LeftParen]
-
-  def notAfterColon(owner: meta.Tree): Boolean = owner match {
-    case x: meta.Pat.Typed => afterColonInMatchPattern match {
-        case Spaces.AfterColonInMatchPattern.Never => true
-        case Spaces.AfterColonInMatchPattern.Always => false
-        case Spaces.AfterColonInMatchPattern.NoAlternatives => x.parent
-            .is[meta.Pat.Alternative]
-      }
-    case _ => false
-  }
-
 }
 
 object Spaces {
@@ -85,17 +77,34 @@ object Spaces {
   implicit lazy val codec: ConfCodecEx[Spaces] = generic.deriveCodecEx(Spaces())
     .noTypos
 
-  sealed abstract class BeforeContextBound
+  sealed abstract class BeforeContextBound {
+    def apply(tb: Type.Bounds): Boolean
+  }
   object BeforeContextBound {
     implicit val codec: ConfCodecEx[BeforeContextBound] = ReaderUtil
-      .oneOfCustom[BeforeContextBound](Always, Never, IfMultipleBounds) {
+      .oneOfCustom[BeforeContextBound](
+        Always,
+        Never,
+        IfMultipleBounds,
+        IfMultipleContextBounds,
+      ) {
         case Conf.Bool(true) => Configured.ok(Always)
         case Conf.Bool(false) => Configured.ok(Never)
       }
 
-    case object Always extends BeforeContextBound
-    case object Never extends BeforeContextBound
-    case object IfMultipleBounds extends BeforeContextBound
+    case object Always extends BeforeContextBound {
+      def apply(tb: Type.Bounds): Boolean = true
+    }
+    case object Never extends BeforeContextBound {
+      def apply(tb: Type.Bounds): Boolean = false
+    }
+    case object IfMultipleBounds extends BeforeContextBound {
+      def apply(tb: Type.Bounds): Boolean =
+        tb.context.length + tb.view.length + tb.lo.size + tb.hi.size > 1
+    }
+    case object IfMultipleContextBounds extends BeforeContextBound {
+      def apply(tb: Type.Bounds): Boolean = tb.context.lengthCompare(1) > 0
+    }
   }
 
   sealed abstract class AfterColonInMatchPattern
