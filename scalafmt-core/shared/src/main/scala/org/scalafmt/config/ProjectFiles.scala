@@ -47,13 +47,9 @@ object ProjectFiles {
         pf: ProjectFiles,
         regexExclude: Seq[String] = Nil,
     ): FileMatcher = {
-      // check if includePaths were specified explicitly
-      val useIncludePaths = pf.includePaths.ne(defaultIncludePaths) ||
-        pf.includeFilters.isEmpty
-      val includePaths = if (useIncludePaths) pf.includePaths else Seq.empty
       new FileMatcher(
-        nio(includePaths) ++ regex(pf.includeFilters),
-        nio(pf.excludePaths) ++ regex(pf.excludeFilters ++ regexExclude),
+        regex(pf.includeFilters),
+        regex(pf.excludeFilters ++ regexExclude)
       )
     }
 

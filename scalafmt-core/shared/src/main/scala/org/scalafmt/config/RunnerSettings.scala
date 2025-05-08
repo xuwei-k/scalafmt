@@ -109,7 +109,6 @@ object RunnerSettings {
       else Configured.fromExceptionThrowing {
         val srcDialect = runner.getDialect
         val dialect = overrides.foldLeft(srcDialect) {
-          case (cur, (k, Conf.Bool(v))) => overrideDialect(cur, k, v)
           case (cur, _) => cur // other config types are unsupported
         }
         if (dialect.isEquivalentTo(srcDialect)) runner

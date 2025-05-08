@@ -23,10 +23,8 @@ def isScala213 = isScalaVer("2.13")
 
 inThisBuild {
   List(
-    version ~= { dynVer =>
-      if (isCI) dynVer else localSnapshotVersion // only for local publishing
-    },
-    organization := "org.scalameta",
+    version := "3.9.6-fork-1",
+    organization := "com.github.xuwei-k",
     homepage := Some(url("https://github.com/scalameta/scalafmt")),
     licenses :=
       List("Apache-2.0" -> url("http://www.apache.org/licenses/LICENSE-2.0")),
@@ -161,7 +159,7 @@ import sbtassembly.AssemblyPlugin.defaultUniversalScript
 val scalacJvmOptions = Def.setting {
   val cross =
     if (!isScala213.value) Nil
-    else Seq("-Ymacro-annotations", "-Xfatal-warnings", "-deprecation:false")
+    else Seq("-Ymacro-annotations", "-deprecation:false")
 
   val unused = Seq("imports", "privates", "locals", "patvars", "implicits")
     .map(x => s"-Ywarn-unused:$x")
