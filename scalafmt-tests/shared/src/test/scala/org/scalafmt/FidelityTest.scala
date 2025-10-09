@@ -1,8 +1,7 @@
 package org.scalafmt
 
 import org.scalafmt.config.ScalafmtConfig
-import org.scalafmt.sysops.FileOps
-import org.scalafmt.sysops.PlatformFileOps
+import org.scalafmt.sysops._
 import org.scalafmt.util.FormatAssertions
 
 import scala.meta.dialects.Scala213
@@ -18,36 +17,59 @@ import munit.FunSuite
   */
 class FidelityTest extends FunSuite with FormatAssertions {
 
-  case class TestCase(path: Path, code: String) {
-    def filename = path.toString
+  private val denyList = Set(
+    "ConfigReader.scala",
+    "BuildTime.scala",
+    "GitCommit.scala",
+    "/target/",
+    "/resources/",
+    "/gh-pages/",
+  ).map(_.replace("/", File.separator))
+
+  override def munitTests(): Seq[Test] = {
+    var cnt = 0
+    val visitor = new FileOps.WalkVisitor {
+      override def onTree(dir: Path, fileStat: FileStat): FileOps.WalkVisit = {
+        val name = dir.getFileName.toString
+        val skip = name.length > 1 && (name(0) == '.' || name == "target")
+        if (skip) FileOps.WalkVisit.Skip else FileOps.WalkVisit.Good
+      }
+      override def onFile(file: Path, fileStat: FileStat): FileOps.WalkVisit = {
+        if (fileStat.isRegularFile && testForFidelity(file)) cnt += 1
+        FileOps.WalkVisit.Good
+      }
+      override def onFailStop(file: Path, exc: Throwable): Boolean = {
+        test(s"init failure: $file")(
+          fail(s"Failed to init test: ${exc.getMessage}", exc),
+        )
+        false
+      }
+    }
+    FileOps.walkFiles(visitor)(FileOps.getPath("."))
+
+    test("count of files") {
+      val expected = 271
+      assertEquals(cnt, expected, s"Expected $expected files to test, got $cnt")
+    }
+
+    super.munitTests()
   }
 
-  val examples = {
-    val denyList = Set(
-      "ConfigReader.scala",
-      "BuildTime.scala",
-      "GitCommit.scala",
-      "/target/",
-      "/resources/",
-      "/gh-pages/",
-    ).map(_.replace("/", File.separator))
-    FileOps.listFiles(".").filter { x =>
-      val filename = x.toString
-      filename.endsWith(".scala") && !denyList.exists(filename.contains)
-    }.map(x => TestCase(x, PlatformFileOps.readFile(x)))
+  private def testForFidelity(path: Path): Boolean = path.getFileName.toString
+    .endsWith(".scala") && {
+    val filename = path.toString
+    val ok = !denyList.exists(filename.contains)
+    if (ok) test(filename)(
+      PlatformFileOps.readFileAsync(path).map { code =>
+        val formatted = Scalafmt
+          .formatCode(code, ScalafmtConfig.default, filename = filename)
+        assertFormatPreservesAst(filename, code, formatted.get)(
+          scala.meta.parsers.Parse.parseSource,
+          Scala213,
+        )
+      }(munitExecutionContext),
+    )
+    ok
   }
 
-  examples.foreach(example =>
-    test(example.filename) {
-      val formatted = Scalafmt.formatCode(
-        example.code,
-        ScalafmtConfig.default,
-        filename = example.filename,
-      )
-      assertFormatPreservesAst(example.filename, example.code, formatted.get)(
-        scala.meta.parsers.Parse.parseSource,
-        Scala213,
-      )
-    },
-  )
 }

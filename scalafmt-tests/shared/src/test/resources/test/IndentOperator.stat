@@ -3731,6 +3731,42 @@ object a {
       b
   )
 }
+<<< oldTopLevel, lambda, poly
+newlines.source = keep
+runner.dialect = scala3
+indentOperator.exemptScope = oldTopLevel
+===
+object a {
+  foo { [x] =>
+    a &&
+      b
+  }
+  foo { [x] =>
+    val bar = qux
+    a &&
+      b
+  }
+  foo ( [x] =>
+    a &&
+      b
+  )
+}
+>>>
+object a {
+  foo { [x] =>
+    a &&
+    b
+  }
+  foo { [x] =>
+    val bar = qux
+    a &&
+    b
+  }
+  foo([x] =>
+    a &&
+      b
+  )
+}
 <<< aloneArgOrBody, right-assoc
 newlines.source = keep
 indentOperator.exemptScope = aloneArgOrBody
@@ -4085,3 +4121,28 @@ final case class Appends(
   offset: Offset,
   records: NonEmptyList[ActionRecord[Action.Append]]
 ) extends Batch_4_1_0
+<<< infix within redundant braces
+indent.infix.exemptScope = aloneEnclosed
+rewrite {
+  rules = [RedundantBraces]
+  redundantBraces.preset = all
+}
+===
+object a {
+  try {
+    getSecurityDescriptor() &&
+    setupNewAclEntry() &&
+    assignNewSecurityInfo()
+  } finally {
+    FreeSid(!usersGroupSid)
+  }
+}
+>>>
+object a {
+  try
+    getSecurityDescriptor() &&
+      setupNewAclEntry() &&
+      assignNewSecurityInfo()
+  finally
+    FreeSid(!usersGroupSid)
+}

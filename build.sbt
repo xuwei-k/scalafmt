@@ -36,11 +36,10 @@ inThisBuild {
     )),
     scalaVersion := scala213,
     crossScalaVersions := List(scala213, scala212),
-    resolvers ++= Resolver.sonatypeOssRepos("releases"),
-    resolvers ++= Resolver.sonatypeOssRepos("snapshots"),
+    resolvers += Resolver.sonatypeCentralSnapshots,
     testFrameworks += new TestFramework("munit.Framework"),
     // causes native image issues
-    dependencyOverrides += "org.jline" % "jline" % "3.29.0",
+    dependencyOverrides += "org.jline" % "jline" % "3.30.6",
   )
 }
 
@@ -73,8 +72,8 @@ lazy val dynamic = crossProject(JVMPlatform) // don't build for NativePlatform
     description := "Implementation of scalafmt-interfaces",
     buildInfoSettings("org.scalafmt.dynamic", "BuildInfo"),
     libraryDependencies ++= List(
-      "io.get-coursier" % "interface" % "1.0.28",
-      "com.typesafe" % "config" % "1.4.3",
+      "io.get-coursier" %% "coursier" % coursier,
+      "com.typesafe" % "config" % "1.4.5",
     ),
     sharedTestSettings,
     scalacOptions ++= scalacJvmOptions.value,

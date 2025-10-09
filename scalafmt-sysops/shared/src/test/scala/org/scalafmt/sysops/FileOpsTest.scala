@@ -9,26 +9,37 @@ class FileOpsTest extends munit.FunSuite {
 
   import FileOpsTest._
 
-  private var path: Path = _
+  private val F = FunFixture[Path](
+    _ => PlatformFileOps.mkdtemp("FileOpsTestDir"),
+    path =>
+      try DeleteTree(path)
+      catch {
+        case e: Throwable =>
+          println(s"Unable to delete test files: $path")
+          e.printStackTrace()
+      },
+  )
 
-  override def beforeEach(context: BeforeEach): Unit =
-    path = PlatformFileOps.mkdtemp("FileOpsTestDir")
-
-  override def afterEach(context: AfterEach): Unit =
-    try DeleteTree(path)
-    catch {
-      case e: Throwable =>
-        println(s"Unable to delete test files: $path")
-        e.printStackTrace()
-    }
-
-  test("listFiles") {
+  F.test("listFiles") { path =>
     assertEquals(FileOps.listFiles(path), Nil)
+    assertEquals(FileOps.walkFiles(FileOps.WalkVisitor.empty)(path), Nil)
 
     val subfile = subpath(path)
     PlatformFileOps.writeFile(subfile, "file")(StandardCharsets.UTF_8)
     assertEquals(FileOps.listFiles(path), Seq(subfile))
     assertEquals(FileOps.listFiles(subfile), Seq(subfile))
+    assertEquals(FileOps.walkFiles(FileOps.WalkVisitor.empty)(path), Seq(subfile))
+    assertEquals(
+      FileOps.walkFiles(FileOps.WalkVisitor.empty)(subfile),
+      Seq(subfile),
+    )
+    assertEquals(
+      FileOps.walkFiles(new FileOps.WalkVisitor {
+        override def onTree(dir: Path, fileStat: FileStat): FileOps.WalkVisit =
+          if (dir != path) FileOps.WalkVisit.Good else FileOps.WalkVisit.Skip
+      })(path),
+      Nil,
+    )
 
     val subdir = subpath(path)
     PlatformFileOps.mkdir(subdir)
@@ -40,6 +51,14 @@ class FileOpsTest extends munit.FunSuite {
     assertEquals(FileOps.listFiles(path).toSet, Set(subfile, subsubfile))
     assertEquals(FileOps.listFiles(subdir), Seq(subsubfile))
     assertEquals(FileOps.listFiles(subsubfile), Seq(subsubfile))
+    assertEquals(
+      FileOps.walkFiles(new FileOps.WalkVisitor {
+        override def onTree(dir: Path, fileStat: FileStat): FileOps.WalkVisit =
+          if (dir.startsWith(subdir)) FileOps.WalkVisit.Skip
+          else FileOps.WalkVisit.Good
+      })(path),
+      Seq(subfile),
+    )
   }
 
 }

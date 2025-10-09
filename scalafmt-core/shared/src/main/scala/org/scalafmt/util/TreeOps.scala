@@ -71,16 +71,16 @@ object TreeOps {
   }
 
   @tailrec
-  def isBlockFunction(fun: Term)(implicit ftoks: FormatTokens): Boolean =
+  def isBlockFunction(fun: Tree)(implicit ftoks: FormatTokens): Boolean =
     fun.parent match {
-      case Some(p: Term.FunctionTerm) => isBlockFunction(p)
+      case Some(p: Term.FunctionLike) => isBlockFunction(p)
       case Some(p @ Term.Block(`fun` :: Nil)) => ftoks.getHead(p).left
           .is[T.LeftBrace] || isBlockFunction(p)
       case Some(SingleArgInBraces(_, `fun`, _)) => true
       case _ => false
     }
 
-  def isFunctionWithBraces(fun: Term.FunctionTerm)(implicit
+  def isFunctionWithBraces(fun: Member.Function)(implicit
       ftoks: FormatTokens,
   ): Boolean = fun.parent.exists(isExprWithParentInBraces(fun))
 
@@ -357,7 +357,7 @@ object TreeOps {
       ac: Term.ArgClause,
       arg: Stat,
   ): Option[(Int, Int)] =
-    if (arg.is[Term.FunctionTerm]) Some((nestedApplies(ac), 2))
+    if (arg.is[Term.FunctionLike]) Some((nestedApplies(ac), 2))
     else ac.parent match {
       case Some(p: Term.Apply) => Some((nestedApplies(p), treeDepth(p.fun)))
       case _ => None
@@ -368,33 +368,34 @@ object TreeOps {
   ): Option[(Int, Int)] = getSingleArgOnLeftBraceOnLeft(ft)
     .flatMap((getSingleArgLambdaPenalties _).tupled)
 
-  final def canBreakAfterFuncArrow(func: Term.FunctionTerm)(implicit
-      ftoks: FormatTokens,
-      style: ScalafmtConfig,
-  ): Boolean = !style.dialect.allowFewerBraces || {
-    val params = func.paramClause
-    params.mod.nonEmpty ||
-    (params.values match {
-      case param :: Nil => param.decltpe match {
-          case Some(_: Type.Name) => ftoks.isEnclosedInMatching(params)
+  final def canBreakAfterFuncArrow(
+      func: Member.Function,
+  )(implicit ftoks: FormatTokens, style: ScalafmtConfig): Boolean =
+    func.paramClause match {
+      case params: Term.ParamClause
+          if style.dialect.allowFewerBraces && params.mod.isEmpty =>
+        params.values match {
+          case (param: Term.Param) :: Nil => param.decltpe match {
+              case Some(_: Type.Name) => ftoks.isEnclosedInMatching(params)
+              case _ => true
+            }
           case _ => true
         }
       case _ => true
-    })
-  }
+    }
 
   @tailrec
   final def lastLambda(
-      first: Term.FunctionTerm,
-      res: Option[Term.FunctionTerm] = None,
+      first: Member.Function,
+      res: Option[Member.Function] = None,
   )(implicit
       ftoks: FormatTokens,
       style: ScalafmtConfig,
-  ): Option[Term.FunctionTerm] = {
+  ): Option[Member.Function] = {
     val nextres = if (canBreakAfterFuncArrow(first)) Some(first) else res
     first.body match {
-      case child: Term.FunctionTerm => lastLambda(child, nextres)
-      case b @ Term.Block((child: Term.FunctionTerm) :: Nil)
+      case child: Member.Function => lastLambda(child, nextres)
+      case b @ Term.Block((child: Member.Function) :: Nil)
           if !ftoks.getHead(b).left.is[T.LeftBrace] => lastLambda(child, nextres)
       case _ => nextres
     }
@@ -953,7 +954,7 @@ object TreeOps {
   }
 
   def isEmptyFunctionBody(tree: Tree): Boolean = tree match {
-    case t: Term.FunctionTerm => isEmptyTree(t.body)
+    case t: Member.Function => isEmptyTree(t.body)
     case _ => false
   }
 

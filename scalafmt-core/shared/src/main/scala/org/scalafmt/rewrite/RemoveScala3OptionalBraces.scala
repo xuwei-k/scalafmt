@@ -19,8 +19,6 @@ object RemoveScala3OptionalBraces extends FormatTokensRewrite.RuleFactory {
   override def create(implicit ftoks: FormatTokens): FormatTokensRewrite.Rule =
     new RemoveScala3OptionalBraces
 
-  override def priority: Int = 1
-
 }
 
 private class RemoveScala3OptionalBraces(implicit val ftoks: FormatTokens)
@@ -44,7 +42,8 @@ private class RemoveScala3OptionalBraces(implicit val ftoks: FormatTokens)
       case x: T.LeftBrace // skip empty brace pairs
           if !ftoks.nextNonCommentAfter(ft).right.is[T.RightBrace] =>
         ft.meta.rightOwner match {
-          case t: Term.Block if t.stats.nonEmpty => onLeftForBlock(t)
+          case t: Term.Block if t.stats.nonEmpty =>
+            onLeftForBlock(t, ftoks.prevNonComment(ft))
           case t: Template.Body if !t.isEmpty =>
             if (t.parent.parent.is[Defn.Given]) removeToken
             else replaceToken(":")(new T.Colon(x.input, x.dialect, x.start))
@@ -118,11 +117,6 @@ private class RemoveScala3OptionalBraces(implicit val ftoks: FormatTokens)
     }
   }
 
-  private def onLeftForBlock(
-      tree: Term.Block,
-  )(implicit ft: FT, session: Session, style: ScalafmtConfig): Replacement =
-    onLeftForBlock(tree, ftoks.prevNonComment(ft))
-
   @tailrec
   private def onLeftForBlock(tree: Term.Block, pft: FT)(implicit
       ft: FT,
@@ -163,7 +157,6 @@ private class RemoveScala3OptionalBraces(implicit val ftoks: FormatTokens)
     case _: Term.Throw => removeToken
     case _: Term.Return => removeToken
     case _: Defn.ExtensionGroup => removeToken
-    case _: Term.FunctionTerm => removeToken
     case t: Defn.Def =>
       if (tree ne t.body) null
       else if (pft.left.is[T.Equals]) removeToken

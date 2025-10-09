@@ -27,14 +27,14 @@ jobs:
           { os: macOS-14, name: scalafmt-aarch64-apple-darwin.zip },
           { os: ubuntu-22.04, name: scalafmt-x86_64-pc-linux.zip },
           { os: ubuntu-24.04-arm, name: scalafmt-aarch64-pc-linux.zip },
-          { os: windows-2022, name: scalafmt-x86_64-pc-win32.zip }
+          { os: windows-2025, name: scalafmt-x86_64-pc-win32.zip }
         ]
     runs-on: ${{ matrix.deploy.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           java-version: '21'
           distribution: 'temurin'
@@ -68,7 +68,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Docker Meta
         id: meta
         uses: docker/metadata-action@v5
@@ -76,7 +76,7 @@ jobs:
           images: scalameta/scalafmt
           tags: type=raw,value=${{ github.event_name == 'release' && github.event.release.tag_name || github.event.inputs.version }}
       - name: Downloading scalafmt for Docker Build
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: scalafmt-x86_64-pc-linux.zip
           path: tmp/scalafmt-docker-build # Dockerfile uses this
@@ -125,7 +125,7 @@ jobs:
               NATIVE_IMAGE_STATIC: musl
     env: ${{ matrix.env }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Set up GraalVM
         uses: graalvm/setup-graalvm@v1
         with:

@@ -303,7 +303,7 @@ object SplitsAfterLeftBrace extends Splits {
           case _ => None
         }
         (arrow, 0, nlOnly)
-      case (t: Term.FunctionTerm) :: Nil =>
+      case (t: Term.FunctionLike) :: Nil =>
         val arrow = lastLambda(t).flatMap(getFuncArrow).getOrElse(getLast(t))
         val nlOnly = cfg.newlines.beforeCurlyLambdaParams match {
           case Newlines.BeforeCurlyLambdaParams.always => Some(true)
@@ -732,7 +732,7 @@ object SplitsBeforeLeftBrace extends Splits {
         else Split(Space, 0).onlyIf(useSpace).withSingleLine(close)
       val otherSplits = rightOwner match {
         case _: Term.PartialFunction | Term
-              .Block(List(_: Term.FunctionTerm | _: Term.PartialFunction)) =>
+              .Block(List(_: Member.Function | _: Term.PartialFunction)) =>
           Seq(Split(Newline, 0))
         case _ =>
           val breakAfter = getSlbEndOnLeft(nextAfterNonCommentSameLine(ft))
@@ -821,10 +821,10 @@ object SplitsAfterFunctionArrow extends Splits {
   ): Seq[Split] = {
     import fo._, ft._
     leftOwner match {
-      case leftFunc: Term.FunctionTerm
-          if !right.is[T.Comment] && !tokens.isEmpty(leftFunc.body) &&
-            isBlockFunction(leftFunc) => blockFunctionTerm(leftFunc)
-      case _: Term.FunctionTerm | _: Term.PolyFunction => functionOrSelf
+      case leftFunc: Term.FunctionLike =>
+        val isBlockFunc = (!right.is[T.Comment] || ft.hasBreak) &&
+          !tokens.isEmpty(leftFunc.body) && isBlockFunction(leftFunc)
+        if (isBlockFunc) blockFunctionTerm(leftFunc) else functionOrSelf
       case t: Self if t.ancestor(2).is[Term.NewAnonymous] => functionOrSelf
       case _ => Seq.empty
     }
@@ -837,7 +837,7 @@ object SplitsAfterFunctionArrow extends Splits {
   ): Seq[Split] = {
     import fo._, tokens._, ft._
     val (endOfFunction, expiresOn) = leftOwner match {
-      case t: Term.FunctionTerm => functionExpire(t)
+      case t: Term.FunctionLike => functionExpire(t)
       case t => getLastNonTrivial(t) -> ExpiresOn.Before
     }
 
@@ -899,7 +899,7 @@ object SplitsAfterFunctionArrow extends Splits {
   }
 
   private def blockFunctionTerm(
-      leftFunc: Term.FunctionTerm,
+      leftFunc: Member.Function,
   )(implicit ft: FT, fo: FormatOps, cfg: ScalafmtConfig): Seq[Split] = {
     import fo._, tokens._, ft._
     def spaceSplitBase(implicit line: FileLine): Split = Split(Space, 0)
@@ -907,8 +907,8 @@ object SplitsAfterFunctionArrow extends Splits {
       val (afterCurlySpace, afterCurlyNewlines) =
         getSpaceAndNewlineAfterCurlyLambda(newlinesBetween)
       val spaceSplit = leftFunc.body match {
-        case _: Term.FunctionTerm => spaceSplitBase
-        case Term.Block((_: Term.FunctionTerm) :: Nil)
+        case _: Member.Function => spaceSplitBase
+        case Term.Block((_: Member.Function) :: Nil)
             if !nextNonComment(ft).right.is[T.LeftBrace] => spaceSplitBase
         case _ if afterCurlySpace && {
               cfg.newlines.fold || !rightOwner.is[Defn]
@@ -935,7 +935,8 @@ object SplitsAfterRightArrow extends Splits {
   ): Seq[Split] = {
     import ft._
     leftOwner match {
-      case t: CaseTree if !right.isAny[T.KwCatch, T.KwFinally] => caseTree(t) // Case arrow
+      case t: CaseTree if !right.isAny[T.KwCatch, T.KwFinally, T.Dot] => // Case arrow
+        caseTree(t)
       case _: Type.ByNameType => Seq(Split(Space(cfg.spaces.inByNameTypes), 0))
       case _ => Seq.empty
     }
@@ -2077,8 +2078,8 @@ object SplitsAfterLeftParen extends Splits {
   @tailrec
   private def getSingleFunctionArg(
       values: List[Tree],
-  )(implicit ftoks: FormatTokens): Option[Term.FunctionTerm] = values match {
-    case (t: Term.FunctionTerm) :: Nil => Some(t)
+  )(implicit ftoks: FormatTokens): Option[Term.FunctionLike] = values match {
+    case (t: Term.FunctionLike) :: Nil => Some(t)
     case (t: Term.Block) :: Nil if !ftoks.isEnclosedInBraces(t) =>
       getSingleFunctionArg(t.stats)
     case _ => None
@@ -2674,7 +2675,7 @@ object SplitsBeforeDot extends Splits {
             val arrowPolicy = exclude.ranges.map { tr =>
               Policy.End <= tr.lt ==> Policy.onRight(tr.rt, "PNL+DOTARR") {
                 case Decision(FT(_: T.FunctionArrow, r, m), ss)
-                    if !r.is[T.Comment] && m.leftOwner.is[Term.FunctionTerm] &&
+                    if !r.is[T.Comment] && m.leftOwner.is[Member.Function] &&
                       findTreeWithParent(m.leftOwner) {
                         case _: Member.Apply => Some(true)
                         case p: Term.ArgClause if !isSeqSingle(p.values) =>
@@ -2712,8 +2713,9 @@ object SplitsBeforeDot extends Splits {
       Policy.beforeLeft(selectLike.nameFt, "NEXTSEL1NL") {
         case Decision(FT(_, _: T.Dot, m), s) if m.rightOwner eq tree =>
           SplitTag.SelectChainFirstNL.activateOnly(s)
-        case Decision(FT(l, _: T.Comment, m), s)
-            if m.rightOwner.eq(tree) && !l.is[T.Comment] =>
+        case Decision(FT(_, _: T.Comment, m), s)
+            if m.rightOwner.eq(tree) &&
+              s.exists(_.isNeededFor(SplitTag.SelectChainFirstNL)) =>
           SplitTag.SelectChainFirstNL.activateOnly(s)
       }
     }
@@ -3097,13 +3099,7 @@ object SplitsAfterDo extends Splits {
   ): Seq[Split] = {
     import fo._, tokens._, ft._
     leftOwner match {
-      case t: Term.Do =>
-        val eft = getLast(t.body)
-        if (
-          t.body.is[Tree.Block] && right.is[T.LeftBrace] &&
-          matchingOptRight(ft).exists(_.idx >= eft.idx)
-        ) Seq(Split(Space, 0))
-        else {
+      case t: Term.Do => getWithBody(t) { eft =>
           val indent = Indent(cfg.indent.main, eft, ExpiresOn.After)
           val kwWhile = nextAfterNonComment(eft)
           val noSplit =
@@ -3119,8 +3115,24 @@ object SplitsAfterDo extends Splits {
               .withIndents(indent)
           Seq(noSplit, nlSplit)
         }
+      case t: Tree.WithBody if cfg.newlines.keepBreak =>
+        getWithBody(t)(eft =>
+          Seq(Split(Newline, 1).withIndent(cfg.indent.main, eft, ExpiresOn.After)),
+        )
       case _ => Seq.empty
     }
+  }
+
+  private def getWithBody(t: Tree.WithBody)(
+      ifNotBlock: FT => Seq[Split],
+  )(implicit ft: FT, fo: FormatOps): Seq[Split] = {
+    import fo._, tokens._, ft._
+    val eft = getLast(t.body)
+    if (
+      t.body.is[Tree.Block] && right.is[T.LeftBrace] &&
+      matchingOptRight(ft).exists(_.idx >= eft.idx)
+    ) Seq(Split(Space, 0))
+    else ifNotBlock(eft)
   }
 }
 
@@ -3277,7 +3289,10 @@ object SplitsAfterCase extends Splits {
           ss.flatMap { s =>
             val split = s.andPolicy(postArrowPolicy)
             if (s.isNL) Seq(split)
-            else Seq(s.withSingleLine(slbExpire, extend = true), split)
+            else Seq(
+              s.withSingleLine(slbExpire, extend = true, noOptimal = !s.noCost),
+              split,
+            )
           }
         }
       Policy.RelayOnSplit((s, _) => s.isNL)(onArrowPolicy)(postArrowPolicy)
@@ -3383,7 +3398,7 @@ object SplitsAfterYield extends Splits {
           Seq(Split(Space, 0).withIndent(indent, noIndent))
         } else Seq(
           // Either everything fits in one line or break on =>
-          Split(Space, 0).withSingleLine(lastToken),
+          Split(cfg.newlines.keepBreak, 0)(Space).withSingleLine(lastToken),
           Split(Newline, 1).withIndent(indent),
         )
     }
@@ -3443,7 +3458,17 @@ object SplitsBeforeCommentLowPriority extends Splits {
         if (pft.right.is[T.Dot]) GetSelectLike.onRightOpt(pft) else None
       }
 
-    selectLikeOpt.fold(Seq(baseSplit))(t =>
+    selectLikeOpt.fold {
+      val infixSplits = nft.rightOwner match {
+        case t: Name if nft.right.is[T.Ident] =>
+          t.parent match {
+            case Some(p: Member.Infix) if p.op eq t => insideInfixSplit(p)
+            case _ => Seq.empty
+          }
+        case _ => Seq.empty
+      }
+      if (infixSplits.isEmpty) Seq(baseSplit) else infixSplits
+    }(t =>
       if (findPrevSelect(t, cfg.newlines.encloseSelectChains).isEmpty) Seq(split)
       else Seq(baseSplit, split.onlyFor(SplitTag.SelectChainFirstNL)),
     )

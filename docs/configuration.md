@@ -1473,8 +1473,11 @@ was disabled since the parameter's introduction in v2.5.0.
 
 ### `align.multiline`
 
-If this flag is set, when alignment is applied, multiline statements will not be
-excluded from search of tokens to align.
+This flag controls whether to include multiline statements in the search for
+tokens to align, with the following values:
+
+- `false`: align tokens only on adjacent lines
+- `true`: align consecutive statements even if tokens to align are not on adjacent lines
 
 > Since v2.5.0.
 
@@ -3624,18 +3627,48 @@ Let's define some terminology: an import statement consists of several parts:
   - _reference_: `foo` and `foo.baz` in the example above
   - _selectors_: `bar` and `{qux => quux}` above
 
-#### Imports: `expand`
+#### Imports: `selectors`
 
-This parameter will attempt to create a separate line for each selector
-within a `{...}`. It replaces the deprecated rule `ExpandImportSelectors`.
+This parameter controls handling of import selectors within a `{...}`. Added in
+v3.9.11, it replaces the boolean parameter `expand` (which, in turn, replaced
+the deprecated rule `ExpandImportSelectors`).
+
+It takes the following values:
+
+- `keep` (default): keeps the original grouping of selectors (was: `expand = false`)
+- `fold`: will group selectors from multiple import statements sharing the same
+  keyword (`import` or `export`) and the same reference (the part before the
+  last dot) into a single statement
+  - it will keep import statements which have a trailing comment as-is
+  - [`binPack.importSelectors`](#binpackimportselectors) may not be `singleLine`
+    as it might result in a very long line
+- `unfold`: will attempt to create a separate line for each selector (was: `expand = true`)
 
 ```scala mdoc:defaults
-rewrite.imports.expand
+rewrite.imports.selectors
 ```
 
 ```scala mdoc:scalafmt
 rewrite.rules = [Imports]
-rewrite.imports.expand = true
+rewrite.imports.selectors = unfold
+---
+import a.{
+    b,
+    c
+  }, h.{
+    k, l
+  }
+import d.e.{f, g}
+import a.{
+    foo => bar,
+    zzzz => _,
+    _
+  }
+```
+
+```scala mdoc:scalafmt
+rewrite.rules = [Imports]
+rewrite.imports.selectors = fold
 ---
 import a.{
     b,
@@ -3982,7 +4015,7 @@ This section describes rules which are applied if the appropriate dialect (e.g.,
 ### `rewrite.scala3.convertToNewSyntax`
 
 If this flag is enabled, the following new syntax will be applied (also,
-**since 3.8.0**, if an appropriate flag under `rewrite.scala.newSyntax` is not
+**since 3.8.0**, if an appropriate flag under `rewrite.scala3.newSyntax` is not
 set to `false`, see below):
 
 - [control syntax](https://dotty.epfl.ch/docs/reference/other-new-features/control-syntax.html)
