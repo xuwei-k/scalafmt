@@ -23,7 +23,8 @@ def isScala213 = isScalaVer("2.13")
 
 inThisBuild {
   List(
-    version := "3.9.6-fork-1-SNAPSHOT",
+    version := "3.9.10-fork-1",
+    publishTo := (if (isSnapshot.value) None else localStaging.value),
     organization := "com.github.xuwei-k",
     homepage := Some(url("https://github.com/scalameta/scalafmt")),
     licenses :=
