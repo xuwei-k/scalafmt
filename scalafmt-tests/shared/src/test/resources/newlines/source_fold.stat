@@ -6952,23 +6952,25 @@ object a {
 }
 >>>
 object a {
-  buffer.append(if (!fetchContent) {
-    DiffInfo(
-      changeType = ChangeType.ADD,
-      newContent = None,
-      newObjectId = Option(treeWalk.getObjectId(0)).map(_.name),
-      tooLarge = false
-    )
-  } else {
-    DiffInfo(
-      changeType = ChangeType.ADD,
-      newContent = JGitUtil
-        .getContentFromId(git, treeWalk.getObjectId(0), false)
-        .filter(FileUtil.isText).map(convertFromByteArray),
-      newObjectId = Option(treeWalk.getObjectId(0)).map(_.name),
-      tooLarge = false
-    )
-  })
+  buffer.append(
+    if (!fetchContent) {
+      DiffInfo(
+        changeType = ChangeType.ADD,
+        newContent = None,
+        newObjectId = Option(treeWalk.getObjectId(0)).map(_.name),
+        tooLarge = false
+      )
+    } else {
+      DiffInfo(
+        changeType = ChangeType.ADD,
+        newContent = JGitUtil
+          .getContentFromId(git, treeWalk.getObjectId(0), false)
+          .filter(FileUtil.isText).map(convertFromByteArray),
+        newObjectId = Option(treeWalk.getObjectId(0)).map(_.name),
+        tooLarge = false
+      )
+    }
+  )
 }
 <<< SM 7.4.0: 30
 maxColumn = 80
@@ -10921,54 +10923,50 @@ object ZStreamSpec extends DefaultRunnableSpec {
     )
 
 }
->>> { stateVisits = 6608, stateVisits2 = 6608 }
+>>> { stateVisits = 5818, stateVisits2 = 5818 }
 object ZStreamSpec extends DefaultRunnableSpec {
-  def spec: ZSpec[Environment, Failure] = suite("ZStreamSpec")(
-    suite("Combinators")(
-      suite("aggregateAsyncWithin")(
-        testM("aggregateAsyncWithin")(
-          assertM(
-            ZStream(1, 1, 1, 1, 2, 2).aggregateAsyncWithin(
-              ZTransducer.fold((List[Int](), true))(_._2)((acc, el: Int) =>
-                if (el == 1) (el :: acc._1, true)
-                else if (el == 2 && acc._1.isEmpty) (el :: acc._1, false)
-                else (el :: acc._1, false)
-              ).map(_._1),
-              Schedule.spaced(30.minutes)
-            ).runCollect
-          )(equalTo(Chunk(List(2, 1, 1, 1, 1), List(2))))
-        )
+  def spec
+      : ZSpec[Environment, Failure] = suite("ZStreamSpec")(suite("Combinators")(
+    suite("aggregateAsyncWithin")(testM("aggregateAsyncWithin")(
+      assertM(
+        ZStream(1, 1, 1, 1, 2, 2).aggregateAsyncWithin(
+          ZTransducer.fold((List[Int](), true))(_._2)((acc, el: Int) =>
+            if (el == 1) (el :: acc._1, true)
+            else if (el == 2 && acc._1.isEmpty) (el :: acc._1, false)
+            else (el :: acc._1, false)
+          ).map(_._1),
+          Schedule.spaced(30.minutes)
+        ).runCollect
+      )(equalTo(Chunk(List(2, 1, 1, 1, 1), List(2))))
+    )),
+    suite("bufferDropping")(
+      testM("buffer the Stream with Error")(
+        assertM((ZStream.range(1, 1000) ++ ZStream.fail(e) ++
+          ZStream.range(1001, 2000)))(fails(equalTo(e)))
       ),
-      suite("bufferDropping")(
-        testM("buffer the Stream with Error")(
-          assertM((ZStream.range(1, 1000) ++ ZStream.fail(e) ++
-            ZStream.range(1001, 2000)))(fails(equalTo(e)))
-        ),
-        testM("fast producer progress independently")(
-          for {
-            s1 = ZStream(0) ++ ZStream.fromEffect(latch1.await).flatMap(_ =>
-              ZStream.range(1, 17).chunkN(1).ensuring(latch2.succeed(()))
-            )
-            snapshots <- s.process.use(as =>
-              for {
-                _ <- latch1.succeed(())
-                _ <- as.flatMap(a => ref.update(a.toList ::: _)).repeatN(7)
-                snapshot1 <- ref.get
-                _ <- latch3.succeed(())
-                _ <- latch4.await
-                _ <- as.flatMap(a => ref.update(a.toList ::: _)).repeatN(7)
-                snapshot2 <- ref.get
-              } yield (zero, snapshot1, snapshot2)
-            )
-          } yield assert(snapshots._1)(equalTo(Chunk.single(0))) &&
-            assert(snapshots._2)(equalTo(List(8, 7, 6, 5, 4, 3, 2, 1))) &&
-            assert(snapshots._3)(equalTo(List(
-              24, 23, 22, 21, 20, 19, 18, 17, 8, 7, 6, 5, 4, 3, 2, 1
-            )))
-        )
+      testM("fast producer progress independently")(
+        for {
+          s1 = ZStream(0) ++ ZStream.fromEffect(latch1.await)
+            .flatMap(_ => ZStream.range(1, 17).chunkN(1).ensuring(latch2.succeed(())))
+          snapshots <- s.process.use(as =>
+            for {
+              _ <- latch1.succeed(())
+              _ <- as.flatMap(a => ref.update(a.toList ::: _)).repeatN(7)
+              snapshot1 <- ref.get
+              _ <- latch3.succeed(())
+              _ <- latch4.await
+              _ <- as.flatMap(a => ref.update(a.toList ::: _)).repeatN(7)
+              snapshot2 <- ref.get
+            } yield (zero, snapshot1, snapshot2)
+          )
+        } yield assert(snapshots._1)(equalTo(Chunk.single(0))) &&
+          assert(snapshots._2)(equalTo(List(8, 7, 6, 5, 4, 3, 2, 1))) &&
+          assert(snapshots._3)(equalTo(List(
+            24, 23, 22, 21, 20, 19, 18, 17, 8, 7, 6, 5, 4, 3, 2, 1
+          )))
       )
     )
-  )
+  ))
 
 }
 <<< keep function in braces if contains nested function with multi-stat block
@@ -11873,3 +11871,305 @@ object a {
     baz
   }
 }
+<<< #5009 RemoveSemicolons block
+rewrite.rules = [RemoveSemicolons]
+===
+def main = {
+  if (true) bar += 1
+  else bar = 2; shouldBeFalse = true
+}
+>>>
+def main = {
+  if (true) bar += 1 else bar = 2
+  shouldBeFalse = true
+}
+<<< #5009 RemoveSemicolons template
+rewrite.rules = [RemoveSemicolons]
+===
+object foo {
+  if (true) bar += 1
+  else bar = 2; shouldBeFalse = true
+}
+>>>
+object foo {
+  if (true) bar += 1 else bar = 2
+  shouldBeFalse = true
+}
+<<< #5009 RemoveSemicolons for-clause 1
+rewrite.rules = [RemoveSemicolons]
+===
+for {
+  a <-
+  as1 ++ as2; b <-
+  bs1 ++ bs2; if a < b; c <- cs
+} yield a + b + c
+>>>
+for {
+  a <- as1 ++ as2
+  b <- bs1 ++ bs2 if a < b
+  c <- cs
+} yield a + b + c
+<<< #5009 RemoveSemicolons for-clause 2
+rewrite.rules = [RemoveSemicolons]
+===
+for {
+  a <- as1 ++
+    as2; b <- bs1 ++
+    bs2; if a < b; c <- cs
+} yield a + b + c
+>>>
+for {
+  a <- as1 ++ as2
+  b <- bs1 ++ bs2 if a < b
+  c <- cs
+} yield a + b + c
+<<< #5009 !RemoveSemicolons block
+def main = {
+  if (true) bar += 1
+  else bar = 2; shouldBeFalse = true
+}
+>>>
+def main = {
+  if (true) bar += 1 else bar = 2;
+  shouldBeFalse = true
+}
+<<< #5009 !RemoveSemicolons template
+object foo {
+  if (true) bar += 1
+  else bar = 2; shouldBeFalse = true
+}
+>>>
+object foo {
+  if (true) bar += 1 else bar = 2;
+  shouldBeFalse = true
+}
+<<< #5009 !RemoveSemicolons for-clause 1
+for {
+  a <-
+  as1 ++ as2; b <-
+  bs1 ++ bs2; if a < b; c <- cs
+} yield a + b + c
+>>>
+for {
+  a <- as1 ++ as2; b <- bs1 ++ bs2;
+  if a < b; c <- cs
+} yield a + b + c
+<<< #5009 !RemoveSemicolons for-clause 2
+for {
+  a <- as1 ++
+    as2; b <- bs1 ++
+    bs2; if a < b; c <- cs
+} yield a + b + c
+>>>
+for {
+  a <- as1 ++ as2; b <- bs1 ++ bs2;
+  if a < b; c <- cs
+} yield a + b + c
+<<< break, danglingParentheses.importSite = false
+maxColumn = 20
+danglingParentheses.importSite = false
+===
+import ref.{
+  foo, bar, baz, qux}
+>>>
+import ref.{foo,
+  bar, baz, qux}
+<<< no break, danglingParentheses.importSite = false
+maxColumn = 20
+danglingParentheses.importSite = false
+===
+import ref.{foo, bar, baz, qux}
+>>>
+import ref.{foo,
+  bar, baz, qux}
+<<< #5027 forceBeforeMultilineAssign
+maxColumn = 100
+newlines.forceBeforeMultilineAssign = def
+===
+def chars(s: String): List[Int] = for c <- s.toList yield c.toInt
+>>>
+def chars(s: String): List[Int] = for c <- s.toList yield c.toInt
+<<< #5027 !forceBeforeMultilineAssign
+maxColumn = 100
+newlines.forceBeforeMultilineAssign = never
+===
+def chars(s: String): List[Int] = for c <- s.toList yield c.toInt
+>>>
+def chars(s: String): List[Int] = for c <- s.toList yield c.toInt
+<<< for-yield with multiline, ignoreInSyntax
+newlines.ignoreInSyntax = true
+assumeStandardLibraryStripMargin = true
+===
+for {
+  foo <- """|
+    |bar
+    |baz""".stripMargin
+  foo <- s"""|
+    |bar
+    |baz""".stripMargin
+} yield foo
+>>>
+for {
+  foo <- """|
+    |bar
+    |baz""".stripMargin
+  foo <- s"""|
+    |bar
+    |baz""".stripMargin
+} yield foo
+<<< for-yield with multiline, !ignoreInSyntax
+newlines.ignoreInSyntax = false
+assumeStandardLibraryStripMargin = true
+===
+for {
+  foo <- """|
+    |bar
+    |baz""".stripMargin
+  foo <- s"""|
+    |bar
+    |baz""".stripMargin
+} yield foo
+>>>
+for {
+  foo <-
+    """|
+      |bar
+      |baz""".stripMargin
+  foo <-
+    s"""|
+      |bar
+      |baz""".stripMargin
+} yield foo
+<<< apply with multiline, ignoreInSyntax
+align.stripMargin = true
+newlines.ignoreInSyntax = true
+assumeStandardLibraryStripMargin = true
+===
+bar(
+  "bar" -> """|qux
+               |xyzzy
+               |""".stripMargin,
+  "bar" -> s"""|qux
+               |xyzzy
+               |""".stripMargin,
+)
+>>>
+bar(
+  "bar" -> """|qux
+              |xyzzy
+              |""".stripMargin,
+  "bar" -> s"""|qux
+               |xyzzy
+               |""".stripMargin
+)
+<<< apply with multiline, !ignoreInSyntax
+align.stripMargin = true
+newlines.ignoreInSyntax = false
+assumeStandardLibraryStripMargin = true
+===
+bar(
+  "bar" -> """|qux
+               |xyzzy
+               |""".stripMargin,
+  "bar" -> s"""|qux
+               |xyzzy
+               |""".stripMargin,
+)
+>>>
+bar(
+  "bar" ->
+    """|qux
+       |xyzzy
+       |""".stripMargin,
+  "bar" ->
+    s"""|qux
+        |xyzzy
+        |""".stripMargin
+)
+<<< `if` as single-arg of apply, openParenCallSite
+align.openParenCallSite = true
+newlines.configStyle.callSite.prefer = false
+===
+res.append(if (next('*')) {
+      i += 1
+      ".*"
+    } else s"[^$sep]*")
+>>>
+res.append(
+  if (next('*')) {
+    i += 1
+    ".*"
+  } else s"[^$sep]*"
+)
+<<< `if` as single-arg of apply, !openParenCallSite
+align.openParenCallSite = false
+===
+res.append(if (next('*')) {
+      i += 1
+      ".*"
+    } else s"[^$sep]*")
+>>>
+res.append(
+  if (next('*')) {
+    i += 1
+    ".*"
+  } else s"[^$sep]*"
+)
+<<< `for` as single-arg of apply, openParenCallSite
+align.openParenCallSite = true
+newlines.configStyle.callSite.prefer = false
+===
+res.append(for {
+      a <- b
+      c <- d
+    } yield a + c)
+>>>
+res.append(
+  for {
+    a <- b
+    c <- d
+  } yield a + c
+)
+<<< `for` as single-arg of apply, !openParenCallSite
+align.openParenCallSite = false
+===
+res.append(for {
+      a <- b
+      c <- d
+    } yield a + c)
+>>>
+res.append(
+  for {
+    a <- b
+    c <- d
+  } yield a + c
+)
+<<< `try` as single-arg of apply, openParenCallSite
+align.openParenCallSite = true
+newlines.configStyle.callSite.prefer = false
+===
+res.append(try {
+      foo
+      bar
+    } finally { baz })
+>>>
+res.append(
+  try {
+    foo
+    bar
+  } finally { baz }
+)
+<<< `try` as single-arg of apply, !openParenCallSite
+align.openParenCallSite = false
+===
+res.append(try {
+      foo
+      bar
+    } finally { baz })
+>>>
+res.append(
+  try {
+    foo
+    bar
+  } finally { baz }
+)

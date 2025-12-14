@@ -8,9 +8,10 @@ import scala.collection.immutable.SortedMap
 
 private[community] object TestStyles {
 
+  val isWin = System.lineSeparator() == "\r\n"
+
   private val baseClassicStyle = {
     val base = ScalafmtConfig.default
-    val isWin = System.lineSeparator() == "\r\n"
     base.copy(
       docstrings = base.docstrings.copy(wrap = Docstrings.Wrap.keep),
       project = base.project
@@ -37,7 +38,7 @@ private[community] object TestStyles {
         scala3 = style.rewrite.scala3.copy(
           convertToNewSyntax = true,
           removeOptionalBraces = RewriteScala3Settings.RemoveOptionalBraces.yes,
-          insertEndMarkerMinLines = 5,
+          endMarker = style.rewrite.scala3.endMarker.copy(insertMinSpan = 5),
         ),
         redundantBraces = RedundantBracesSettings.all
           .copy(maxBreaks = Int.MaxValue, oneStatApply = oneStatApply),

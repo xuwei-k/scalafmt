@@ -6,16 +6,10 @@ import org.scalajs.linker.interface.ESVersion
 import Dependencies._
 import sbtcrossproject.CrossPlugin.autoImport.crossProject
 
-def parseTagVersion: String = {
-  import scala.sys.process._
-  // drop `v` prefix
-  "git describe --abbrev=0 --tags".!!.drop(1).trim
-}
-def localSnapshotVersion: String = s"$parseTagVersion-SNAPSHOT"
 def isCI = System.getenv("CI") != null
 
 def scala212 = "2.12.20"
-def scala213 = "2.13.16"
+def scala213 = "2.13.18"
 
 def isScalaVer(ver: String) = Def.setting(scalaBinaryVersion.value == ver)
 def isScala212 = isScalaVer("2.12")
@@ -23,7 +17,7 @@ def isScala213 = isScalaVer("2.13")
 
 inThisBuild {
   List(
-    version := "3.9.10-fork-1",
+    version := "3.10.2-fork-1",
     publishTo := (if (isSnapshot.value) None else localStaging.value),
     organization := "com.github.xuwei-k",
     homepage := Some(url("https://github.com/scalameta/scalafmt")),
@@ -96,7 +90,9 @@ lazy val interfaces = crossProject(JVMPlatform, NativePlatform, JSPlatform)
     },
   ).jvmSettings(
     javacOptions ++= Seq("-source", "8", "-target", "8"),
-    Compile / doc / javacOptions := Seq(),
+    Compile / doc / javacOptions := Seq("-Xdoclint:none", "-quiet"),
+    Compile / doc / scalacOptions ++=
+      Seq("-no-link-warnings", "-Wconf:cat=doc:silent"),
     crossVersion := CrossVersion.disabled,
     autoScalaLibrary := false,
   )

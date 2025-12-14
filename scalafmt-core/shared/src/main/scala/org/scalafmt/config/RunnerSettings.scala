@@ -1,8 +1,8 @@
 package org.scalafmt.config
 
-import scala.meta.Dialect
-import scala.meta.Tree
 import scala.meta.parsers.Parsed
+import scala.meta.{Dialect, Tree}
+
 import scala.reflect.ClassTag
 
 import metaconfig._

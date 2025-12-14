@@ -1,18 +1,13 @@
 package org.scalafmt.sysops
 
 import java.nio.file.Path
-import java.util.concurrent.Executors
-import java.util.concurrent.SynchronousQueue
-import java.util.concurrent.ThreadPoolExecutor
-import java.util.concurrent.TimeUnit
+import java.util.concurrent.{
+  Executors, SynchronousQueue, ThreadPoolExecutor, TimeUnit,
+}
 
-import scala.concurrent.ExecutionContext
-import scala.concurrent.ExecutionContextExecutorService
-import scala.sys.process.Process
-import scala.sys.process.ProcessLogger
-import scala.util.Failure
-import scala.util.Success
-import scala.util.Try
+import scala.concurrent.{ExecutionContext, ExecutionContextExecutorService}
+import scala.sys.process.{Process, ProcessLogger}
+import scala.util.{Failure, Success, Try}
 
 private[scalafmt] object PlatformRunOps {
 
@@ -43,9 +38,6 @@ private[scalafmt] object PlatformRunOps {
     val out = Seq.newBuilder[String]
     val err = new StringBuilder()
     val logger = ProcessLogger(out += _, err.append("\n> ").append(_))
-    val argv =
-      if (PlatformCompat.isNativeOnWindows) cmd.map(arg => '"' + arg + '"')
-      else cmd
     def failed(e: Throwable) = {
       val msg = cmd
         .addString(new StringBuilder(), "Failed to run '", " ", "'. Error: ")
@@ -53,7 +45,7 @@ private[scalafmt] object PlatformRunOps {
       Failure(new IllegalStateException(msg.toString(), e))
     }
     try {
-      val exit = Process(argv, cwd.map(_.toFile)).!(logger)
+      val exit = Process(cmd, cwd.map(_.toFile)).!(logger)
       if (exit != 0) failed(new RuntimeException("exit code " + exit))
       else Success(out.result())
     } catch { case e: Throwable => failed(e) }

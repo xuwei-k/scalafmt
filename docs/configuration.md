@@ -2892,6 +2892,88 @@ if (something_else) {
 }
 ```
 
+### `danglingParentheses.importSite`
+
+> Since v3.10.1.
+
+```scala mdoc:defaults
+danglingParentheses.importSite
+```
+
+Normally, multiple import selectors
+(see [`binPack.importSelectors`](#binpackimportselectors))
+are either formatted one a single line if they fit,
+or newlines are added after the opening brace and before the closing one.
+
+However, if you prefer to avoid having these newlines, some combinations
+of parameters will help you achieve that. This parameter must be set to false
+and one of the following conditions enabled as follows:
+
+- [`binPack.importSelectors`](#binpackimportselectors) is set to `fold`, or
+- [`binPack.importSelectors`](#binpackimportselectors) is not set, and
+  - [`newlines.source = fold`](#newlinessource)), or
+  - [`newlines.source != unfold`](#newlinessource)) and there's no break after the opening brace
+
+```scala mdoc:scalafmt
+danglingParentheses.importSite = false
+maxColumn = 20
+binPack.importSelectors = fold
+---
+// should be folded, importSelectors = fold
+import ref.{foo, bar, baz, qux}
+// should be folded, importSelectors = fold
+import ref.{
+  foo, bar, baz, qux}
+```
+
+```scala mdoc:scalafmt
+danglingParentheses.importSite = false
+maxColumn = 20
+binPack.importSelectors = unfold
+---
+// should NOT be folded, importSelectors = unfold
+import ref.{foo, bar, baz, qux}
+// should NOT be folded, importSelectors = unfold
+import ref.{
+  foo, bar, baz, qux}
+```
+
+```scala mdoc:scalafmt
+danglingParentheses.importSite = false
+maxColumn = 20
+newlines.source = fold
+---
+// should be folded, source = fold
+import ref.{foo, bar, baz, qux}
+// should be folded, source = fold
+import ref.{
+  foo, bar, baz, qux}
+```
+
+```scala mdoc:scalafmt
+danglingParentheses.importSite = false
+maxColumn = 20
+newlines.source = keep
+---
+// should be folded: no break after opening brace
+import ref.{foo, bar, baz, qux}
+// should NOT be folded: break after opening brace
+import ref.{
+  foo, bar, baz, qux}
+```
+
+```scala mdoc:scalafmt
+danglingParentheses.importSite = false
+maxColumn = 20
+newlines.source = unfold
+---
+// should NOT be folded, source = unfold
+import ref.{foo, bar, baz, qux}
+// should NOT be folded, source = unfold
+import ref.{
+  foo, bar, baz, qux}
+```
+
 ### `danglingParentheses.tupleSite`
 
 This parameter controls dangling of closing parentheses in tuples. If not
@@ -3380,8 +3462,9 @@ def f() = {
 > Warning: this rewrite might cause non-idempotent formatting,
 > formatter might need to be run twice.
 >
-> This rule cannot be used with `rewrite.scala3.insertEndMarkerMinLines` or
-> `rewrite.scala3.removeOptionalBraces.oldSyntaxToo == true`.
+> This rule cannot be used with
+> [`rewrite.scala3.endMarker.insertMinSpan`](#rewritescala3endmarkerinsertminspan) or
+> [`rewrite.scala3.removeOptionalBraces.oldSyntaxToo == true`](#rewritescala3removeoptionalbraces).
 
 This rewrite in essence provides the opposite of what `RedundantBraces` achieves,
 and somewhat similar to Scala3's end marker rewrite rules.
@@ -3600,6 +3683,7 @@ This rule accepts the following settings:
 - `rewrite.preferCurlyFors.removeTrailingSemicolonsOnly` (default: `false`):
   - if `false` (default), replaces all semicolons with a newline
   - if `true`, keeps semicolons unless followed by a newline or single-line comment
+    - see also [RemoveSemicolons](#removesemicolons)
 
 ### `Imports`
 
@@ -3630,7 +3714,7 @@ Let's define some terminology: an import statement consists of several parts:
 #### Imports: `selectors`
 
 This parameter controls handling of import selectors within a `{...}`. Added in
-v3.9.11, it replaces the boolean parameter `expand` (which, in turn, replaced
+v3.10.0, it replaces the boolean parameter `expand` (which, in turn, replaced
 the deprecated rule `ExpandImportSelectors`).
 
 It takes the following values:
@@ -3644,9 +3728,12 @@ It takes the following values:
     as it might result in a very long line
 - `unfold`: will attempt to create a separate line for each selector (was: `expand = true`)
 
-```scala mdoc:defaults
-rewrite.imports.selectors
-```
+By default, the parameter is set to:
+
+- `unfold` if [`newlines.source = unfold`](#newlinessource)
+- `fold` if [`newlines.source = fold`](#newlinessource)
+- `keep` otherwise
+  - this used to be the default behavior prior to v3.10.1
 
 ```scala mdoc:scalafmt
 rewrite.rules = [Imports]
@@ -3753,7 +3840,10 @@ import foo._
 > Keep in mind that this functionality should be used very carefully if
 > hierarchical (relative) imports are allowed in your codebase. Groups
 > should only refer to typical top-level domains such as `java`, `org`,
-> `com` or `scala`, and sorting should be disabled.
+> `com` or `scala` (i.e. ensuring no relative imports would fall into any
+> of the groups), and making sure
+> [`rewrite.imports.sortCatchallGroup`](#imports-sortcatchallgroup) is
+> not `full`.
 >
 > The safest way to handle this case is by using `scalafix` with a semantic
 > rule like `OrganizeImports`. However, on a large codebase, the overhead
@@ -3799,6 +3889,89 @@ import qux.bar.{Random, bar, ~>, `symbol`}
 import foo.Baz.{bar => xyz, _}
 import bar.`qux`.{Random, bar, ~>, `symbol`}
 import baz._
+```
+
+#### Imports: `sortCatchallGroup`
+
+> Since v3.10.2.
+
+Preserving the order of relative imports is important, to avoid putting
+"relativeB-of-relativeA" before "relativeA", so they shouldn't be sorted
+the same way fully qualified ones are.
+
+If we assume that explicitly defined groups would not catch relative
+imports, then we only need to forgo or modify sorting of the implicit,
+catch-all group where everything else (including relatives) would end up.
+
+```scala mdoc:defaults
+rewrite.imports.sortCatchallGroup
+```
+
+This parameter takes the following values:
+
+- `full`: the catch-all group is sorted the same way as other groups
+- `none`: the catch-all group is not sorted, preserving the original order
+- `tail`: the catch-all group applies sorting to statements which have the same
+  first element (say, `import a.b` and `import a.c`), otherwise their original
+  order is preserved
+
+#### Imports: `removeRedundantSelectors`
+
+> Since v3.10.0.
+
+If `rewrite.imports.removeRedundantSelectors` is enabled, will remove those
+selectors which are identical to another or are superseded by an appropriate
+wildcard. This deduplication will only happen at the statement level unless
+[groups](#imports-groups) or [selectors](#imports-selectors) are enabled.
+
+Regardless of this setting, the rule will de-duplicate identical import statements.
+
+Example with statement-level dedup:
+
+```scala mdoc:scalafmt
+runner.dialect = scala3
+rewrite.rules = [Imports]
+rewrite.imports.sort = ascii // this is not enough
+rewrite.imports.removeRedundantSelectors = true
+---
+import foo.{bar, baz, bar, baz} // will dedup only this
+import foo.bar
+import foo.{baz => qux, given A, _}
+import foo.given
+```
+
+Example with wider dedup due to selectors:
+
+```scala mdoc:scalafmt
+runner.dialect = scala3
+rewrite.rules = [Imports]
+rewrite.imports.selectors = unfold
+rewrite.imports.removeRedundantSelectors = true
+---
+// will dedup all
+import foo.{bar, baz}
+import foo.bar
+import foo.{baz => qux, given A, _}
+import foo.given
+```
+
+Example with wider dedup due to grouping:
+
+```scala mdoc:scalafmt
+runner.dialect = scala3
+rewrite.rules = [Imports]
+rewrite.imports.groups = [[ "foo1.*" ]]
+rewrite.imports.removeRedundantSelectors = true
+---
+// will dedup all
+import foo1.{bar, baz}
+import foo1.bar
+import foo1.{baz => qux, given A, _}
+import foo1.given
+import foo2.{bar, baz}
+import foo2.bar
+import foo2.{baz => qux, given A, _}
+import foo2.given
 ```
 
 ### Trailing commas
@@ -4004,6 +4177,14 @@ for {
 } yield a + b
 ```
 
+### RemoveSemicolons
+
+> Since v3.10.1.
+
+This rule removes semicolons unless required by the Scala syntax (such
+as those used in for-clause enumerators enclosed in parentheses).
+See also [PreferCurlyFors](#prefercurlyfors).
+
 ## Scala3 rewrites
 
 This section describes rules which are applied if the appropriate dialect (e.g.,
@@ -4083,7 +4264,7 @@ took three possible values (with their equivalent current settings shown):
 - `yes`: `enabled = true`
 - `oldSyntaxToo`: `enabled = true` and `oldSyntaxToo = true`
 
-### `rewrite.scala3.insertEndMarkerMinLines`
+### `rewrite.scala3.endMarker.insertMinSpan`
 
 If this flag is set to a positive value, when an expression containing an
 [optional braces](https://dotty.epfl.ch/docs/reference/other-new-features/indentation.html)
@@ -4093,7 +4274,9 @@ region spans at least as many lines and isn't followed by an end marker, one wil
 > or a multi-stat block. Doing so might turn a single-stat expression (which
 > doesn't require significant indentation handling) into a multi-stat block.
 
-### `rewrite.scala3.removeEndMarkerMaxLines`
+Prior to v3.10.3, this setting was named `scala3.insertEndMarkerMinLines`.
+
+### `rewrite.scala3.endMarker.removeMaxSpan`
 
 If this flag is set to a positive value, when an expression containing an
 [optional braces](https://dotty.epfl.ch/docs/reference/other-new-features/indentation.html)
@@ -4109,14 +4292,16 @@ the end marker will be deleted.
 > - there are comments before the end marker, as without the end marker they
 >   would be treated as outside of the optional-braces region.
 
-### `rewrite.scala3.countEndMarkerLines`
+Prior to v3.10.3, this setting was named `scala3.removeEndMarkerMaxLines`.
+
+### `rewrite.scala3.endMarker.spanHas`
 
 > Since v3.0.6.
 
 This flag dictates which part of the expression terminated by the end marker
 is used to calculate the span for the purposes of applying
-[`insertEndMarkerMinLines`](#rewritescala3insertendmarkerminlines) and
-[`removeEndMarkerMaxLines`](#rewritescala3removeendmarkermaxlines).
+[`insertMinSpan`](#rewritescala3endmarkerinsertminspan) and
+[`removeMaxSpan`](#rewritescala3removeendmarkermaxspan).
 
 - `all` (default): the entire expression
 - `lastBlockOnly`: only the last block with significant indentation relative to
@@ -4124,6 +4309,24 @@ is used to calculate the span for the purposes of applying
   which would have been used otherwise); for instance:
   - in case of a class, this would be the body of the class
   - but for an if-else, this would be just the `else` part
+
+Prior to v3.10.3, this setting was named `scala3.countEndMarkerLines`.
+
+### `rewrite.scala3.endMarker.spanIs`
+
+```scala mdoc:defaults
+rewrite.scala3.endMarker.spanIs
+```
+
+> Since v3.10.3.
+
+This parameter defines what "span" refers to when applying
+[`insertMinSpan`](#rewritescala3endmarkerinsertminspan) and
+[`removeMaxSpan`](#rewritescala3endmarkerremovemaxspan).
+It takes the following values:
+
+- `lines`: span counts the number of lines
+- `blankGaps`: span counts the number of blank gaps instead
 
 ## Vertical Multiline
 
@@ -5532,15 +5735,14 @@ line if they fit without exceeding `maxColumn`. This parameter controls how they
 will be handled _if_ they overflow.
 (Prior to v3.8.4, it was called `importSelectors`.)
 
-```scala mdoc:defaults
-binPack.importSelectors
-```
-
 Takes the following parameters:
 
 - `unfold`: format one per line (prior to v3.8.4, called `noBinPack`)
 - `fold`: fit as many as possible on each line (prior to v3.8.4, called `binPack`)
 - `singleLine`: format all on one line
+
+By default, the parameter is set to `fold` if [`newlines.source = fold`](#newlinessource),
+and `unfold` otherwise (prior to v3.10.1, it would always be `unfold`).
 
 ```scala mdoc:scalafmt
 maxColumn = 10
