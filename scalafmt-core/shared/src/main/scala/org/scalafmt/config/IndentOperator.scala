@@ -51,7 +51,8 @@ import metaconfig._
   *   [[https://github.com/scala-js/scala-js/blob/master/CODINGSTYLE.md#long-expressions-with-binary-operators]]
   */
 case class IndentOperator(
-    exemptScope: IndentOperator.Exempt = IndentOperator.Exempt.oldTopLevel,
+    exemptScope: Seq[IndentOperator.Exempt] =
+      Seq(IndentOperator.Exempt.oldTopLevel),
     @annotation.ExtraName("include")
     includeRegex: String = ".*",
     @annotation.ExtraName("exclude")
@@ -65,35 +66,39 @@ case class IndentOperator(
 }
 
 object IndentOperator {
-  private val default = IndentOperator()
+  private[config] val default = IndentOperator()
   private val akka = IndentOperator(includeRegex = "^.*=$", excludeRegex = "^$")
 
   implicit lazy val surface: generic.Surface[IndentOperator] =
     generic.deriveSurface
   implicit lazy val encoder: ConfEncoder[IndentOperator] = generic.deriveEncoder
 
-  implicit val decoder: ConfDecoderEx[IndentOperator] = Presets
-    .mapDecoder(generic.deriveDecoderEx(default).noTypos, "indentOperator") {
-      case Conf.Str("spray" | "akka" | "akka-http") => IndentOperator.akka
-      case Conf.Str("default") => IndentOperator.default
-    }.withSectionRenames(
-      // deprecated since v3.4.0
-      annotation.SectionRename { case Conf.Bool(value) =>
-        Conf.Str(if (value) "oldTopLevel" else "all")
-      }("topLevelOnly", "exemptScope"),
-    )
+  private val exemptScopeName = Conf.nameOf(default.exemptScope).value
+
+  implicit val decoder: ConfDecoderEx[IndentOperator] = Presets.contramapDecoder {
+    case Conf.Str("spray" | "akka-http") => Conf.nameOf(akka)
+  }(generic.deriveDecoderEx(default).noTypos, "indents.infix") {
+    case Conf.Str("akka") => akka
+    case Conf.Str("default") => default
+  }.withSectionRenames(
+    annotation.SectionRename.partial { // converted to Seq in v3.10.4
+      case x: Conf.Str => if (x.value == "all") Conf.Lst(Nil) else Conf.Lst(x)
+    }(exemptScopeName, exemptScopeName),
+    // deprecated since v3.4.0
+    annotation.SectionRename { case Conf.Bool(value) =>
+      if (value) Conf.Lst(Conf.nameOf(Exempt.oldTopLevel)) else Conf.Lst(Nil)
+    }("topLevelOnly", exemptScopeName),
+  )
 
   sealed abstract class Exempt
   object Exempt {
-    case object all extends Exempt
     case object oldTopLevel extends Exempt
     case object aloneEnclosed extends Exempt
     case object aloneArgOrBody extends Exempt
     case object notAssign extends Exempt
     case object notWithinAssign extends Exempt
 
-    implicit val reader: ConfCodecEx[Exempt] = ReaderUtil.oneOf[Exempt](
-      all,
+    implicit val reader: ConfCodecEx[Exempt] = ConfCodecEx.oneOf[Exempt](
       oldTopLevel,
       aloneEnclosed,
       aloneArgOrBody,
@@ -104,8 +109,8 @@ object IndentOperator {
 
   val boolToAssign: PartialFunction[Conf, Conf] = { case Conf.Bool(value) =>
     if (value) Conf.Obj(
-      "exemptScope" -> Conf.Str("notAssign"),
-      "excludeRegex" -> Conf.Str(".*"),
+      exemptScopeName -> Conf.nameOf(Exempt.notAssign),
+      Conf.nameOf(default.excludeRegex).value -> Conf.Str(".*"),
     )
     else Conf.Obj.empty
   }

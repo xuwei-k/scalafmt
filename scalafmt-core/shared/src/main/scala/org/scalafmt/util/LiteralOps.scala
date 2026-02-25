@@ -2,6 +2,8 @@ package org.scalafmt.util
 
 import org.scalafmt.config._
 
+import scala.meta.tokens.Token.Constant
+
 object LiteralOps {
 
   /** Prints integer literals with specified case
@@ -25,21 +27,23 @@ object LiteralOps {
     */
   def prettyPrintInteger(
       str: String,
-  )(implicit style: ScalafmtConfig, sb: StringBuilder): Unit =
-    if (str.endsWith("L") || str.endsWith("l")) {
+  )(implicit style: ScalafmtConfig, sb: StringBuilder): Unit = {
+    val suffix = str.last
+    if (suffix == 'L' || suffix == 'l') {
       prettyPrintHexOrBin(str.dropRight(1))
-      sb.append(style.literals.long.process(str.takeRight(1)))
+      sb.append(style.literals.long.process(suffix))
     } else prettyPrintHexOrBin(str)
+  }
 
-  def prettyPrintFloat(
-      str: String,
-  )(implicit style: ScalafmtConfig, sb: StringBuilder): Unit =
-    prettyPrintFloatingPoint(str, 'F', 'f', style.literals.float)
+  def prettyPrintFloat(tok: Constant[BigDecimal], str: String)(implicit
+      style: ScalafmtConfig,
+      sb: StringBuilder,
+  ): Unit = prettyPrintFloatingPoint(tok, str, 'F', 'f', _.float)
 
-  def prettyPrintDouble(
-      str: String,
-  )(implicit style: ScalafmtConfig, sb: StringBuilder): Unit =
-    prettyPrintFloatingPoint(str, 'D', 'd', style.literals.double)
+  def prettyPrintDouble(tok: Constant[BigDecimal], str: String)(implicit
+      style: ScalafmtConfig,
+      sb: StringBuilder,
+  ): Unit = prettyPrintFloatingPoint(tok, str, 'D', 'd', _.double)
 
   /** Prints floating point literals with specified case
     *
@@ -54,26 +58,34 @@ object LiteralOps {
     *   - literals.float/double applies to suffix
     */
   private def prettyPrintFloatingPoint(
+      tok: Constant[BigDecimal],
       str: String,
       suffixUpper: Char,
       suffixLower: Char,
-      suffixCase: Literals.Case,
+      suffixCase: Literals.FloatingPoint => Literals.Case,
   )(implicit style: ScalafmtConfig, sb: StringBuilder): Unit =
-    if (str.last == suffixUpper || str.last == suffixLower) sb
-      .append(style.literals.scientific.process(str.dropRight(1)))
-      .append(suffixCase.process(str.takeRight(1)))
-    else sb.append(style.literals.scientific.process(str))
+    if (tok.isEmpty) sb.append(str) // rewritten
+    else {
+      val suffix = str.last
+      val fpStyle = style.literals.floatingPoint
+      if (suffix == suffixUpper || suffix == suffixLower) sb
+        .append(fpStyle.scientific.process(str.dropRight(1)))
+        .append(suffixCase(fpStyle).process(suffix))
+      else sb.append(fpStyle.scientific.process(str))
+    }
 
   private def prettyPrintHexOrBin(
       str: String,
   )(implicit style: ScalafmtConfig, sb: StringBuilder): Unit = {
-    val (prefix, body) = str.splitAt(2)
-    prefix match {
-      case "0x" | "0X" => sb.append(style.literals.hexPrefix.process(prefix))
-          .append(style.literals.hexDigits.process(body))
-      case "0b" | "0B" => sb.append(style.literals.binPrefix.process(prefix))
-          .append(body)
-      case _ => sb.append(str)
+    val sbLen = sb.length
+    if (str.length > 2 && str.charAt(0) == '0') str.charAt(1) match {
+      case ch @ ('x' | 'X') => sb.append('0')
+          .append(style.literals.hexPrefix.process(ch))
+          .append(style.literals.hexDigits.process(str.substring(2)))
+      case ch @ ('b' | 'B') => sb.append('0')
+          .append(style.literals.binPrefix.process(ch)).append(str.substring(2))
+      case _ =>
     }
+    if (sb.length == sbLen) sb.append(str)
   }
 }

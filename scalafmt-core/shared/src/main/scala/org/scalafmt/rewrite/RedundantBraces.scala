@@ -5,6 +5,9 @@ import org.scalafmt.internal._
 import org.scalafmt.util.TreeOps._
 
 import scala.meta._
+import scala.meta.classifiers.Classifier
+import scala.meta.internal.prettyprinters.{TreeSyntacticGroup => TSG}
+import scala.meta.internal.tokens.Chars
 import scala.meta.tokens.{Token => T}
 
 import scala.annotation.tailrec
@@ -129,6 +132,18 @@ object RedundantBraces extends Rewrite with FormatTokensRewrite.RuleFactory {
       style: ScalafmtConfig,
   ): Option[Stat] = getBlockSingleStat(b).filter(okLineSpan(_))
 
+  @tailrec
+  private[rewrite] def okCommentBeforeClose(
+      xft: FT,
+  )(implicit ftoks: FormatTokens, session: Session): Boolean =
+    ftoks.prevNotTrailingComment(xft) match {
+      case Right(x) => (x eq xft) || !session.isRemovedOnLeft(x, ok = true) || {
+          val pft = ftoks.prev(x)
+          pft.noBreak && okCommentBeforeClose(pft)
+        }
+      case _ => false
+    }
+
 }
 
 /** Removes/adds curly braces where desired.
@@ -188,8 +203,7 @@ class RedundantBraces(implicit val ftoks: FormatTokens)
         def useDelim = settings.oneStatApply.changeDelim(lp, ftoks.getLast(ta))
         def shouldReplaceWithBrace(s: Stat): Boolean = s match {
           case x: Term.ApplyInfix
-              if style.newlines.infix.keep(x) &&
-                !style.dialect.allowInfixOperatorAfterNL &&
+              if !style.dialect.allowInfixOperatorAfterNL &&
                 RedundantParens.breaksBeforeOp(x) => false
           case _ => useDelim eq T.LeftBrace
         }
@@ -402,7 +416,8 @@ class RedundantBraces(implicit val ftoks: FormatTokens)
             (ConvertToNewScala3Syntax.enabled ||
               !x.tokens.exists(_.is[T.RightArrow])) => removeToken
       case t: Ctor.Block
-          if t.stats.isEmpty && isDefnBodiesEnabled(noParams = false) =>
+          if t.stats.isEmpty && isDefnBodiesEnabled(noParams = false) &&
+            okLineSpan(t) =>
         val prevIsEquals = ftoks.prevNonComment(ft).left.is[T.Equals]
         if (prevIsEquals) removeToken
         else replaceTokenBy("=", t.parent)(x =>
@@ -417,24 +432,17 @@ class RedundantBraces(implicit val ftoks: FormatTokens)
       session: Session,
       style: ScalafmtConfig,
   ): (Replacement, Replacement) = {
-    @tailrec
-    def okComment(xft: FT): Boolean = ftoks.prevNotTrailingComment(xft) match {
-      case Right(x) => (x eq xft) || !session.isRemovedOnLeft(x, true) || {
-          val pft = ftoks.prev(x)
-          pft.noBreak && okComment(pft)
-        }
-      case _ => false
-    }
+    def okSemicolon(t: Tree): Boolean = !braceSeparatesTwoXmlTokens &&
+      (ftoks.prevNonComment(ft) match {
+        case FT(_: T.Semicolon, _, m) =>
+          val plo = m.leftOwner
+          (plo eq t) || !plo.parent.contains(t)
+        case _ => true
+      })
     ft.rightOwner match {
-      case t: Term.Block => left.how match {
+      case t: Tree.Block => left.how match {
           case ReplacementType.Remove
-              if !braceSeparatesTwoXmlTokens &&
-                (ftoks.prevNonComment(ft) match {
-                  case FT(_: T.Semicolon, _, m) =>
-                    val plo = m.leftOwner
-                    (plo eq t) || !plo.parent.contains(t)
-                  case _ => true
-                }) &&
+              if okSemicolon(t) &&
                 ((t.parent match {
                   case Some(_: Term.Block) => true
                   case Some(_: Term.ArgClause) =>
@@ -446,12 +454,17 @@ class RedundantBraces(implicit val ftoks: FormatTokens)
                       case _ => false
                     }
                   case _ => style.dialect.allowSignificantIndentation
-                }) || okComment(ft) && !elseAfterRightBraceThenpOnLeft) =>
-            (left, removeToken)
-          case ReplacementType.Replace if left.ft.right.is[T.LeftParen] =>
-            left -> replaceTokenBy(")", t.parent)(x =>
-              new T.RightParen(x.input, x.dialect, x.start),
-            )
+                }) ||
+                  okCommentBeforeClose(ft) &&
+                  !elseAfterRightBraceThenpOnLeft) => (left, removeToken)
+          case ReplacementType.Replace => left.ft.right match {
+              case _: T.LeftParen => left -> replaceTokenBy(")", t.parent)(x =>
+                  new T.RightParen(x.input, x.dialect, x.start),
+                )
+              case _: T.Equals if okSemicolon(t) || okCommentBeforeClose(ft) =>
+                (left, removeToken)
+              case _ => null
+            }
           case _ => null
         }
       case _ => (left, removeToken)
@@ -585,7 +598,7 @@ class RedundantBraces(implicit val ftoks: FormatTokens)
       def checkAfterRight(wasNonComment: => Boolean) = {
         val nrft = ftoks.nextNonComment(rft)
         !nrft.right.is[T.Ident] || !isInfixOp(nrft.rightOwner) ||
-        wasNonComment && !style.newlines.infix.keep(p) ||
+        wasNonComment && style.newlines.infix.sourceIgnoredAt(nrft)(p) ||
         findTreeWithParent(p) { // check if infix is in parens
           case pp: Member.ArgClause => ftoks.getClosingIfWithinParensOrBraces(pp)
               .map(_.isRight)
@@ -641,7 +654,7 @@ class RedundantBraces(implicit val ftoks: FormatTokens)
       case d: Defn.Macro =>
         checkBlockAsBody(b, d.body, noParams = d.paramClauseGroups.isEmpty)
       case d: Defn.GivenAlias =>
-        checkBlockAsBody(b, d.body, noParams = d.paramClauseGroup.isEmpty)
+        checkBlockAsBody(b, d.body, noParams = d.paramClauseGroups.isEmpty)
 
       case p: Term.FunctionLike if isFunctionWithBraces(p) =>
         okToRemoveAroundFunctionBody(b, okIfMultipleStats = true)
@@ -651,10 +664,29 @@ class RedundantBraces(implicit val ftoks: FormatTokens)
 
       case Term.Block(List(`b`)) => true
 
-      case _: Term.QuotedMacroExpr | _: Term.SplicedMacroExpr => false
+      case _ if !settings.generalExpressions => false
 
-      case _ => settings.generalExpressions && shouldRemoveSingleStatBlock(b)
+      case p: Term.QuotedMacroExpr =>
+        isValidMacroIdent[Term.SplicedMacroExpr](b, p)
+
+      case p: Term.SplicedMacroExpr =>
+        isValidMacroIdent[Term.QuotedMacroExpr](b, p)
+
+      case _: Term.SplicedMacroPat => false
+
+      case _ => shouldRemoveSingleStatBlock(b)
     }
+
+  private def isValidMacroIdent[A <: Term.MacroLike](
+      b: Term.Block,
+      p: Term.MacroLike,
+  )(implicit ft: FT, classifier: Classifier[Tree, A]): Boolean =
+    !ftoks.next(ft).right.is[T.Comment] &&
+      (getTreeSingleExpr(b) match {
+        case Some(x: Term.Name) => Chars
+            .isTypeMask(Chars.scalaLetterTypeMask)(x.text.codePointAt(0))
+        case _ => false
+      }) && existsParentOfType[A](p)
 
   private def checkBlockAsBody(b: Term.Block, rhs: Tree, noParams: => Boolean)(
       implicit style: ScalafmtConfig,
@@ -691,6 +723,7 @@ class RedundantBraces(implicit val ftoks: FormatTokens)
       b: Term.Block,
   )(implicit ft: FT, style: ScalafmtConfig, session: Session): Boolean =
     getSingleStatIfLineSpanOk(b).exists { stat =>
+      import style.dialect
       @tailrec
       def keepForParent(tree: Tree): Boolean = tree match {
         case t: Term.ArgClause => t.parent match {
@@ -739,13 +772,7 @@ class RedundantBraces(implicit val ftoks: FormatTokens)
           existsIfWithoutElse(stat.asInstanceOf[Term.If])
 
         case p: Term.ApplyInfix => stat match {
-            case t: Term.ApplyInfix =>
-              val useRight = hasSingleElement(p.argClause, b)
-              SyntacticGroupOps.groupNeedsParenthesis(
-                TreeSyntacticGroup(p),
-                TreeSyntacticGroup(t),
-                if (useRight) Side.Right else Side.Left,
-              )
+            case t: Term.ApplyInfix => TSG.opNeedsParens(p.op, t.op, p.lhs eq b)
             case _ => true // don't allow other non-infix
           }
 
@@ -761,11 +788,7 @@ class RedundantBraces(implicit val ftoks: FormatTokens)
           }
           iter(stat)
 
-        case parent => SyntacticGroupOps.groupNeedsParenthesis(
-            TreeSyntacticGroup(parent),
-            TreeSyntacticGroup(stat),
-            Side.Left,
-          )
+        case parent => TreeSyntacticGroup.groupNeedsParens(parent, stat)
       }
 
       innerOk(b)(stat) && !b.parent.exists(keepForParent)

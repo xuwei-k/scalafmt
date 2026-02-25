@@ -162,6 +162,52 @@ def foo = // significant indent: unsupported by scala213
 end foo // end marker: unsupported by scala213
 ```
 
+### `runner.dialectFeatures`
+
+This setting contains a list of language features which might affect formatting. Some features
+will automatically be detected if the source file contains, at the top level, an appropriate
+import statement `import scala.language.XXX` (exactly like this, no relative imports).
+
+Features include:
+
+- `relaxedLambdaSyntax` (since v3.10.7):
+  this feature allows formatting of fewer-braces lambdas on a single line
+  (see [SIP-75](https://docs.scala-lang.org/scala3/reference/experimental/relaxed-lambdas.html))
+  - automatic detection expects the `experimental.relaxedLambdaSyntax` language feature
+
+```scala mdoc:scalafmt
+runner.dialect = scala3
+---
+// will not be a one-liner, dialect doesn't allow
+foo.map: x => x + 1
+```
+
+```scala mdoc:scalafmt
+runner.dialect = scala3
+---
+// will not be a one-liner, import allows but is relative
+import language.experimental.relaxedLambdaSyntax
+foo.map: x => x + 1
+```
+
+```scala mdoc:scalafmt
+runner.dialect = scala3
+runner.dialectFeatures = [relaxedLambdaSyntax]
+---
+// will be a one-liner, config allows
+foo.map: x =>
+  x + 1
+```
+
+```scala mdoc:scalafmt
+runner.dialect = scala3
+---
+// will be a one-liner, import allows
+import scala.language.experimental.relaxedLambdaSyntax
+foo.map: x =>
+  x + 1
+```
+
 ### Scala 3
 
 Since v3.0.0, `scalafmt` supports Scala 3 features that can be enabled by changing
@@ -873,6 +919,7 @@ foo(bar((_, _) =>
 ### `indent.infix`
 
 > Prior to v3.8.4, this section was called `indentOperator`.
+> Since v3.10.4, it takes a list of alternative configurations.
 
 Normally, the first eligible break _inside_ a chain of infix operators is
 indented by 2.
@@ -880,13 +927,26 @@ indented by 2.
 This group of parameters allows overriding which infix operators, and in which
 context, are eligible to be exempted from this, with indentation _omitted_.
 
-If you wish to disable this functionality, set
-`indent.infix.excludeRegex = '^$'`.
+This overall setting is a list of alternative entries:
 
-#### `indent.infix.exemptScope`
+- each entry defines several constraints, and at least one entry must have all
+  of its constraints satisfied for an infix operator to be exempted
+- therefore, if you wish to disable this functionality, set `indent.infix = []`
+- if you have only one entry, you can specify `indent.infix { ... }` instead of
+  `indent.infix = [ { ... } ]`
+
+```scala mdoc:defaults
+indent.infix
+```
+
+#### `indent.infix`: `exemptScope`
 
 Added in 3.4.0, this parameter determines when an infix operator can be exempted from applying
-continuation indentation.
+continuation indentation. Since 3.10.4, it takes multiple values, and expects each to apply.
+If you have only one value, you may choose to specify `exemptScope = <value>`
+instead of `exemptScope = [ <value> ]`.
+If the list is empty, this constraint is satisfied, and any otherwise eligible infix operator
+is exempted (this replaced deprecated `indentOperator.topLevelOnly=false`).
 
 It accepts the following values, to determine the context in which infix operators are eligible
 to be exempted from the default indentation rule:
@@ -908,15 +968,13 @@ to be exempted from the default indentation rule:
   only statement in a block; entire body of an assignment, case clause, control statement, etc;
   - it is intended to help implement a requirement of the
     [scala-js coding style](https://github.com/scala-js/scala-js/blob/main/CODINGSTYLE.md#long-expressions-with-binary-operators).
-- `all`: all infix operators
-  - this value replaced deprecated `indentOperator.topLevelOnly=false`
 - `notAssign` (since v3.8.4): any non-assignment operator
   - this value expanded upon deprecated `verticalAlignMultilineOperators`
     which now simply maps to `{ exemptScope = notAssign, excludeRegex = ".*" }`
 - `notWithinAssign` (since v3.8.4): any infix not part of a larger assignment expression
 
 ```scala mdoc:scalafmt
-indent.infix.exemptScope = oldTopLevel
+indent.infix = [{ exemptScope = [oldTopLevel] }]
 ---
 function(
   a &&
@@ -941,7 +999,7 @@ function {
 ```
 
 ```scala mdoc:scalafmt
-indent.infix.exemptScope = all
+indent.infix = [{ exemptScope = [] }]
 ---
 function(
   a &&
@@ -966,7 +1024,7 @@ function {
 ```
 
 ```scala mdoc:scalafmt
-indent.infix.exemptScope = aloneEnclosed
+indent.infix = [{ exemptScope = [aloneEnclosed] }]
 ---
 function(
   a &&
@@ -991,7 +1049,7 @@ function {
 ```
 
 ```scala mdoc:scalafmt
-indent.infix.exemptScope = aloneArgOrBody
+indent.infix = [{ exemptScope = [aloneArgOrBody] }]
 ---
 function(
   a &&
@@ -1015,37 +1073,29 @@ function {
 }
 ```
 
-#### `indent.infix.excludeRegex`
+#### `indent.infix`: `excludeRegex`
 
 Defines a regular expression for excluded infix operators. If an eligible
 operator matches, it will not be indented.
 
 In v3.1.0, this parameter was renamed from `indentOperator.exclude`.
 
-```scala mdoc:defaults
-indent.infix.excludeRegex
-```
-
-#### `indent.infix.includeRegex`
+#### `indent.infix`: `includeRegex`
 
 Defines a regular expression for included infix operators. If an eligible
 operator matches and is not excluded explicitly by
-[indent.infix.excludeRegex](#indentinfixexcluderegex), it be will indented.
+[excludeRegex](#indentinfix-excluderegex), it be will indented.
 
 In v3.1.0, due to conflict with built-in HOCON keyword, this parameter was
 renamed from `indentOperator.include`.
 
-```scala mdoc:defaults
-indent.infix.includeRegex
-```
-
-#### `indent.infix.preset`
+#### `indent.infix` presets
 
 - `default`
   - use defaults for all fields
 - `spray` (also `akka`)
-  - set `indent.infix.excludeRegex = "^$"`
-    and `indent.infix.includeRegex = "^.*=$"`
+  - set `indent.infix = [{ excludeRegex = "^$"` }]
+    and `indent.infix = [{ includeRegex = "^.*=$"` }]
 
 ## Alignment
 
@@ -1659,8 +1709,12 @@ are prohibited and will result in an error.
 > Since v3.0.0.
 
 This parameter controls when to add blank lines before and/or after a top-level
-statement (a member of a package or template; nesting is allowed but not within
-a block). Special cases:
+statement, defined as:
+
+- a member of a package or template (or extension group within a template)
+- nesting is allowed if parent is also a top-level statement
+
+Special cases:
 
 - the rules do _not_ directly apply to package statements at the top of the source file; however,
   if this parameter is non-empty, there will be at least one blank line before the first
@@ -1668,6 +1722,7 @@ a block). Special cases:
 - end markers are handled through a setting for the statement they mark
 - imports and exports are processed as a group of consecutive statements
 - also see [Newlines around package or template body](#newlines-around-package-or-template-body)
+- if `allowNonTop` is enabled, this rule will also apply to some other statements
 
 > This parameter might reduce the number of blank lines but will not eliminate
 > them completely unless corresponding value is negative.
@@ -1679,6 +1734,9 @@ whether the rule should apply):
   - a regular expression to match the type of the statement
   - if unspecified, will match all valid statements
   - see [align.tokens](#aligntokens) for instructions on how to find the type
+- `parents` (since v3.10.4):
+  - a list of regular expressions to match the parent of the statement
+  - if unspecified or empty, matches any
 - `maxNest` and (since v3.1.2) `minNest`
   - basically, limits indentation level (not actual indentation) of a statement
   - unindented statements (under source-level unindented package) have
@@ -1694,6 +1752,10 @@ whether the rule should apply):
     lines in each gap) that would have been [output](#advanced-formatting-process)
     prior to this rule.
   - if a limit is unspecified, will not constrain on the corresponding end
+- (since v3.10.4) `allowNonTop` (default: false)
+  - allows applying this particular entry to:
+    - a top-level statement that has a non-top-level parent
+    - any matching statement if `regex` or `parents` are specified
 - `blanks`
   - if omitted while the entry matches, serves to exclude another entry
   - `before`: number of lines to be added before a matching statement; if
@@ -2212,6 +2274,9 @@ This parameter controls whether a newline is forced between the opening curly
 brace and the parameters of a lambda or partial function. Added in 2.7.0,
 replacing boolean `alwaysBeforeCurlyBraceLambdaParams` (removed in 3.4.0).
 
+In 3.4.10, `beforeParenLambdaParams` was added to allow overriding this parameter
+specifically for lambdas in parentheses.
+
 ```scala mdoc:defaults
 newlines.beforeCurlyLambdaParams
 ```
@@ -2450,13 +2515,20 @@ Each of these groups has several parameters of its own (replacing deprecated
 
 - `style`:
 - `maxCountPerFile`
+- `maxCountPerFileForKeep`
 - `maxCountPerExprForSome`
 - `breakOnNested`
 
-#### `newlines.infix: style=keep`
+#### `newlines.infix: style=none,keep`
 
-This approach preserves line breaks in the input. This is the original
-behaviour, and default for `newlines.source=classic,keep`.
+`none` (renamed from `keep` in v3.10.4) makes no attempt to alter breaks around
+infix operators (preserving both existence and absence of a line break in the
+input). This is the original behaviour, and default for `newlines.source=classic`.
+
+`keep` (consistently with other parameters having this value as an option, and
+default for `newlines.source=keep`), since v3.10.4 preserves only the existence
+of a line break but reserves the right to introduce additional breaks after some
+infix operators (that is, exactly as `some` would have done).
 
 One caveat is: for `classic` type infixes with Scala3 (or if the dialect
 [enables](#runnerdialectoverride) the `useInfixTypePrecedence` flag),
@@ -2487,7 +2559,11 @@ newlines.infix.termSite.maxCountPerFile
 
 If the total number of matching infix operations in the _entire file_ exceeds
 `newlines.infix.xxxSite.maxCountPerFile`, the formatter automatically switches to
-`newlines.infix.xxxSite.style=keep` for this file.
+`newlines.infix.xxxSite.style=none` for this file.
+
+Otherwise, if the number of infix expressions exceeds `maxCountPerFileForKeep`,
+the formatter automatically switches to `newlines.infix.xxxSite.style=keep`.
+This optional parameter was added in v3.10.4.
 
 #### `newlines.infix: maxCountPerExprForSome`
 
@@ -2508,6 +2584,22 @@ newlines.infix.termSite.breakOnNested
 
 If enabled, will force line breaks around a nested parenthesized sub-expression
 in a multi-line infix expression.
+
+This logic, however, will not apply if the precedence of the inner expression
+is lower than the outer; that is, we _had_ to put it in parentheses, not because
+we _chose_ to, for readability. This is to prevent breaking like this:
+
+```scala
+// original
+(a + b) * c
+(a + b) < c
+
+// formatted
+(a + b) *
+c // ok to force
+(a + b) <
+c // not ok by default
+```
 
 ### `newlines.avoidForSimpleOverflow`
 
@@ -2909,10 +3001,12 @@ However, if you prefer to avoid having these newlines, some combinations
 of parameters will help you achieve that. This parameter must be set to false
 and one of the following conditions enabled as follows:
 
-- [`binPack.importSelectors`](#binpackimportselectors) is set to `fold`, or
-- [`binPack.importSelectors`](#binpackimportselectors) is not set, and
-  - [`newlines.source = fold`](#newlinessource)), or
-  - [`newlines.source != unfold`](#newlinessource)) and there's no break after the opening brace
+- [`binPack.importSelectors`](#binpackimportselectors) is`fold`
+  (explicitly, or implied from [`newlines.source`](#newlinessource), or
+- there's no break after the opening brace and
+  - [`binPack.importSelectors`](#binpackimportselectors) is `keep`, or
+  - [`binPack.importSelectors`](#binpackimportselectors) and
+    [`newlines.source`](#newlinessource) are both unspecified
 
 ```scala mdoc:scalafmt
 danglingParentheses.importSite = false
@@ -3475,12 +3569,32 @@ number of lines.
 
 The rule is enabled by configuring `rewrite.insertBraces`:
 
-- `minLines` (default: 0, or disabled): the minimum number of lines to trigger the rule
 - `allBlocks` (default: false): compute maximum span of all blocks under the parent
   expression rather than just the statement to be enclosed in curly braces
   - this could be used to have consistent application of curly braces in expressions
-    with multiple sub-expressions (conditions or blocks), such as `if-else`,
-    `try-finally`, `for-yield`, `do-while` etc.
+    with multiple sub-blocks, such as `if-else`, `try-finally`, `for-yield`, etc.
+- `settings`:
+  - `minBreaks` (default: 0, or disabled): the minimum number of line breaks to trigger the rule
+  - `nonBlocksMinBreaks` (default: fallback to `minBreaks`; added in v3.10.4)
+    - this threshold applies to other expressions associated with the outer tree
+      containing the block in question (such as conditions for `if` or `while`,
+      or parameter clauses for methods or lambdas);
+    - it is disabled if set to 0, or if `allBlocks` is false; will default to `minBreaks`
+      if negative; otherwise, sets the minimum number of line breaks within the expression
+      to trigger braces around all blocks within the parent expression.
+  - `countBreakBefore` (default: false; added in v3.10.4):
+    - this parameter controls when we include the break before the expression
+      when comparing it with `minBreaks`
+    - it helps when we want to differentiate between, let's say, a one-liner
+      `else` part following the keyword with or without a break
+- `overrideFor` (default: empty; added in v3.10.4)
+  - this list parameter allows customizing or overriding certain settings
+  - each entry on this list contains:
+    - the same fields as under `settings`; if not specified, default to `settings`
+    - `owner`: logic to match the owner of expression whose span we are computing
+      - it contains the following fields:
+        - `regex` and `parents`, with same logic as the owners in
+          [`align.tokens`](#aligntokens)
 
 Here are some limitations:
 
@@ -3680,10 +3794,16 @@ for(a <- as; b <- bs if b > 2)
 
 This rule accepts the following settings:
 
-- `rewrite.preferCurlyFors.removeTrailingSemicolonsOnly` (default: `false`):
-  - if `false` (default), replaces all semicolons with a newline
+- `rewrite.preferCurlyFors.removeTrailingSemicolonsOnly`:
+  - if `false`, replaces all semicolons with a newline
   - if `true`, keeps semicolons unless followed by a newline or single-line comment
     - see also [RemoveSemicolons](#removesemicolons)
+- `rewrite.preferCurlyFors.includeGuards`: controls whether if-guards are
+  also counted, in addition to generators, when detecting "multiple enumerators"
+
+```scala mdoc:defaults
+rewrite.preferCurlyFors
+```
 
 ### `Imports`
 
@@ -4185,6 +4305,248 @@ This rule removes semicolons unless required by the Scala syntax (such
 as those used in for-clause enumerators enclosed in parentheses).
 See also [PreferCurlyFors](#prefercurlyfors).
 
+### RewriteLiterals
+
+> Since v3.10.3.
+
+This rule rewrites numeric literals potentially modifying representation style.
+It's an extension of single-character replacement rules grouped under [`literals`](#literals).
+
+#### `literals.floatingPoint.filter`
+
+```scala mdoc:defaults
+literals.floatingPoint.filter
+```
+
+These settings determine whether the rule is applicable to a given
+floating-point token.
+
+##### `literals.floatingPoint.filter.minTotalDigits`
+
+Filters on length of literal, excluding sign and type suffix.
+
+```scala mdoc:scalafmt
+rewrite.rules = [RewriteLiterals]
+literals.floatingPoint {
+  filter.minTotalDigits = 6
+}
+---
+-0.000120d
+-0.00120d
+-0.0120d
+-0.120d
+-1.20d
+-12.0d
+-120d
+-1200d
+-12000d
+-120000d
+-1200000d
+```
+
+##### `literals.floatingPoint.filter.minSignificantDigits`
+
+Filters on number of decimal digits in normalized
+scientific notation, excluding sign, type suffix, dot and exponent.
+
+```scala mdoc:scalafmt
+rewrite.rules = [RewriteLiterals]
+literals.floatingPoint {
+  filter {
+    minTotalDigits = 0
+    minSignificantDigits = 3
+  }
+}
+---
+-0.000120e0d
+-0.000123e0d
+-0.00120e0d
+-0.00123e0d
+-0.0120e0d
+-0.0123e0d
+-0.120e0d
+-0.123e0d
+-1.20e0d
+-1.23e0d
+-12.0e0d
+-12.3e0d
+-120e0d
+-123e0d
+-1200e0d
+-1230e0d
+-12000e0d
+-12300e0d
+-120000e0d
+-123000e0d
+```
+
+##### `literals.floatingPoint.filter.needSuffix`
+
+Applies only to literals which contain a type suffix (`D` or `F`),
+to avoid modifying
+[custom number literals](https://docs.scala-lang.org/scala3/reference/experimental/numeric-literals.html).
+
+```scala mdoc:scalafmt
+rewrite.rules = [RewriteLiterals]
+literals.floatingPoint {
+  filter {
+    minTotalDigits = 0
+    needSuffix = true
+  }
+}
+---
+0.000120
+0.000120d
+0.00120
+0.00120d
+0.0120
+0.0120d
+0.120
+0.120d
+1.20
+1.20d
+12.0
+12.0d
+120.0
+120d
+1200.0
+1200d
+12000.0
+12000d
+```
+
+#### `literals.floatingPoint.format`
+
+```scala mdoc:defaults
+literals.floatingPoint.format
+```
+
+These settings control how the resulting literal is formatted.
+The output is in either a
+[normalized scientific notation](https://en.wikipedia.org/wiki/Scientific_notation#Normalized_notation)
+or a simple decimal form with a non-empty whole part and a possibly empty
+fractional part.
+
+##### `literals.floatingPoint.format.maxPaddingZeros`
+
+This setting controls choice between decimal and scientific notation:
+normalized scientific notation is selected if in the decimal representation
+the number of padding zeros just before trailing `.0` or immediately after
+leading `0.` exceeds this value.
+
+```scala mdoc:scalafmt
+rewrite.rules = [RewriteLiterals]
+literals.floatingPoint {
+  filter.minTotalDigits = 1
+  format.maxPaddingZeros = 2
+}
+---
+12300.0
+123000.0
+0.00123
+0.000123
+```
+
+##### `literals.floatingPoint.format.separators`
+
+If positive, and allowed by the dialect (via
+`allowNumericLiteralUnderscoreSeparators` flag), will add a numeric
+separator (underscore) for every group of digits (counting from the dot).
+
+```scala mdoc:scalafmt
+rewrite.rules = [RewriteLiterals]
+literals.floatingPoint {
+  filter.minTotalDigits = 1
+  format.maxPaddingZeros = 10
+}
+---
+1234e-4
+1234e-3
+1234e-2
+1234e-1
+1234e+0
+1234e+1
+1234e+2
+1234e+3
+1234e+4
+// scalafmt: { literals.floatingPoint.format.separators = 2 }
+1234e-4
+1234e-3
+1234e-2
+1234e-1
+1234e+0
+1234e+1
+1234e+2
+1234e+3
+1234e+4
+```
+
+##### `literals.floatingPoint.format.forceDot`
+
+If enabled, always includes `.0` if the number has no fractional part; otherwise,
+this would be added only if the number looks like an integer
+(that is, no exponent or type suffix).
+
+```scala mdoc:scalafmt
+rewrite.rules = [RewriteLiterals]
+literals.floatingPoint {
+  filter.minTotalDigits = 1
+  format.maxPaddingZeros = 5
+}
+---
+1230.0
+1230d
+1230.0d
+123e3
+123.0e3
+123e10
+123.0e10
+// scalafmt: { literals.floatingPoint.format.forceDot = true }
+1230.0
+1230d
+1230.0d
+123e3
+123.0e3
+123e10
+123.0e10
+```
+
+##### `literals.floatingPoint.format.forceExpPlus`
+
+If enabled, always includes a sign after the `E` in exponent; otherwise,
+only negative exponent (naturally) comes with a sign.
+
+```scala mdoc:scalafmt
+rewrite.rules = [RewriteLiterals]
+literals.floatingPoint {
+  filter.minTotalDigits = 1
+}
+---
+123e0
+123e+0
+123e1
+123e+1
+123e-1
+// scalafmt: { literals.floatingPoint.format.forceExpPlus = true }
+123e0
+123e+0
+123e1
+123e+1
+123e-1
+```
+
+### `ProcedureSyntax`
+
+If the dialect still supports procedure syntax, this rule would replace it with
+a `Unit` method.
+
+```scala mdoc:scalafmt
+rewrite.rules = [ProcedureSyntax]
+runner.dialect = scala213
+---
+def foo() {}
+```
+
 ## Scala3 rewrites
 
 This section describes rules which are applied if the appropriate dialect (e.g.,
@@ -4301,7 +4663,7 @@ Prior to v3.10.3, this setting was named `scala3.removeEndMarkerMaxLines`.
 This flag dictates which part of the expression terminated by the end marker
 is used to calculate the span for the purposes of applying
 [`insertMinSpan`](#rewritescala3endmarkerinsertminspan) and
-[`removeMaxSpan`](#rewritescala3removeendmarkermaxspan).
+[`removeMaxSpan`](#rewritescala3endmarkerremovemaxspan).
 
 - `all` (default): the entire expression
 - `lastBlockOnly`: only the last block with significant indentation relative to
@@ -4505,6 +4867,22 @@ comments.wrapSingleLineMlcAsSlc = true
 /* standalone multi-line comment */
 val b = 2 /* mlc */ /* trailing mlc */
 ```
+
+### `comments.indentTrailingInCaseBody`
+
+> Since v3.10.4.
+
+This parameter controls indentation of standalone comments occurring after the
+last statement of a case body:
+
+- `none` (default): these comments would not be indented, thus getting attributed
+  to the next case clause instead; this was the only behaviour prior to v3.10.4
+- `less`:
+  - for final case clause, or if there are no blank lines, all comments are indented
+  - otherwise, only comments before the very _first_ blank line would be indented
+- `more`:
+  - for final case clauses, or if there are no blank lines, all comments are indented
+  - otherwise, only comments after the very _last_ blank line would _not_ be indented
 
 ### `docstrings.style`
 
@@ -4786,8 +5164,14 @@ globally or using any of the options further in this section.
 
 ### For code block
 
-There is a possibility to override scalafmt config for a specific code with
-`// scalafmt: {}` comment:
+There is a possibility to override scalafmt config for subsequent code with a
+`// scalafmt: { <settings> }` comment.
+
+Each such invocation overlays new settings over the initial configuration for a
+given file; thus, to reset back to that configuration, simply use `// scalafmt: {}`.
+
+However, since v3.10.4, if this comment is specified at the top of the file,
+before the first non-comment, then this configuration becomes the "initial".
 
 ```scala mdoc:scalafmt
 ---
@@ -4796,10 +5180,16 @@ libraryDependencies ++= Seq(
   "org.scalameta" %% "scalameta" % scalametaV,
   "org.scalacheck" %% "scalacheck" % scalacheckV)
 
-// scalafmt: { align.preset = some, danglingParentheses.preset = true } (back to defaults)
+/* scalafmt: {
+     align.preset = some
+     danglingParentheses.preset = true
+   }
+ */
 libraryDependencies ++= Seq(
   "org.scalameta" %% "scalameta" % scalametaV,
   "org.scalacheck" %% "scalacheck" % scalacheckV)
+
+// scalafmt: {} // back to defaults
 ```
 
 ### // format: off
@@ -4921,8 +5311,7 @@ uses `align.preset=none` for all files except `.sbt` for which
 `align.preset=most` will apply. It will also use different parameters for test
 suites.
 
-File names will be matched against the patterns in the order in which they are
-specified in the configuration file, in case multiple patterns match a given file.
+In case multiple patterns match a given file, the longest pattern will be used.
 
 The parameter also allows the following shortcuts:
 
@@ -5310,34 +5699,6 @@ literals.long=Upper
 123l
 ```
 
-### `literals.float`
-
-```scala mdoc:defaults
-literals.float
-```
-
-Responsible for the case of `Float` literals suffix `F`
-
-```scala mdoc:scalafmt
-literals.float=Lower
----
-42.0F
-```
-
-### `literals.double`
-
-```scala mdoc:defaults
-literals.double
-```
-
-Responsible for the case of `Double` literals suffix `D`
-
-```scala mdoc:scalafmt
-literals.double=Lower
----
-42.0d
-```
-
 ### `literals.hexPrefix`
 
 ```scala mdoc:defaults
@@ -5386,17 +5747,55 @@ literals.long=Upper
 0B111l
 ```
 
-### `literals.scientific`
+### `literals.floatingPoint`
+
+This sections contains settings controlling formatting of floating-point
+(float, double, generic) literals.
+
+Also see the [`RewriteLiterals` rule](#rewriteliterals)
+which defines additional settings in this section.
+
+#### `literals.floatingPoint.float`
 
 ```scala mdoc:defaults
-literals.scientific
+literals.floatingPoint.float
+```
+
+Responsible for the case of `Float` literals suffix `F`
+
+```scala mdoc:scalafmt
+literals.floatingPoint.float = Lower
+---
+42.0F
+```
+
+#### `literals.floatingPoint.double`
+
+```scala mdoc:defaults
+literals.floatingPoint.double
+```
+
+Responsible for the case of `Double` literals suffix `D`
+
+```scala mdoc:scalafmt
+literals.floatingPoint.double = Lower
+---
+42.0d
+```
+
+#### `literals.floatingPoint.scientific`
+
+```scala mdoc:defaults
+literals.floatingPoint.scientific
 ```
 
 Responsible for the case of `Double` literals exponent part
 
 ```scala mdoc:scalafmt
-literals.scientific=Upper
-literals.float=Lower
+literals.floatingPoint {
+  scientific = Upper
+  float = Lower
+}
 ---
 10e-1
 10e-1f
@@ -5473,7 +5872,8 @@ The rest of parameters retain their default behaviour.
 
 This group of parameters controls binpacking of an argument list if _all_ arguments are
 considered to be literals.
-These parameters take precedence over [forcing of config style](#forcing-config-style).
+These parameters take precedence over [forcing of config style](#forcing-config-style)
+or other parameters [controlling binpacking](#binpackxxxsite).
 
 The following parameters affect this behaviour:
 
@@ -5739,10 +6139,19 @@ Takes the following parameters:
 
 - `unfold`: format one per line (prior to v3.8.4, called `noBinPack`)
 - `fold`: fit as many as possible on each line (prior to v3.8.4, called `binPack`)
+- `keep`: preserve breaks between selectors (added in v3.10.5)
+  - this setting is not allowed if [`Imports`](#imports) rewrite rule is enabled
 - `singleLine`: format all on one line
 
-By default, the parameter is set to `fold` if [`newlines.source = fold`](#newlinessource),
+By default, the parameter will match [`newlines.source`](#newlinessource) if
+the latter is explicitly specified,
 and `unfold` otherwise (prior to v3.10.1, it would always be `unfold`).
+See also [`danglingParentheses.importSite`](#danglingparenthesesimportsite).
+
+However, if [`Imports`](#imports) rewrite rule is enabled, which discards
+existing formatting and completely regenerates imports, the default for
+[`newlines.source = keep`](#newlinessource) will be replaced with `fold` if
+[`rewrite.imports.selectors = fold`](#imports-selectors), and `unfold` otherwise.
 
 ```scala mdoc:scalafmt
 maxColumn = 10
@@ -6052,8 +6461,8 @@ Currently, the formatting process consists of several stages:
       many line breaks we have selected to output for a given code passage);
       for instance,
       - [inserting](#inserting-braces) braces,
-      - [adding](#rewritescala3insertendmarkerminlines) or
-        [removing](#rewritescala3removeendmarkermaxlines) end markers
+      - [adding](#rewritescala3endmarkerinsertminspan) or
+        [removing](#rewritescala3endmarkerremovemaxspan) end markers
       - modifying [blank lines](#newlines-around-package-or-template-body)
     - rewrite comments and docstrings if configured
     - [rewrite trailing commas](#trailing-commas):

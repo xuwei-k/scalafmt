@@ -53,7 +53,7 @@ case class Indents(
     withSiteRelativeToExtends: Int = 0,
     commaSiteRelativeToExtends: Int = 2,
     yieldKeyword: Boolean = true,
-    infix: IndentOperator = IndentOperator(),
+    infix: Seq[IndentOperator] = Seq(IndentOperator.default),
 ) {
   lazy val getSignificant = significant.getOrElse(main)
 
@@ -65,8 +65,8 @@ case class Indents(
   }).getOrElse(defnSite)
 
   def getAfterInfixSite: Int = afterInfixSite.getOrElse(main)
-  def getBinPackCallSites: (Int, Int) =
-    (callSite, binPackCallSite.getOrElse(callSite))
+  def getBinPackCallSite: Int = binPackCallSite.getOrElse(callSite)
+  def getBinPackCallSites: (Int, Int) = (callSite, getBinPackCallSite)
   def getBinPackDefnSites(tree: meta.Tree): (Int, Int) = {
     val len = getDefnSite(tree)
     (len, binPackDefnSite.getOrElse(len))
@@ -76,14 +76,19 @@ case class Indents(
 object Indents {
   implicit lazy val surface: generic.Surface[Indents] = generic.deriveSurface
   implicit lazy val codec: ConfCodecEx[Indents] = generic.deriveCodecEx(Indents())
-    .noTypos
+    .noTypos.withSectionRenames(
+      annotation.SectionRename.partial {
+        case x @ Conf.Obj(head :: rest) if rest.nonEmpty || head._1 != "+" =>
+          Conf.Lst(x)
+      }("infix", "infix"),
+    )
 
   sealed abstract class RelativeToLhs
   object RelativeToLhs {
     case object `match` extends RelativeToLhs
     case object `infix` extends RelativeToLhs
 
-    implicit val reader: ConfCodecEx[RelativeToLhs] = ReaderUtil
+    implicit val reader: ConfCodecEx[RelativeToLhs] = ConfCodecEx
       .oneOf[RelativeToLhs](`match`, `infix`)
   }
 
@@ -93,7 +98,7 @@ object Indents {
     case object always extends FewerBraces
     case object beforeSelect extends FewerBraces
 
-    implicit val reader: ConfCodecEx[FewerBraces] = ReaderUtil
+    implicit val reader: ConfCodecEx[FewerBraces] = ConfCodecEx
       .oneOf[FewerBraces](never, always, beforeSelect)
   }
 

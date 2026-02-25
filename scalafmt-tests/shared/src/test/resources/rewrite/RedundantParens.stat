@@ -703,7 +703,7 @@ object Application {
 
   def main(args: Array[String]): Unit = app.run(args)
 }
->>> { stateVisits = 804, stateVisits2 = 804 }
+>>>
 object Application {
   val app = reactiveWebApplication(a =>
     a.beans(b => b.bean(classOf[SampleHandler]).bean(classOf[SampleService]))
@@ -764,7 +764,7 @@ object Application {
 
   def main(args: Array[String]): Unit = app.run(args)
 }
->>> { stateVisits = 804, stateVisits2 = 804 }
+>>>
 object Application {
   val app = reactiveWebApplication(a =>
     a.beans(b => b.bean(classOf[SampleHandler]).bean(classOf[SampleService]))
@@ -1897,4 +1897,518 @@ object a {
   val _ = (age = 2)
   val _ = (age = 2)
   val (age, gender, zip) = (age = 2, (gender = m), (zip = 123))
+}
+<<< various-precedence term infixes, left-assoc
+rewrite.redundantParens.infixSide = all
+===
+object a {
+  foo - (bar + baz)
+  (foo - bar) + baz
+
+  foo * (bar - baz)
+  (foo + bar) * baz
+
+  foo - (bar * baz)
+  (foo * bar) - baz
+}
+>>>
+object a {
+  foo - (bar + baz)
+  foo - bar + baz
+
+  foo * (bar - baz)
+  (foo + bar) * baz
+
+  foo - bar * baz
+  foo * bar - baz
+}
+<<< various-precedence term infixes, right-assoc
+rewrite.redundantParens.infixSide = all
+===
+object a {
+  foo -: (bar +: baz)
+  (foo -: bar) +: baz
+
+  foo *: (bar -: baz)
+  (foo +: bar) *: baz
+
+  foo -: (bar *: baz)
+  (foo *: bar) -: baz
+}
+>>>
+object a {
+  foo -: bar +: baz
+  (foo -: bar) +: baz
+
+  foo *: (bar -: baz)
+  (foo +: bar) *: baz
+
+  foo -: bar *: baz
+  foo *: bar -: baz
+}
+<<< various-precedence term infixes, mixed-assoc
+rewrite.redundantParens.infixSide = all
+===
+object a {
+  foo *: (bar - baz)
+  (foo *: bar) - baz
+
+  foo * (bar -: baz)
+  (foo * bar) -: baz
+
+  foo -: (bar * baz)
+  (foo -: bar) * baz
+
+  foo - (bar *: baz)
+  (foo - bar) *: baz
+}
+>>>
+object a {
+  foo *: (bar - baz)
+  (foo *: bar) - baz
+
+  foo * (bar -: baz)
+  (foo * bar) -: baz
+
+  foo -: (bar * baz)
+  (foo -: bar) * baz
+
+  foo - (bar *: baz)
+  (foo - bar) *: baz
+}
+<<< various-precedence pat infixes, left-assoc
+rewrite.redundantParens.infixSide = all
+===
+a match {
+  case foo - (bar + baz) =>
+  case (foo - bar) + baz =>
+
+  case foo * (bar - baz) =>
+  case (foo + bar) * baz =>
+
+  case foo - (bar * baz) =>
+  case (foo * bar) - baz =>
+}
+>>>
+a match {
+  case foo - (bar + baz) =>
+  case foo - bar + baz   =>
+
+  case foo * (bar - baz) =>
+  case (foo + bar) * baz =>
+
+  case foo - bar * baz =>
+  case foo * bar - baz =>
+}
+<<< various-precedence pat infixes, right-assoc
+rewrite.redundantParens.infixSide = all
+===
+a match {
+  case foo -: (bar +: baz) =>
+  case (foo -: bar) +: baz =>
+
+  case foo *: (bar -: baz) =>
+  case (foo +: bar) *: baz =>
+
+  case foo -: (bar *: baz) =>
+  case (foo *: bar) -: baz =>
+}
+>>>
+a match {
+  case foo -: bar +: baz   =>
+  case (foo -: bar) +: baz =>
+
+  case foo *: (bar -: baz) =>
+  case (foo +: bar) *: baz =>
+
+  case foo -: bar *: baz =>
+  case foo *: bar -: baz =>
+}
+<<< various-precedence pat infixes, mixed-assoc
+rewrite.redundantParens.infixSide = all
+===
+a match {
+  case foo *: (bar - baz) =>
+  case (foo *: bar) - baz =>
+
+  case foo * (bar -: baz) =>
+  case (foo * bar) -: baz =>
+
+  case foo -: (bar * baz) =>
+  case (foo -: bar) * baz =>
+
+  case foo - (bar *: baz) =>
+  case (foo - bar) *: baz =>
+}
+>>>
+a match {
+  case foo *: (bar - baz) =>
+  case (foo *: bar) - baz =>
+
+  case foo * (bar -: baz) =>
+  case (foo * bar) -: baz =>
+
+  case foo -: (bar * baz) =>
+  case (foo -: bar) * baz =>
+
+  case foo - (bar *: baz) =>
+  case (foo - bar) *: baz =>
+}
+<<< various-precedence type infixes, left-assoc
+rewrite.redundantParens.infixSide = all
+===
+object a {
+  type T = foo - (bar + baz)
+  type T = (foo - bar) + baz
+
+  type T = foo * (bar - baz)
+  type T = (foo + bar) * baz
+
+  type T = foo - (bar * baz)
+  type T = (foo * bar) - baz
+}
+>>>
+object a {
+  type T = foo - (bar + baz)
+  type T = foo - bar + baz
+
+  type T = foo * (bar - baz)
+  type T = foo + bar * baz
+
+  type T = foo - (bar * baz)
+  type T = foo * bar - baz
+}
+<<< various-precedence type infixes, right-assoc
+rewrite.redundantParens.infixSide = all
+===
+object a {
+  type T = foo -: (bar +: baz)
+  type T = (foo -: bar) +: baz
+
+  type T = foo *: (bar -: baz)
+  type T = (foo +: bar) *: baz
+
+  type T = foo -: (bar *: baz)
+  type T = (foo *: bar) -: baz
+}
+>>>
+object a {
+  type T = foo -: bar +: baz
+  type T = (foo -: bar) +: baz
+
+  type T = foo *: bar -: baz
+  type T = (foo +: bar) *: baz
+
+  type T = foo -: bar *: baz
+  type T = (foo *: bar) -: baz
+}
+<<< various-precedence type infixes, mixed-assoc
+rewrite.redundantParens.infixSide = all
+===
+object a {
+  type T = foo *: (bar - baz)
+  type T = (foo *: bar) - baz
+
+  type T = foo * (bar -: baz)
+  type T = (foo * bar) -: baz
+
+  type T = foo -: (bar * baz)
+  type T = (foo -: bar) * baz
+
+  type T = foo - (bar *: baz)
+  type T = (foo - bar) *: baz
+}
+>>>
+object a {
+  type T = foo *: (bar - baz)
+  type T = (foo *: bar) - baz
+
+  type T = foo * (bar -: baz)
+  type T = (foo * bar) -: baz
+
+  type T = foo -: (bar * baz)
+  type T = (foo -: bar) * baz
+
+  type T = foo - (bar *: baz)
+  type T = (foo - bar) *: baz
+}
+<<< various-precedence type infixes, left-assoc, scala3
+runner.dialect = scala3
+rewrite.redundantParens.infixSide = all
+===
+object a {
+  type T = foo - (bar + baz)
+  type T = (foo - bar) + baz
+
+  type T = foo * (bar - baz)
+  type T = (foo + bar) * baz
+
+  type T = foo - (bar * baz)
+  type T = (foo * bar) - baz
+}
+>>>
+object a {
+  type T = foo - (bar + baz)
+  type T = foo - bar + baz
+
+  type T = foo * (bar - baz)
+  type T = (foo + bar) * baz
+
+  type T = foo - bar * baz
+  type T = foo * bar - baz
+}
+<<< various-precedence type infixes, right-assoc, scala3
+runner.dialect = scala3
+rewrite.redundantParens.infixSide = all
+===
+object a {
+  type T = foo -: (bar +: baz)
+  type T = (foo -: bar) +: baz
+
+  type T = foo *: (bar -: baz)
+  type T = (foo +: bar) *: baz
+
+  type T = foo -: (bar *: baz)
+  type T = (foo *: bar) -: baz
+}
+>>>
+object a {
+  type T = foo -: bar +: baz
+  type T = (foo -: bar) +: baz
+
+  type T = foo *: (bar -: baz)
+  type T = (foo +: bar) *: baz
+
+  type T = foo -: bar *: baz
+  type T = foo *: bar -: baz
+}
+<<< various-precedence type infixes, mixed-assoc, scala3
+runner.dialect = scala3
+rewrite.redundantParens.infixSide = all
+===
+object a {
+  type T = foo *: (bar - baz)
+  type T = (foo *: bar) - baz
+
+  type T = foo * (bar -: baz)
+  type T = (foo * bar) -: baz
+
+  type T = foo -: (bar * baz)
+  type T = (foo -: bar) * baz
+
+  type T = foo - (bar *: baz)
+  type T = (foo - bar) *: baz
+}
+>>>
+object a {
+  type T = foo *: (bar - baz)
+  type T = (foo *: bar) - baz
+
+  type T = foo * (bar -: baz)
+  type T = (foo * bar) -: baz
+
+  type T = foo -: (bar * baz)
+  type T = (foo -: bar) * baz
+
+  type T = foo - (bar *: baz)
+  type T = (foo - bar) *: baz
+}
+<<< various-precedence generic-type infixes, left-assoc
+rewrite.redundantParens.infixSide = all
+===
+object a {
+  func[foo - (bar + baz)]
+  func[(foo - bar) + baz]
+
+  func[foo * (bar - baz)]
+  func[(foo + bar) * baz]
+
+  func[foo - (bar * baz)]
+  func[(foo * bar) - baz]
+}
+>>>
+object a {
+  func[foo - (bar + baz)]
+  func[foo - bar + baz]
+
+  func[foo * (bar - baz)]
+  func[foo + bar * baz]
+
+  func[foo - (bar * baz)]
+  func[foo * bar - baz]
+}
+<<< various-precedence generic-type infixes, right-assoc
+rewrite.redundantParens.infixSide = all
+===
+object a {
+  func[foo -: (bar +: baz)]
+  func[(foo -: bar) +: baz]
+
+  func[foo *: (bar -: baz)]
+  func[(foo +: bar) *: baz]
+
+  func[foo -: (bar *: baz)]
+  func[(foo *: bar) -: baz]
+}
+>>>
+object a {
+  func[foo -: bar +: baz]
+  func[(foo -: bar) +: baz]
+
+  func[foo *: bar -: baz]
+  func[(foo +: bar) *: baz]
+
+  func[foo -: bar *: baz]
+  func[(foo *: bar) -: baz]
+}
+<<< various-precedence generic-type infixes, mixed-assoc
+rewrite.redundantParens.infixSide = all
+===
+object a {
+  func[foo *: (bar - baz)]
+  func[(foo *: bar) - baz]
+
+  func[foo * (bar -: baz)]
+  func[(foo * bar) -: baz]
+
+  func[foo -: (bar * baz)]
+  func[(foo -: bar) * baz]
+
+  func[foo - (bar *: baz)]
+  func[(foo - bar) *: baz]
+}
+>>>
+object a {
+  func[foo *: (bar - baz)]
+  func[(foo *: bar) - baz]
+
+  func[foo * (bar -: baz)]
+  func[(foo * bar) -: baz]
+
+  func[foo -: (bar * baz)]
+  func[(foo -: bar) * baz]
+
+  func[foo - (bar *: baz)]
+  func[(foo - bar) *: baz]
+}
+<<< various-precedence generic-type infixes, left-assoc, scala3
+runner.dialect = scala3
+rewrite.redundantParens.infixSide = all
+===
+object a {
+  func[foo - (bar + baz)]
+  func[(foo - bar) + baz]
+
+  func[foo * (bar - baz)]
+  func[(foo + bar) * baz]
+
+  func[foo - (bar * baz)]
+  func[(foo * bar) - baz]
+}
+>>>
+object a {
+  func[foo - (bar + baz)]
+  func[foo - bar + baz]
+
+  func[foo * (bar - baz)]
+  func[(foo + bar) * baz]
+
+  func[foo - bar * baz]
+  func[foo * bar - baz]
+}
+<<< various-precedence generic-type infixes, right-assoc, scala3
+runner.dialect = scala3
+rewrite.redundantParens.infixSide = all
+===
+object a {
+  func[foo -: (bar +: baz)]
+  func[(foo -: bar) +: baz]
+
+  func[foo *: (bar -: baz)]
+  func[(foo +: bar) *: baz]
+
+  func[foo -: (bar *: baz)]
+  func[(foo *: bar) -: baz]
+}
+>>>
+object a {
+  func[foo -: bar +: baz]
+  func[(foo -: bar) +: baz]
+
+  func[foo *: (bar -: baz)]
+  func[(foo +: bar) *: baz]
+
+  func[foo -: bar *: baz]
+  func[foo *: bar -: baz]
+}
+<<< various-precedence generic-type infixes, mixed-assoc, scala3
+runner.dialect = scala3
+rewrite.redundantParens.infixSide = all
+===
+object a {
+  func[foo *: (bar - baz)]
+  func[(foo *: bar) - baz]
+
+  func[foo * (bar -: baz)]
+  func[(foo * bar) -: baz]
+
+  func[foo -: (bar * baz)]
+  func[(foo -: bar) * baz]
+
+  func[foo - (bar *: baz)]
+  func[(foo - bar) *: baz]
+}
+>>>
+object a {
+  func[foo *: (bar - baz)]
+  func[(foo *: bar) - baz]
+
+  func[foo * (bar -: baz)]
+  func[(foo * bar) -: baz]
+
+  func[foo -: (bar * baz)]
+  func[(foo -: bar) * baz]
+
+  func[foo - (bar *: baz)]
+  func[(foo - bar) *: baz]
+}
+<<< case patterns
+align.preset = none
+===
+foo match {
+  case (_: Foo) => (
+    foo + bar
+    // c
+  )
+  case (_: Foo | _: Bar) =>
+  case (_: Foo) | (_: Bar) =>
+  case (_: (Bar & Qux)) | (_: (Bar | Qux)) =>
+  case (_: Foo) if bar =>
+  case (_: Foo | _: Bar) if baz =>
+  case (_: Foo) | (_: Bar) if baz =>
+  case foo @ (_: Foo) =>
+  case foo @ (_: Foo | _: Bar) =>
+  case foo @ (_: Foo) | (_: Bar) =>
+  case foo @ (_: Foo) if bar =>
+  case foo @ (_: Foo | _: Bar) if baz =>
+  case foo @ (_: Foo) | (_: Bar) if baz =>
+}
+>>>
+foo match {
+  case _: Foo => (
+    foo + bar
+    // c
+  )
+  case _: Foo | _: Bar =>
+  case _: Foo | _: Bar =>
+  case _: (Bar & Qux) | _: (Bar | Qux) =>
+  case _: Foo if bar =>
+  case _: Foo | _: Bar if baz =>
+  case _: Foo | _: Bar if baz =>
+  case foo @ (_: Foo) =>
+  case foo @ (_: Foo | _: Bar) =>
+  case foo @ (_: Foo) | _: Bar =>
+  case foo @ (_: Foo) if bar =>
+  case foo @ (_: Foo | _: Bar) if baz =>
+  case foo @ (_: Foo) | _: Bar if baz =>
 }

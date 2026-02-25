@@ -8,7 +8,6 @@ import org.scalafmt.util.LoggerOps._
 
 import scala.meta._
 import scala.meta.classifiers.Classifier
-import scala.meta.tokens.Token.{Space => _, _}
 import scala.meta.tokens.{Token => T, Tokens}
 
 import scala.annotation.tailrec
@@ -45,11 +44,26 @@ object TreeOps {
     ): Option[(FT, Term, FT)] = getBraces(tree, tree.values)
 
     @inline
-    private def getBraces[A](tree: Tree, values: List[A])(implicit
+    private def getBraces[A <: Tree](tree: Tree, values: List[A])(implicit
         ftoks: FormatTokens,
     ): Option[(FT, A, FT)] = values match {
-      case arg :: Nil => ftoks.getBracesIfEnclosed(tree).map { case (b, e) =>
+      case arg :: Nil => getBracesNested(tree, values).map { case (b, e) =>
           (b, arg, e)
+        }
+      case _ => None
+    }
+
+    @inline
+    private def getBracesNested(tree: Tree, values: List[Tree])(implicit
+        ftoks: FormatTokens,
+    ): Option[(FT, FT)] = values match {
+      case _ :: Nil => ftoks.getBracesIfEnclosed(tree) match {
+          case None => tree.parent match {
+              case Some(p: Term.ArgClause) => getBracesNested(p, p.values)
+              case Some(p: Term.Block) => getBracesNested(p, p.stats)
+              case _ => None
+            }
+          case x => x
         }
       case _ => None
     }
@@ -96,20 +110,24 @@ object TreeOps {
   )(key: V => K)(f: V => T): Map[K, V] = {
     val ret = Map.newBuilder[K, V]
     var stack = List.empty[(T, V)]
-    coll.foreach(elem =>
+    coll.foreach { elem =>
       f(elem) match {
-        case open @ (_: OpenDelim | _: Interpolation.Start | _: Xml.Start |
-            _: Xml.SpliceStart) => stack = (open, elem) :: stack
-        case close @ (_: CloseDelim | _: Interpolation.End | _: Xml.End |
-            _: Xml.SpliceEnd) =>
+        case open @ (_: T.OpenDelim | _: T.Xml.Start | _: T.Xml.SpliceStart |
+            _: T.Interpolation.Start | _: T.Interpolation.SpliceStart) =>
+          stack = (open, elem) :: stack
+        case close @ (_: T.CloseDelim | _: T.Xml.End | _: T.Xml.SpliceEnd |
+            _: T.Interpolation.End | _: T.Interpolation.SpliceEnd) =>
           val (open, openElem) = stack.head
-          assertValidParens(open, close)
+          require(
+            checkValidDelims(open, close),
+            s"Mismatched delims ($open, $close)",
+          )
           ret += key(openElem) -> elem
           ret += key(elem) -> openElem
           stack = stack.tail
         case _ =>
-      },
-    )
+      }
+    }
     if (stack.nonEmpty) throw new IllegalArgumentException(
       stack.map { case (x, _) => s"[${x.end}]$x" }
         .mkString("Orphan parens (", ", ", ")"),
@@ -118,15 +136,15 @@ object TreeOps {
     result
   }
 
-  def assertValidParens(open: T, close: T): Unit = (open, close) match {
-    case (Interpolation.Start(), Interpolation.End()) =>
-    case (Xml.Start(), Xml.End()) =>
-    case (Xml.SpliceStart(), Xml.SpliceEnd()) =>
-    case (LeftBrace(), RightBrace()) =>
-    case (LeftBracket(), RightBracket()) =>
-    case (LeftParen(), RightParen()) =>
-    case (o, c) =>
-      throw new IllegalArgumentException(s"Mismatching parens ($o, $c)")
+  def checkValidDelims(open: T, close: T): Boolean = open match {
+    case _: T.Interpolation.Start => close.is[T.Interpolation.End]
+    case _: T.Interpolation.SpliceStart => close.is[T.Interpolation.SpliceEnd]
+    case _: T.Xml.Start => close.is[T.Xml.End]
+    case _: T.Xml.SpliceStart => close.is[T.Xml.SpliceEnd]
+    case _: T.LeftBrace => close.is[T.RightBrace]
+    case _: T.LeftBracket => close.is[T.RightBracket]
+    case _: T.LeftParen => close.is[T.RightParen]
+    case _ => true
   }
 
   @tailrec
@@ -428,12 +446,12 @@ object TreeOps {
   @tailrec
   def findNextInfixInParent(tree: Tree, scope: Tree)(implicit
       ftoks: FormatTokens,
-  ): Option[Name] = tree.parent match {
+  ): Option[Member.Infix] = tree.parent match {
     case Some(t: Member.ArgClause) => findNextInfixInParent(t, scope)
     case Some(t: Term.Block) if !ftoks.isEnclosedInBraces(t) =>
       findNextInfixInParent(t, scope)
     case Some(t: Member.Infix) if tree ne scope =>
-      if (t.lhs eq tree) Some(t.op) else findNextInfixInParent(t, scope)
+      if (t.lhs eq tree) Some(t) else findNextInfixInParent(t, scope)
     case _ => None
   }
 
@@ -450,8 +468,10 @@ object TreeOps {
   }
 
   // procedure syntax has decltpe: Some("")
+  def isProcedureSyntaxDeclTpe(tpe: Type): Boolean = tpe.tokens.isEmpty
+
   def isProcedureSyntax(defn: Defn.Def): Boolean = defn.decltpe
-    .exists(_.tokens.isEmpty)
+    .exists(isProcedureSyntaxDeclTpe)
 
   def isXmlBrace(owner: Tree): Boolean = owner match {
     case _: Term.Xml | _: Pat.Xml => true
@@ -858,7 +878,7 @@ object TreeOps {
                   case _ => false
                 }
 
-                if (prevParens.nonEmpty && tok.is[RightParen]) {
+                if (prevParens.nonEmpty && tok.is[T.RightParen]) {
                   if (prevChild == null || prevLPs <= 0 || excludeRightParen)
                     setOwner(tok, elem)
                   else {
@@ -869,15 +889,15 @@ object TreeOps {
                   prevLPs -= 1
                   prevParens = prevParens.tail
                   prevComma = null
-                } else if (tok.is[Comma]) {
+                } else if (tok.is[T.Comma]) {
                   prevComma = tok
                   setOwner(tok, elem)
                 } else {
                   setOwner(tok, elem)
-                  if (!tok.is[Trivia] && !tok.isEmpty) {
+                  if (!tok.is[T.Trivia] && !tok.isEmpty) {
                     prevComma = null
                     prevChild = null
-                    if (tok.is[LeftParen]) {
+                    if (tok.is[T.LeftParen]) {
                       prevLPs += 1
                       prevParens = tok :: prevParens
                     } else prevLPs = 0
@@ -894,16 +914,19 @@ object TreeOps {
 
     val checkedNewlines = baseStyle.newlines
       .checkInfixConfig(termInfixCount, typeInfixCount, patInfixCount)(baseStyle)
+    val checkedRunner = addDialectFeatures(baseStyle.runner, topSourceTree)
+    val ok = (checkedNewlines eq baseStyle.newlines) &&
+      (checkedRunner eq baseStyle.runner)
     val initStyle =
-      if (checkedNewlines eq baseStyle.newlines) baseStyle
-      else baseStyle.copy(newlines = checkedNewlines)
+      if (ok) baseStyle
+      else baseStyle.copy(newlines = checkedNewlines, runner = checkedRunner)
     (initStyle, ownersMap.result())
   }
 
   def isFewerBraces(
       tree: Term.Apply,
   )(implicit dialect: Dialect, ftoks: FormatTokens): Boolean =
-    dialect.allowFewerBraces && ftoks.getHead(tree.argClause).left.is[Colon]
+    dialect.allowFewerBraces && ftoks.getHead(tree.argClause).left.is[T.Colon]
 
   @tailrec
   def isFewerBracesLhs(tree: Tree)(implicit
@@ -943,7 +966,7 @@ object TreeOps {
   def isParentAnApply(t: Tree): Boolean = t.parent.is[Term.Apply]
 
   def isCapturingBrace(owner: Tree): Boolean = owner match {
-    case _: Type.Capturing => true
+    case _: Type.Capturing | _: Type.Captures => true
     case t: Type.FunctionLikeType => t.parent.is[Type.Capturing]
     case _ => false
   }
@@ -1071,6 +1094,84 @@ object TreeOps {
     case b @ Term.Block((x: Term.If) :: Nil) => isBlockWithoutBraces(b) &&
       existsBlockIfWithoutElse(x)
     case _ => other
+  }
+
+  /** js.native is very special in Scala.js.
+    *
+    * Context: https://github.com/scalameta/scalafmt/issues/108
+    */
+  def isJsNative(body: Tree): Boolean = body match {
+    case Term.Select(Term.Name("js"), Term.Name("native")) => true
+    case _ => false
+  }
+
+  def addDialectFeatures(runner: RunnerSettings, tree: Tree): RunnerSettings = {
+    val res = mutable
+      .Set[RunnerSettings.DialectFeature](runner.dialectFeatures: _*)
+    val cnt = res.size
+
+    def isSelectLanguageImport(t: Term.Select): Boolean = t.name.value ==
+      "language" &&
+      (t.qual match {
+        case q: Name => q.value == "scala"
+        case q: Term.Select => q.name.value == "scala" &&
+          (q.qual match {
+            case qq: Name => qq.value == "_root_"
+            case _ => false
+          })
+        case _ => true
+      })
+    def isLanguageImport(term: Term): Boolean = term match {
+      case t: Term.Select => isSelectLanguageImport(t)
+      case _ => false
+    }
+    def findFeature(name: Name): Unit = {}
+    def findExperimentalFeature(name: Name): Unit = name.value match {
+      case "relaxedLambdaSyntax" => res +=
+          RunnerSettings.DialectFeature.relaxedLambdaSyntax
+      case _ =>
+    }
+    @tailrec
+    def iter(stats: List[Tree], other: List[List[Tree]]): Unit = stats match {
+      case stat :: rest =>
+        var newother = other
+        stat match {
+          case stat: ImportExportStat => stat.importers.foreach { importer =>
+              importer.ref match {
+                case ref: Term.Select =>
+                  if (isSelectLanguageImport(ref)) importer.importees.foreach {
+                    case x: Importee.Name => findFeature(x.name)
+                    case x: Importee.Rename => findFeature(x.name)
+                    case _ =>
+                  }
+                  else if (
+                    ref.name.value == "experimental" &&
+                    isLanguageImport(ref.qual)
+                  ) importer.importees.foreach {
+                    case x: Importee.Name => findExperimentalFeature(x.name)
+                    case x: Importee.Rename => findExperimentalFeature(x.name)
+                    case _ =>
+                  }
+                case _ =>
+              }
+            }
+          case stat: Pkg => newother = stat.body.stats :: newother
+          case _ =>
+        }
+        iter(rest, newother)
+      case _ => other match {
+          case head :: rest => iter(head, rest)
+          case _ =>
+        }
+    }
+
+    tree match {
+      case x: Tree.Block => iter(x.stats, Nil)
+      case x: Tree.WithStats => iter(x.stats, Nil)
+      case _ =>
+    }
+
+    if (res.size == cnt) runner else runner.copy(dialectFeatures = res.toSeq)
   }
 
 }

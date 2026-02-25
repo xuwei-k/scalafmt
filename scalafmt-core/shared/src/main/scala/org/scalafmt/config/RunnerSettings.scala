@@ -1,6 +1,6 @@
 package org.scalafmt.config
 
-import scala.meta.parsers.Parsed
+import scala.meta.parsers.{Parsed, ParserOptions}
 import scala.meta.{Dialect, Tree}
 
 import scala.reflect.ClassTag
@@ -28,10 +28,11 @@ case class RunnerSettings(
     private val dialectOverride: Conf.Obj = Conf.Obj.empty,
     ignoreWarnings: Boolean = false,
     fatalWarnings: Boolean = false,
+    dialectFeatures: Seq[RunnerSettings.DialectFeature] = Nil,
 ) {
   @inline
   private[scalafmt] def getDialect = dialect.value
-  private[scalafmt] lazy val getDialectForParser: Dialect = getDialect
+  private[scalafmt] implicit lazy val getDialectForParser: Dialect = getDialect
     .withAllowToplevelTerms(true).withAllowToplevelStatements(true)
   @inline
   private[scalafmt] def dialectName = {
@@ -60,8 +61,10 @@ case class RunnerSettings(
   def event(evt: => FormatEvent): Unit =
     if (null != eventCallback) eventCallback(evt)
 
-  def parse(input: meta.inputs.Input): Parsed[_ <: Tree] =
-    getParser(input, getDialectForParser)
+  private implicit val parserOptions: ParserOptions =
+    new ParserOptions(captureComments = false)
+
+  def parse(input: meta.inputs.Input): Parsed[_ <: Tree] = getParser(input)
 
   @inline
   def isDefaultDialect = dialect.source == NamedDialect.defaultName
@@ -114,5 +117,12 @@ object RunnerSettings {
         else runner.withDialect(runner.dialect.copy(value = dialect))
       }
     }
+
+  sealed trait DialectFeature
+  object DialectFeature {
+    implicit val codec: ConfCodecEx[DialectFeature] = ConfCodecEx
+      .oneOf[DialectFeature](relaxedLambdaSyntax)
+    case object relaxedLambdaSyntax extends DialectFeature
+  }
 
 }

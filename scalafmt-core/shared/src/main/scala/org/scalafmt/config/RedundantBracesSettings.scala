@@ -38,22 +38,21 @@ object RedundantBracesSettings {
     generic.deriveEncoder
   implicit lazy val decoder: ConfDecoderEx[RedundantBracesSettings] = Presets
     .mapDecoder(
-      generic.deriveDecoderEx(default).noTypos
-        .withSectionRenames(annotation.SectionRename(
-          "parensForOneLineApply",
-          "oneStatApply.parensMaxSpan",
-          { case Conf.Bool(value) => Conf.Num(if (value) 0 else -1) },
-        )),
+      generic.deriveDecoderEx(default).noTypos.withSectionRenames(
+        annotation.SectionRename { case Conf.Bool(value) =>
+          Conf.Num(if (value) 0 else -1)
+        }("parensForOneLineApply", "oneStatApply.parensMaxSpan"),
+      ),
       "RedundantBraces",
     )
 
   sealed abstract class DefnBodies
 
   object DefnBodies {
-    implicit val codec: ConfCodecEx[DefnBodies] = ReaderUtil
+    implicit val codec: ConfCodecEx[DefnBodies] = ConfCodecEx
       .oneOfCustom[DefnBodies](all, none, noParams) {
-        case Conf.Bool(true) => Configured.Ok(all)
-        case Conf.Bool(false) => Configured.Ok(none)
+        case Conf.Bool(true) => Conf.nameOf(all)
+        case Conf.Bool(false) => Conf.nameOf(none)
       }
 
     case object all extends DefnBodies

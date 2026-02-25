@@ -210,7 +210,7 @@ object a {
     """Cannot resolve column name "user" among (segment_id);"""
 }
 <<< 1.c.3: block followed by an infix, break before, overflowing if no break
-newlines.afterInfix = keep
+newlines.infix.termSite.maxCountPerFile = 0
 maxColumn = 80
 ===
 object a {
@@ -227,7 +227,7 @@ object a {
     have message """Cannot resolve column name "user" among (segment_id);"""
 }
 <<< 1.c.4: block followed by an infix, no break before, overflowing if no break
-newlines.afterInfix = keep
+newlines.infix.termSite.maxCountPerFile = 0
 maxColumn = 80
 ===
 object a {
@@ -938,21 +938,23 @@ object a {
 >>>
 object a {
   val terminaters =
-    Set() ++
-      (for (i ← 1 to n)
+    Set() ++ (
+      for (i ← 1 to n)
         yield {
           val man = context.watch(context.system.actorOf(Props[Terminater]))
           man ! "run"
           man
-        })
+        }
+    )
   terminaters =
-    Set() ++
-      (for (i ← 1 to n)
+    Set() ++ (
+      for (i ← 1 to n)
         yield {
           val man = context.watch(context.system.actorOf(Props[Terminater]))
           man ! "run"
           man
-        })
+        }
+    )
 }
 <<< 3.11 enclosed, by itself
 maxColumn = 80
@@ -968,12 +970,14 @@ object a {
 }
 >>>
 object a {
-  (for (i ← 1 to n)
-    yield {
-      val man = context.watch(context.system.actorOf(Props[Terminater]))
-      man ! "run"
-      man
-    })
+  (
+    for (i ← 1 to n)
+      yield {
+        val man = context.watch(context.system.actorOf(Props[Terminater]))
+        man ! "run"
+        man
+      }
+  )
 }
 <<< 3.12 enclosed, followed by select
 maxColumn = 80
@@ -1040,9 +1044,11 @@ object a {
 }
 >>>
 object a {
-  val a = (intercept[java.lang.IllegalStateException] {
-    in.readObject
-  })
+  val a = (
+    intercept[java.lang.IllegalStateException] {
+      in.readObject
+    }
+  )
 }
 <<< 3.15 enclosed, assignment, infix on left
 maxColumn = 80
@@ -1058,9 +1064,11 @@ object a {
 >>>
 object a {
   val a =
-    (intercept[java.lang.IllegalStateException] {
-      in.readObject
-    }) ++ 2
+    (
+      intercept[java.lang.IllegalStateException] {
+        in.readObject
+      }
+    ) ++ 2
 }
 <<< 3.16 enclosed, assignment, infix on right
 maxColumn = 80
@@ -1076,10 +1084,11 @@ object a {
 >>>
 object a {
   val a =
-    2 ++
-      (intercept[java.lang.IllegalStateException] {
+    2 ++ (
+      intercept[java.lang.IllegalStateException] {
         in.readObject
-      })
+      }
+    )
 }
 <<< 3.17 enclosed, assignment, infix in middle
 maxColumn = 80
@@ -1095,10 +1104,11 @@ object a {
 >>>
 object a {
   val a =
-    2 ++
-      (intercept[java.lang.IllegalStateException] {
+    2 ++ (
+      intercept[java.lang.IllegalStateException] {
         in.readObject
-      }) ++ 3
+      }
+    ) ++ 3
 }
 <<< 3.18 enclosed, assignment, by itself, narrower
 maxColumn = 60
@@ -1111,9 +1121,11 @@ object a {
 }
 >>>
 object a {
-  val a = (intercept[java.lang.IllegalStateException] {
-    in.readObject
-  })
+  val a = (
+    intercept[java.lang.IllegalStateException] {
+      in.readObject
+    }
+  )
 }
 <<< 3.19 enclosed, assignment, infix on left, narrower
 maxColumn = 60
@@ -1129,9 +1141,11 @@ object a {
 >>>
 object a {
   val a =
-    (intercept[java.lang.IllegalStateException] {
-      in.readObject
-    }) ++ 2
+    (
+      intercept[java.lang.IllegalStateException] {
+        in.readObject
+      }
+    ) ++ 2
 }
 <<< 3.20 enclosed, assignment, infix on right, narrower
 maxColumn = 60
@@ -1147,10 +1161,11 @@ object a {
 >>>
 object a {
   val a =
-    2 ++
-      (intercept[java.lang.IllegalStateException] {
+    2 ++ (
+      intercept[java.lang.IllegalStateException] {
         in.readObject
-      })
+      }
+    )
 }
 <<< 3.21 enclosed, assignment, infix in middle, narrower
 maxColumn = 60
@@ -1166,10 +1181,11 @@ object a {
 >>>
 object a {
   val a =
-    2 ++
-      (intercept[java.lang.IllegalStateException] {
+    2 ++ (
+      intercept[java.lang.IllegalStateException] {
         in.readObject
-      }) ++ 3
+      }
+    ) ++ 3
 }
 <<< 3.22 enclosed, assignment, by itself, narrow
 maxColumn = 40
@@ -1184,11 +1200,12 @@ object a {
 }
 >>>
 object a {
-  val a =
-    (intercept[
+  val a = (
+    intercept[
       java.lang.IllegalStateException] {
       in.readObject
-    })
+    }
+  )
 }
 <<< 3.23 enclosed, assignment, infix on left, narrow
 maxColumn = 40
@@ -1204,10 +1221,12 @@ object a {
 >>>
 object a {
   val a =
-    (intercept[
-      java.lang.IllegalStateException] {
-      in.readObject
-    }) ++ 2
+    (
+      intercept[
+        java.lang.IllegalStateException] {
+        in.readObject
+      }
+    ) ++ 2
 }
 <<< 3.24 enclosed, assignment, infix on right, narrow
 maxColumn = 40
@@ -1223,11 +1242,12 @@ object a {
 >>>
 object a {
   val a =
-    2 ++
-      (intercept[
+    2 ++ (
+      intercept[
         java.lang.IllegalStateException] {
         in.readObject
-      })
+      }
+    )
 }
 <<< 3.25 enclosed, assignment, infix in middle, narrow
 maxColumn = 40
@@ -1243,11 +1263,12 @@ object a {
 >>>
 object a {
   val a =
-    2 ++
-      (intercept[
+    2 ++ (
+      intercept[
         java.lang.IllegalStateException] {
         in.readObject
-      }) ++ 3
+      }
+    ) ++ 3
 }
 <<< 3.26 enclosed, def, chain follows
 maxColumn = 80
@@ -1300,7 +1321,7 @@ danglingParentheses.preset = false
 ===
 case class AttributeInfo(symbol : Symbol, typeRef : Type, value : Option[Any],
   values : Seq[String ~ Any]) // sym_Ref info_Ref {constant_Ref} {nameRef constantRef}
->>> { stateVisits = 62, stateVisits2 = 62 }
+>>>
 case class AttributeInfo(
     symbol: Symbol,
     typeRef: Type,
@@ -1810,14 +1831,14 @@ created filter (ref ⇒
 }
 >>>
 object a {
-  created filter
-    (ref ⇒
+  created filter (
+    ref ⇒
       !ref.isTerminated &&
         !ref
           .asInstanceOf[ActorRefWithCell]
           .underlying
           .isInstanceOf[UnstartedCell]
-    ) should ===(Seq.empty[ActorRef])
+  ) should ===(Seq.empty[ActorRef])
 }
 <<< 6.5: chain with delayed indent after break
 maxColumn = 70
@@ -2027,16 +2048,15 @@ for {
 for {
   nu <- rand.gaussian(0, 1)
   y = nu * nu
-  x =
-    (
-      mean +
-        mean * mean * y * 0.5 / shape -
-        0.5 * mean / shape *
-        math.sqrt(
-          4 * mean * shape * y +
-            mean * mean * y * y
-        )
-    )
+  x = (
+    mean +
+      mean * mean * y * 0.5 / shape -
+      0.5 * mean / shape *
+      math.sqrt(
+        4 * mean * shape * y +
+          mean * mean * y * y
+      )
+  )
   z <- rand.uniform
 } yield {
   if (z <= mean / (mean + x))
@@ -2063,14 +2083,14 @@ for {
 for {
   nu <- rand.gaussian(0, 1)
   y = nu * nu
-  x =
-    (mean +
-      mean * mean * y * 0.5 / shape) -
-      0.5 * mean / shape *
-      math.sqrt(
-        4 * mean * shape * y +
-          mean * mean * y * y
-      )
+  x = (
+    mean + mean * mean * y * 0.5 / shape
+  ) -
+    0.5 * mean / shape *
+    math.sqrt(
+      4 * mean * shape * y +
+        mean * mean * y * y
+    )
   z <- rand.uniform
 } yield {
   if (z <= mean / (mean + x))
@@ -2097,16 +2117,17 @@ for {
 for {
   nu <- rand.gaussian(0, 1)
   y = nu * nu
-  x =
+  x = (
     (
-      (mean +
-        mean * mean * y * 0.5 / shape) -
-        0.5 * mean / shape *
-        math.sqrt(
-          4 * mean * shape * y +
-            mean * mean * y * y
-        )
-    )
+      mean +
+        mean * mean * y * 0.5 / shape
+    ) -
+      0.5 * mean / shape *
+      math.sqrt(
+        4 * mean * shape * y +
+          mean * mean * y * y
+      )
+  )
   z <- rand.uniform
 } yield {
   if (z <= mean / (mean + x))
@@ -2270,14 +2291,19 @@ val json =
     ("entityId" -> data("userId")) ~
     ("targetEntityType" -> "item") ~
     ("targetEntityId" -> data("itemId")) ~
-    ("eventTime" -> data("timestamp")) ~
-    ("properties" ->
-      (("context" ->
-        (("ip" -> data("context[ip]")) ~
-          ("prop1" -> data("context[prop1]").toDouble) ~
-          ("prop2" -> data("context[prop2]")))) ~
-        ("anotherPropertyA" -> data.get("anotherPropertyA").map(_.toDouble)) ~
-        ("anotherPropertyB" -> data.get("anotherPropertyB").map(_.toBoolean))))
+    ("eventTime" -> data("timestamp")) ~ (
+      "properties" -> (
+        (
+          "context" -> (
+            ("ip" -> data("context[ip]")) ~
+              ("prop1" -> data("context[prop1]").toDouble) ~
+              ("prop2" -> data("context[prop2]"))
+          )
+        ) ~
+          ("anotherPropertyA" -> data.get("anotherPropertyA").map(_.toDouble)) ~
+          ("anotherPropertyB" -> data.get("anotherPropertyB").map(_.toBoolean))
+      )
+    )
 <<< 8.8
 maxColumn = 80
 ===
@@ -2349,9 +2375,9 @@ val json = (estype -> ("properties" -> ("status" ->
           ("type" -> "string") ~ ("index" -> "not_analyzed")) ~ ("status" ->
           ("type" -> "string") ~ ("index" -> "not_analyzed"))))
 >>>
-val json =
-  (estype ->
-    ("properties" ->
+val json = (
+  estype -> (
+    "properties" ->
       ("status" -> ("type" -> "string") ~ ("index" -> "not_analyzed")) ~
       ("startTime" -> ("type" -> "date")) ~
       ("endTime" -> ("type" -> "date")) ~
@@ -2359,18 +2385,17 @@ val json =
       ("engineVersion" -> ("type" -> "string") ~ ("index" -> "not_analyzed")) ~
       ("engineVariant" -> ("type" -> "string") ~ ("index" -> "not_analyzed")) ~
       ("engineFactory" -> ("type" -> "string") ~ ("index" -> "not_analyzed")) ~
-      ("batch" -> ("type" -> "string") ~ ("index" -> "not_analyzed")) ~
-      ("dataSourceParams" ->
-        ("type" -> "string") ~
-        ("index" -> "not_analyzed")) ~
-      ("preparatorParams" ->
-        ("type" -> "string") ~
-        ("index" -> "not_analyzed")) ~
-      ("algorithmsParams" ->
-        ("type" -> "string") ~
-        ("index" -> "not_analyzed")) ~
+      ("batch" -> ("type" -> "string") ~ ("index" -> "not_analyzed")) ~ (
+        "dataSourceParams" -> ("type" -> "string") ~ ("index" -> "not_analyzed")
+      ) ~ (
+        "preparatorParams" -> ("type" -> "string") ~ ("index" -> "not_analyzed")
+      ) ~ (
+        "algorithmsParams" -> ("type" -> "string") ~ ("index" -> "not_analyzed")
+      ) ~
       ("servingParams" -> ("type" -> "string") ~ ("index" -> "not_analyzed")) ~
-      ("status" -> ("type" -> "string") ~ ("index" -> "not_analyzed"))))
+      ("status" -> ("type" -> "string") ~ ("index" -> "not_analyzed"))
+  )
+)
 <<< 8.13
 maxColumn = 80
 ===
@@ -2446,16 +2471,20 @@ private lazy val subNode: Parser[SubNode] = rep(' ') ~>
    '^' ~ '^' ^^ (a => SelectThisNode(false)))
 >>>
 private lazy val subNode: Parser[SubNode] =
-  rep(' ') ~>
-    ((opt('*') ~ '[' ~> attrName <~ '+' ~ ']' ^^ { name =>
-      AttrAppendSubNode(name)
-    }) |
-      (opt('*') ~ '[' ~> attrName <~ '!' ~ ']' ^^ { name =>
+  rep(' ') ~> (
+    (
+      opt('*') ~ '[' ~> attrName <~ '+' ~ ']' ^^ { name =>
+        AttrAppendSubNode(name)
+      }
+    ) | (
+      opt('*') ~ '[' ~> attrName <~ '!' ~ ']' ^^ { name =>
         AttrRemoveSubNode(name)
-      }) |
-      (opt('*') ~ '[' ~> attrName <~ ']' ^^ { name =>
+      }
+    ) | (
+      opt('*') ~ '[' ~> attrName <~ ']' ^^ { name =>
         AttrSubNode(name)
-      }) |
+      }
+    ) |
       ('!' ~ '!' ^^ (a => DontMergeAttributes)) |
       ('<' ~ '*' ~ '>') ^^
       (a => SurroundKids()) |
@@ -2468,7 +2497,8 @@ private lazy val subNode: Parser[SubNode] =
       '^' ~ '*' ^^
       (a => SelectThisNode(true)) |
       '^' ~ '^' ^^
-      (a => SelectThisNode(false)))
+      (a => SelectThisNode(false))
+  )
 <<< 8.15
 maxColumn = 80
 ===
@@ -2503,17 +2533,21 @@ object a {
         ("entityId" -> data("data[id]")) ~
         ("targetEntityType" -> "list") ~
         ("targetEntityId" -> data("data[list_id]")) ~
-        ("eventTime" -> eventTime) ~
-        ("properties" ->
-          (("email" -> data("data[email]")) ~
-            ("email_type" -> data("data[email_type]")) ~
-            ("merges" ->
-              (("EMAIL" -> data("data[merges][EMAIL]")) ~
-                ("FNAME" -> data("data[merges][FNAME]"))) ~
-              ("LNAME" -> data("data[merges][LNAME]")) ~
-              ("INTERESTS" -> data.get("data[merges][INTERESTS]")))) ~
-          ("ip_opt" -> data("data[ip_opt]")) ~
-          ("ip_signup" -> data("data[ip_signup]")))
+        ("eventTime" -> eventTime) ~ (
+          "properties" -> (
+            ("email" -> data("data[email]")) ~
+              ("email_type" -> data("data[email_type]")) ~ (
+                "merges" -> (
+                  ("EMAIL" -> data("data[merges][EMAIL]")) ~
+                    ("FNAME" -> data("data[merges][FNAME]"))
+                ) ~
+                  ("LNAME" -> data("data[merges][LNAME]")) ~
+                  ("INTERESTS" -> data.get("data[merges][INTERESTS]"))
+              )
+          ) ~
+            ("ip_opt" -> data("data[ip_opt]")) ~
+            ("ip_signup" -> data("data[ip_signup]"))
+        )
     json
   }
 }
@@ -2588,12 +2622,14 @@ object a {
 }
 >>>
 object a {
-  (people.map(p => (p.name, p.age))
-  // c1
-  returning people.map(_.id)
-  // c2
-  into
-    ((nameAge, id) => Person(id, nameAge._1, nameAge._2)))
+  (
+    people.map(p => (p.name, p.age))
+    // c1
+    returning people.map(_.id)
+    // c2
+    into
+      ((nameAge, id) => Person(id, nameAge._1, nameAge._2))
+  )
 }
 <<< 8.19
 maxColumn = 80
@@ -2637,13 +2673,12 @@ private val allParams: Map[String, String] = mandatoryParams +
     )
 >>>
 private val allParams: Map[String, String] =
-  mandatoryParams +
-    (
-      "data-config" -> dummyOptionalConfigPath,
-      "max-sales-mappers" -> "10",
-      "overwrite" -> null,
-      "keep" -> dummyOptionalMaxVersionCount
-    )
+  mandatoryParams + (
+    "data-config" -> dummyOptionalConfigPath,
+    "max-sales-mappers" -> "10",
+    "overwrite" -> null,
+    "keep" -> dummyOptionalMaxVersionCount
+  )
 <<< 8.22
 maxColumn = 40
 ===
@@ -2655,13 +2690,13 @@ maxColumn = 40
                         "   |    toDie: ", "\n" + indent + "   |           ", ""
                      ))
 >>>
-"Terminating(" + reason + ")" +
-  (toDie.toSeq.sorted mkString
-    (
-      "\n" + indent + "   |    toDie: ",
-      "\n" + indent + "   |           ",
-      ""
-    ))
+"Terminating(" + reason + ")" + (
+  toDie.toSeq.sorted mkString (
+    "\n" + indent + "   |    toDie: ",
+    "\n" + indent + "   |           ",
+    ""
+  )
+)
 <<< 8.23
 maxColumn = 80
 ===
@@ -2674,14 +2709,15 @@ val ret = (if (dailyStats.isEmpty)
                      yestNav) / nav - 1
                  })
 >>>
-val ret =
-  (if (dailyStats.isEmpty)
-     0
-   else {
-     val yestStats = dailyStats.last
-     val yestNav = yestStats.nav
-     (nav - yestNav) / nav - 1
-   })
+val ret = (
+  if (dailyStats.isEmpty)
+    0
+  else {
+    val yestStats = dailyStats.last
+    val yestNav = yestStats.nav
+    (nav - yestNav) / nav - 1
+  }
+)
 <<< 8.24
 maxColumn = 80
 ===
@@ -3959,10 +3995,12 @@ a match {
         Root / "foo" | Root / "bar" |
         Root / "baz" / _ / "qux"
       ) =>
-    (if (foo)
-       (foo) + bar
-     else
-       foo + (bar)) + (baz)
+    (
+      if (foo)
+        (foo) + bar
+      else
+        foo + (bar)
+    ) + (baz)
   case (
         Root / "foo" | Root / "bar" |
         Root / "baz" / _ / "qux"
@@ -3990,10 +4028,12 @@ a match {
         Root / "foo" | Root / "bar" |
         Root / "baz" / _ / "qux"
       ) =>
-    ( if ( foo )
+    (
+      if ( foo )
         ( foo ) + bar
       else
-        foo + ( bar ) ) + ( baz )
+        foo + ( bar )
+    ) + ( baz )
   case (
         Root / "foo" | Root / "bar" |
         Root / "baz" / _ / "qux"
@@ -5789,7 +5829,7 @@ object a {
     finally a
 }
 <<< #2019 infix
-newlines.afterInfix = keep
+newlines.infix.termSite.maxCountPerFile = 0
 rewrite.insertBraces.minLines = 2
 ===
 object a {
@@ -5819,7 +5859,7 @@ object a {
   }
 }
 <<< #2019 if-else !alwaysBeforeElseAfterCurlyIf
-newlines.afterInfix = keep
+newlines.infix.termSite.maxCountPerFile = 0
 newlines.alwaysBeforeElseAfterCurlyIf = false
 rewrite.insertBraces.minLines = 2
 ===
@@ -5880,7 +5920,7 @@ object a {
   }
 }
 <<< #2019 if-else alwaysBeforeElseAfterCurlyIf
-newlines.afterInfix = keep
+newlines.infix.termSite.maxCountPerFile = 0
 newlines.alwaysBeforeElseAfterCurlyIf = true
 rewrite.insertBraces.minLines = 2
 ===
@@ -5946,7 +5986,7 @@ object a {
 }
 <<< #2019 try !alwaysBeforeElseAfterCurlyIf !allBlocks
 maxColumn = 12
-newlines.afterInfix = keep
+newlines.infix.termSite.maxCountPerFile = 0
 newlines.alwaysBeforeElseAfterCurlyIf = false
 rewrite.insertBraces.minLines = 2
 ===
@@ -5973,7 +6013,7 @@ object a {
 }
 <<< #2019 try !alwaysBeforeElseAfterCurlyIf allBlocks
 maxColumn = 12
-newlines.afterInfix = keep
+newlines.infix.termSite.maxCountPerFile = 0
 newlines.alwaysBeforeElseAfterCurlyIf = false
 rewrite.insertBraces.minLines = 2
 rewrite.insertBraces.allBlocks = true
@@ -6002,7 +6042,7 @@ object a {
 }
 <<< #2019 try alwaysBeforeElseAfterCurlyIf !allBlocks
 maxColumn = 12
-newlines.afterInfix = keep
+newlines.infix.termSite.maxCountPerFile = 0
 newlines.alwaysBeforeElseAfterCurlyIf = true
 rewrite.insertBraces.minLines = 2
 ===
@@ -6030,7 +6070,7 @@ object a {
 }
 <<< #2019 try alwaysBeforeElseAfterCurlyIf allBlocks
 maxColumn = 12
-newlines.afterInfix = keep
+newlines.infix.termSite.maxCountPerFile = 0
 newlines.alwaysBeforeElseAfterCurlyIf = true
 rewrite.insertBraces.minLines = 2
 rewrite.insertBraces.allBlocks = true
@@ -6061,7 +6101,7 @@ object a {
 }
 <<< #2019 function
 maxColumn = 12
-newlines.afterInfix = keep
+newlines.infix.termSite.maxCountPerFile = 0
 rewrite.insertBraces.minLines = 2
 ===
 object a {
@@ -6095,7 +6135,7 @@ object a {
 }
 <<< #2019 partial function
 maxColumn = 25
-newlines.afterInfix = keep
+newlines.infix.termSite.maxCountPerFile = 0
 rewrite.insertBraces.minLines = 2
 ===
 object a {
@@ -6113,7 +6153,7 @@ object a {
 }
 <<< #2019 for-yield !allBlocks
 maxColumn = 12
-newlines.afterInfix = keep
+newlines.infix.termSite.maxCountPerFile = 0
 rewrite.insertBraces.minLines = 2
 ===
 object a {
@@ -6142,7 +6182,7 @@ object a {
 }
 <<< #2019 for-yield allBlocks
 maxColumn = 12
-newlines.afterInfix = keep
+newlines.infix.termSite.maxCountPerFile = 0
 rewrite.insertBraces.minLines = 2
 rewrite.insertBraces.allBlocks = true
 ===
@@ -6173,7 +6213,7 @@ object a {
 }
 <<< #2019 for-do !allBlocks
 maxColumn = 12
-newlines.afterInfix = keep
+newlines.infix.termSite.maxCountPerFile = 0
 rewrite.insertBraces.minLines = 2
 ===
 object a {
@@ -6245,7 +6285,7 @@ object a {
 }
 <<< #2019 for-do allBlocks
 maxColumn = 12
-newlines.afterInfix = keep
+newlines.infix.termSite.maxCountPerFile = 0
 rewrite.insertBraces.minLines = 2
 rewrite.insertBraces.allBlocks = true
 ===
@@ -6358,14 +6398,12 @@ object a {
 }
 >>>
 object a {
-  foo
-    .
-      // c2
+  foo.
+    // c2
     bar(baz)
     .foo(bar, baz)
-  foo
-    . // c1
-      // c2
+  foo. // c1
+    // c2
     bar(baz)
     .foo(bar, baz)
   foo
@@ -6394,6 +6432,152 @@ object a {
     )
     .settings(commonJavaSettings)
     .settings(foo)
+}
+<<< comment in select chain, after dot 3
+object a {
+  foo. // c1
+    bar(baz). // c2
+    foo(bar, baz). // c3
+    qux
+  foo.
+    // c1
+    bar(baz).
+    // c2
+    foo(bar, baz).
+    // c3
+    qux
+  foo // c1
+    .bar(baz). // c2
+    foo(bar, baz). // c3
+    qux
+  foo
+    // c1
+    .bar(baz).
+    // c2
+    foo(bar, baz).
+    // c3
+    qux
+  foo. // c1
+    bar(baz) // c2
+    .foo(bar, baz). // c2
+    qux
+  foo.
+    // c1
+    bar(baz)
+    // c2
+    .foo(bar, baz).
+    // c2
+    qux
+  foo. // c1
+    bar(baz). // c2
+    foo(bar, baz) // c3
+    .qux
+  foo.
+    // c1
+    bar(baz).
+    // c2
+    foo(bar, baz)
+    // c3
+    .qux
+}
+>>>
+object a {
+  foo. // c1
+    bar(baz)
+    . // c2
+    foo(bar, baz)
+    . // c3
+    qux
+  foo.
+    // c1
+    bar(baz)
+    .
+    // c2
+    foo(bar, baz)
+    .
+    // c3
+    qux
+  foo // c1
+    .bar(baz)
+    . // c2
+    foo(bar, baz)
+    . // c3
+    qux
+  foo
+    // c1
+    .bar(baz)
+    .
+    // c2
+    foo(bar, baz)
+    .
+    // c3
+    qux
+  foo. // c1
+    bar(baz) // c2
+    .foo(bar, baz)
+    . // c2
+    qux
+  foo.
+    // c1
+    bar(baz)
+    // c2
+    .foo(bar, baz)
+    .
+    // c2
+    qux
+  foo. // c1
+    bar(baz)
+    . // c2
+    foo(bar, baz) // c3
+    .qux
+  foo.
+    // c1
+    bar(baz)
+    .
+    // c2
+    foo(bar, baz)
+    // c3
+    .qux
+}
+<<< break in select chain, after dot 3
+maxColumn = 20
+===
+object a {
+  foo.
+    bar(baz).
+    foo(bar, baz).
+    qux
+  foo
+    .bar(baz).
+    foo(bar, baz).
+    qux
+  foo.
+    bar(baz)
+    .foo(bar, baz).
+    qux
+  foo.
+    bar(baz).
+    foo(bar, baz)
+    .qux
+}
+>>>
+object a {
+  foo
+    .bar(baz)
+    .foo(bar, baz)
+    .qux
+  foo
+    .bar(baz)
+    .foo(bar, baz)
+    .qux
+  foo
+    .bar(baz)
+    .foo(bar, baz)
+    .qux
+  foo
+    .bar(baz)
+    .foo(bar, baz)
+    .qux
 }
 <<< try with match expr
 object a {
@@ -6940,10 +7124,9 @@ object a {
 >>>
 object a {
   val expected = Map(
-    "foos" ->
-      (
-        ("xyz", "1")
-      ), // the "cas unique" values are predictable from a fresh memcached
+    "foos" -> (
+      ("xyz", "1")
+    ), // the "cas unique" values are predictable from a fresh memcached
     a -> b
   )
 }
@@ -6991,9 +7174,11 @@ object a {
 >>>
 object a {
   val ui = LiftRules.jsArtifacts
-  (<span>{
-    rs % ("onclick" -> (ui.hide(sid).cmd & ui.showAndFocus(hid).cmd & JsRaw("return false;")))
-  }</span>)
+  (
+    <span>{
+      rs % ("onclick" -> (ui.hide(sid).cmd & ui.showAndFocus(hid).cmd & JsRaw("return false;")))
+    }</span>
+  )
 }
 <<< SM 4.7.0: 10
 object a {
@@ -7039,14 +7224,15 @@ foo match {
           ScInfixExpr(
             (
               ref: ScReferenceExpression
-            ) &&
-            (ResolvesTo(
-              target @ Parent(
-                Parent(
-                  entity: ScVariable
+            ) && (
+              ResolvesTo(
+                target @ Parent(
+                  Parent(
+                    entity: ScVariable
+                  )
                 )
               )
-            )),
+            ),
             ElementText(operator),
             _
           )
@@ -7102,10 +7288,10 @@ object a {
 >>>
 object a {
   foldedTopics + shortStringLength(topic) + 4 + /* partition count */
-    partitionFetchInfos.size *
-    (4 + /* partition id */
-      8 + /* offset */
-      4 /* fetch size */
+    partitionFetchInfos.size * (
+      4 + /* partition id */
+        8 + /* offset */
+        4 /* fetch size */
     )
 }
 <<< SM 4.7.0: 15
@@ -7582,16 +7768,17 @@ object a {
 }
 >>>
 object a {
-  val acceptableMimeTypes =
+  val acceptableMimeTypes = (
     (
-      (Seq(ApplicationJson, XJsonStream, TextCSV).map { mt =>
+      Seq(ApplicationJson, XJsonStream, TextCSV).map { mt =>
         mt -> (mt, mt)
-      }) ++
-        Seq(
-          AnyMimeType -> (XJsonStream, XJsonStream),
-          OctetStream -> (XJsonStream, OctetStream)
-        )
-    ).toMap
+      }
+    ) ++
+      Seq(
+        AnyMimeType -> (XJsonStream, XJsonStream),
+        OctetStream -> (XJsonStream, OctetStream)
+      )
+  ).toMap
 }
 <<< SM 7.4.0: 33
 maxColumn = 80
@@ -7606,16 +7793,17 @@ object a {
 }
 >>>
 object a {
-  val acceptableMimeTypes =
+  val acceptableMimeTypes = (
     (
-      (Seq(ApplicationJson, XJsonStream, TextCSV).map { mt =>
+      Seq(ApplicationJson, XJsonStream, TextCSV).map { mt =>
         mt -> (mt, mt)
-      }) ++
-        Seq(
-          AnyMimeType -> (XJsonStream, XJsonStream),
-          OctetStream -> (XJsonStream, OctetStream)
-        )
-    ).toMap
+      }
+    ) ++
+      Seq(
+        AnyMimeType -> (XJsonStream, XJsonStream),
+        OctetStream -> (XJsonStream, OctetStream)
+      )
+  ).toMap
 }
 <<< SM 7.4.0: 34.1
 maxColumn = 80
@@ -7647,12 +7835,11 @@ object a {
 >>>
 object a {
   val default =
-    methodSym newValueParameter
-      (
-        newTermName("default"),
-        tree.pos.focus,
-        SYNTHETIC
-      ) setInfo functionType(List(A1.tpe), B1.tpe)
+    methodSym newValueParameter (
+      newTermName("default"),
+      tree.pos.focus,
+      SYNTHETIC
+    ) setInfo functionType(List(A1.tpe), B1.tpe)
 }
 <<< SM 7.4.0: 35
 maxColumn = 76
@@ -7908,11 +8095,10 @@ object a {
 >>>
 object a {
   assert(
-    t21 ==
-      (
-        1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
-        20, 21
-      )
+    t21 == (
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+      21
+    )
   )
 }
 <<< SM 7.4.0: 44
@@ -8146,11 +8332,12 @@ object a {
   """ +
       opts.map { case (value, text) =>
         "y=document.createElement('option'); " + "y.text = " + text.encJs +
-          "; " + "y.value = " + value.encJs + "; " +
-          (if (Full(value) == dflt)
-             "y.selected = true; "
-           else
-             "") +
+          "; " + "y.value = " + value.encJs + "; " + (
+            if (Full(value) == dflt)
+              "y.selected = true; "
+            else
+              ""
+          ) +
           " try {x.add(y, null);} catch(e) {if (typeof(e) == 'object' && typeof(e.number) == 'number' && (e.number & 0xFFFF) == 5){ x.add(y,x.options.length); } } "
       }
 }
@@ -9015,7 +9202,7 @@ object a {
     )
   )
 }
->>> { stateVisits = 477, stateVisits2 = 477 }
+>>>
 object a {
   div(cls := "cover")(
     div(cls := "doc")(bodyContents),
@@ -9119,7 +9306,7 @@ object a {
     )
   )
 }
->>> { stateVisits = 432, stateVisits2 = 432 }
+>>>
 object a {
   div(cls := "cover")(
     div(cls := "doc")(bodyContents),
@@ -9553,22 +9740,23 @@ trait Infer {
       else
         accessible match {
           case sym =>
-            tree setSymbol sym1 setType
-              (pre match {
+            tree setSymbol sym1 setType (
+              pre match {
                 // OPT: avoid lambda allocation and Type.map for super constructor calls
                 case _: SuperType
                     if !sym.isConstructor &&
                       !owntype.isInstanceOf[OverloadedType] =>
-                  owntype map
-                    ((tp: Type) =>
+                  owntype map (
+                    (tp: Type) =>
                       if (tp eq pre)
                         site.symbol.thisType
                       else
                         tp
-                    )
+                  )
                 case _ =>
                   owntype
-              })
+              }
+            )
         }
     }
   }
@@ -9579,7 +9767,7 @@ class UDFRegistration private[sql] (functionRegistry: FunctionRegistry) extends 
     val inputEncoders: Seq[Option[ExpressionEncoder[_]]] = Try(ExpressionEncoder[A1]()).toOption :: Try(ExpressionEncoder[A2]()).toOption :: Try(ExpressionEncoder[A3]()).toOption :: Try(ExpressionEncoder[A4]()).toOption :: Try(ExpressionEncoder[A5]()).toOption :: Try(ExpressionEncoder[A6]()).toOption :: Try(ExpressionEncoder[A7]()).toOption :: Try(ExpressionEncoder[A8]()).toOption :: Try(ExpressionEncoder[A9]()).toOption :: Try(ExpressionEncoder[A10]()).toOption :: Try(ExpressionEncoder[A11]()).toOption :: Try(ExpressionEncoder[A12]()).toOption :: Try(ExpressionEncoder[A13]()).toOption :: Try(ExpressionEncoder[A14]()).toOption :: Try(ExpressionEncoder[A15]()).toOption :: Try(ExpressionEncoder[A16]()).toOption :: Try(ExpressionEncoder[A17]()).toOption :: Try(ExpressionEncoder[A18]()).toOption :: Try(ExpressionEncoder[A19]()).toOption :: Try(ExpressionEncoder[A20]()).toOption :: Try(ExpressionEncoder[A21]()).toOption :: Try(ExpressionEncoder[A22]()).toOption :: Nil
   }
 }
->>> { stateVisits = 702, stateVisits2 = 702 }
+>>>
 class UDFRegistration private[sql] (
     functionRegistry: FunctionRegistry
 ) extends Logging {
@@ -9962,14 +10150,15 @@ class ClassEmitter {
       } yield
         // Real constructor
         js.JSDocConstructor(realCtorDef.head) :: realCtorDef.tail :::
-          chainProto :::
-          (genIdentBracketSelect(prototypeFor(ctorVar), "constructor") :=
-            ctorVar) ::
+          chainProto ::: (
+            genIdentBracketSelect(prototypeFor(ctorVar), "constructor") :=
+              ctorVar
+          ) ::
           // Inheritable constructor
           js.JSDocConstructor(inheritableCtorDef.head) ::
-          inheritableCtorDef.tail :::
-          (globalVar(VarField.h, className).prototype :=
-            prototypeFor(ctorVar)) :: Nil
+          inheritableCtorDef.tail ::: (
+            globalVar(VarField.h, className).prototype := prototypeFor(ctorVar)
+          ) :: Nil
     }
 
 }
@@ -10171,7 +10360,7 @@ private object MemoMap {
         }
       }
 }
->>> { stateVisits = 333, stateVisits2 = 333 }
+>>>
 private object MemoMap {
   def make(implicit
       trace: Trace
@@ -10192,37 +10381,36 @@ private object MemoMap {
               map.get(layer) match {
                 case None =>
                   for {
-                    memoized =
+                    memoized = (
+                      promise
+                        .await
+                        .onExit {
+                          case Exit
+                                .Failure(
+                                  _
+                                ) =>
+                            ZIO.unit
+                          case Exit
+                                .Success(
+                                  _
+                                ) =>
+                            observers
+                              .update(
+                                _ + 1
+                              )
+                        },
                       (
-                        promise
-                          .await
-                          .onExit {
-                            case Exit
-                                  .Failure(
-                                    _
-                                  ) =>
-                              ZIO.unit
-                            case Exit
-                                  .Success(
-                                    _
-                                  ) =>
-                              observers
-                                .update(
-                                  _ + 1
-                                )
-                          },
-                        (
-                          exit: Exit[
-                            Any,
-                            Any
-                          ]
-                        ) =>
-                          finalizerRef
-                            .get
-                            .flatMap(
-                              _(exit)
-                            )
-                      )
+                        exit: Exit[
+                          Any,
+                          Any
+                        ]
+                      ) =>
+                        finalizerRef
+                          .get
+                          .flatMap(
+                            _(exit)
+                          )
+                    )
                   } yield (
                     resource,
                     if (layer.isFresh)
@@ -10316,7 +10504,7 @@ object a {
         }
   }
 }
->>> { stateVisits = 940, stateVisits2 = 940 }
+>>>
 object a {
   private object MemoMap {
     def make(implicit trace: Trace): UIO[MemoMap] = Ref
@@ -10391,19 +10579,18 @@ object a {
                         } yield tp
                       }
 
-                      memoized =
-                        (
-                          promise
-                            .await
-                            .onExit {
-                              case Exit.Failure(_) =>
-                                ZIO.unit
-                              case Exit.Success(_) =>
-                                observers.update(_ + 1)
-                            },
-                          (exit: Exit[Any, Any]) =>
-                            finalizerRef.get.flatMap(_(exit))
-                        )
+                      memoized = (
+                        promise
+                          .await
+                          .onExit {
+                            case Exit.Failure(_) =>
+                              ZIO.unit
+                            case Exit.Success(_) =>
+                              observers.update(_ + 1)
+                          },
+                        (exit: Exit[Any, Any]) =>
+                          finalizerRef.get.flatMap(_(exit))
+                      )
                     } yield (
                       resource,
                       if (layer.isFresh)
@@ -10460,7 +10647,7 @@ object a {
       .map(_.filterNot(_.getCanonicalPath.contains("SSLOptions")))
   }
 }
->>> { stateVisits = 1162, stateVisits2 = 1162 }
+>>>
 object a {
   private def ignoreUndocumentedPackages(
       packages: Seq[Seq[File]]
@@ -10599,7 +10786,7 @@ object a {
       .map(filterNot(getCanonicalPath.contains("SSLOptions")))
   }
 }
->>> { stateVisits = 733, stateVisits2 = 733 }
+>>>
 object a {
   private def ignoreUndocumentedPackages(
       packages: Seq[Seq[File]]
@@ -11612,8 +11799,8 @@ def stop(step: Double, ndir: Double, nx: Double): Boolean = {
   )
 }
 >>>
-def stop(step: Double, ndir: Double, nx: Double): Boolean =
-  ((step.isNaN) // NaN
+def stop(step: Double, ndir: Double, nx: Double): Boolean = (
+  (step.isNaN) // NaN
   ||
     (step < 1e-7) // too small or negative
     ||
@@ -11622,7 +11809,7 @@ def stop(step: Double, ndir: Double, nx: Double): Boolean =
     (ndir < 1e-12 * nx) // gradient relatively too small
     ||
     (ndir < 1e-32) // gradient absolutely too small; numerical issues may lurk
-  )
+)
 <<< #4542 narrow
 maxColumn = 40
 binPack.parentConstructors = source
@@ -11940,6 +12127,7 @@ object ZStreamSpec extends DefaultRunnableSpec {
             )(equalTo(Chunk(List(2, 1, 1, 1, 1), List(2))))
           )
         ),
+
         suite("bufferDropping")(
           testM("buffer the Stream with Error")(
             assertM(
@@ -12138,7 +12326,7 @@ object Foo {
 <<< #4705 term=some, type=keep
 maxColumn = 80
 newlines.infix.termSite.style = some
-newlines.infix.typeSite.style = keep
+newlines.infix.typeSite.maxCountPerFileForKeep = 0
 ===
 object Foo {
   def oldStyle: Traverse[Option] with MonadError[Option, Unit] with Alternative[Option] with CommutativeMonad[Option] with CoflatMap[Option] with Align[Option] =
@@ -12156,15 +12344,15 @@ object Foo {
     with CoflatMap[Option]
     with Align[Option] = ???
 
-  def newStyle: Traverse[Option] & MonadError[Option, Unit] & Alternative[
-    Option
-  ] & CommutativeMonad[Option] & CoflatMap[Option] & Align[Option] =
+  def newStyle: Traverse[Option] & MonadError[Option, Unit] &
+    Alternative[Option] & CommutativeMonad[Option] & CoflatMap[Option] &
+    Align[Option] =
     Traverse[Option] & MonadError[Option, Unit] & Alternative[Option] &
       CommutativeMonad[Option] & CoflatMap[Option] & Align[Option]
 }
 <<< #4705 term=keep, type=some
 maxColumn = 80
-newlines.infix.termSite.style = keep
+newlines.infix.termSite.maxCountPerFileForKeep = 0
 newlines.infix.typeSite.style = some
 ===
 object Foo {
@@ -12186,9 +12374,8 @@ object Foo {
   def newStyle: Traverse[Option] & MonadError[Option, Unit] &
     Alternative[Option] & CommutativeMonad[Option] & CoflatMap[Option] &
     Align[Option] =
-    Traverse[Option] & MonadError[Option, Unit] & Alternative[
-      Option
-    ] & CommutativeMonad[Option] & CoflatMap[Option] & Align[Option]
+    Traverse[Option] & MonadError[Option, Unit] & Alternative[Option] &
+      CommutativeMonad[Option] & CoflatMap[Option] & Align[Option]
 }
 <<< consistency between string and interpolation: stripMargin, ignoreInSyntax
 maxColumn = 40
@@ -13170,6 +13357,51 @@ bar(
         |xyzzy
         |""".stripMargin
 )
+<<< apply with nested interpolations, !ignoreInSyntax
+maxColumn = 50
+align.stripMargin = true
+newlines.ignoreInSyntax = false
+assumeStandardLibraryStripMargin = true
+===
+bar(
+  "bar" -> s"""|qux ${foo}""".stripMargin,
+  "bar" -> s"""|qux ${"""aaa
+               |xyzzy
+               |""".stripMargin}""".stripMargin,
+  "bar" -> s"""|qux ${s"foo"}""".stripMargin,
+  "bar" -> s"""|qux ${s"""foo
+               |xyzzy
+               |""".stripMargin}""".stripMargin
+)
+>>>
+bar(
+  "bar" -> s"""|qux ${foo}""".stripMargin,
+  "bar" ->
+    s"""|qux ${"""aaa
+                 |xyzzy
+                 |""".stripMargin}""".stripMargin,
+  "bar" -> s"""|qux ${s"foo"}""".stripMargin,
+  "bar" ->
+    s"""|qux ${s"""foo
+                  |xyzzy
+                  |""".stripMargin}""".stripMargin
+)
+<<< expr before multiline, !ignoreInSyntax
+newlines.ignoreInSyntax = false
+===
+object a {
+  val cursor = (" " * index) + "^"
+   s"""|$desc near index $index
+       |$regex
+       |$cursor""".stripMargin
+}
+>>>
+object a {
+  val cursor = (" " * index) + "^"
+  s"""|$desc near index $index
+       |$regex
+       |$cursor""".stripMargin
+}
 <<< `if` as single-arg of apply, openParenCallSite
 align.openParenCallSite = true
 newlines.configStyle.callSite.prefer = false
@@ -13263,3 +13495,866 @@ res.append(
     baz
   }
 )
+<<< import with binPack.importSelectors unspecified
+maxColumn = 60
+===
+import packagename1.{
+  AVeryLongClass1, AVeryLongClass2,
+  AVeryLongClass3, AVeryLongClass4
+}, packagename2.{
+     AVeryLongClass1, AVeryLongClass2,
+     AVeryLongClass3, AVeryLongClass4
+   },
+   packagename3.{
+     AVeryLongClass1, AVeryLongClass2,
+     AVeryLongClass3, AVeryLongClass4
+   }
+>>>
+import packagename1.{
+  AVeryLongClass1,
+  AVeryLongClass2,
+  AVeryLongClass3,
+  AVeryLongClass4
+}, packagename2.{
+  AVeryLongClass1,
+  AVeryLongClass2,
+  AVeryLongClass3,
+  AVeryLongClass4
+}, packagename3.{
+  AVeryLongClass1,
+  AVeryLongClass2,
+  AVeryLongClass3,
+  AVeryLongClass4
+}
+<<< import with binPack.importSelectors = fold
+maxColumn = 60
+binPack.importSelectors = fold
+===
+import packagename1.{
+  AVeryLongClass1, AVeryLongClass2,
+  AVeryLongClass3, AVeryLongClass4
+}, packagename2.{
+     AVeryLongClass1, AVeryLongClass2,
+     AVeryLongClass3, AVeryLongClass4
+   },
+   packagename3.{
+     AVeryLongClass1, AVeryLongClass2,
+     AVeryLongClass3, AVeryLongClass4
+   }
+>>>
+import packagename1.{
+  AVeryLongClass1, AVeryLongClass2, AVeryLongClass3,
+  AVeryLongClass4
+}, packagename2.{
+  AVeryLongClass1, AVeryLongClass2, AVeryLongClass3,
+  AVeryLongClass4
+}, packagename3.{
+  AVeryLongClass1, AVeryLongClass2, AVeryLongClass3,
+  AVeryLongClass4
+}
+<<< import with binPack.importSelectors = unfold
+maxColumn = 60
+binPack.importSelectors = unfold
+===
+import packagename1.{
+  AVeryLongClass1, AVeryLongClass2,
+  AVeryLongClass3, AVeryLongClass4
+}, packagename2.{
+     AVeryLongClass1, AVeryLongClass2,
+     AVeryLongClass3, AVeryLongClass4
+   },
+   packagename3.{
+     AVeryLongClass1, AVeryLongClass2,
+     AVeryLongClass3, AVeryLongClass4
+   }
+>>>
+import packagename1.{
+  AVeryLongClass1,
+  AVeryLongClass2,
+  AVeryLongClass3,
+  AVeryLongClass4
+}, packagename2.{
+  AVeryLongClass1,
+  AVeryLongClass2,
+  AVeryLongClass3,
+  AVeryLongClass4
+}, packagename3.{
+  AVeryLongClass1,
+  AVeryLongClass2,
+  AVeryLongClass3,
+  AVeryLongClass4
+}
+<<< mixed nested infixes, with breakOnNested 1
+maxColumn = 49
+newlines.infix.termSite {
+  style = some
+  breakOnNested = true
+}
+===
+object a {
+  if (foo > bar && bar.baz && baz > qux && qux > xyz) {}
+  a = foo > bar && bar.baz && baz > qux && qux > xyz
+  b = (foo > bar && bar.baz && baz > qux && qux > xyz)
+  c = {foo > bar && bar.baz && baz > qux && qux > xyz}
+}
+>>>
+object a {
+  if (
+    foo > bar && bar.baz && baz > qux &&
+    qux > xyz
+  ) {}
+  a =
+    foo > bar && bar.baz && baz > qux &&
+      qux > xyz
+  b = (
+    foo > bar && bar.baz && baz > qux &&
+      qux > xyz
+  )
+  c = {
+    foo > bar && bar.baz && baz > qux &&
+    qux > xyz
+  }
+}
+<<< mixed nested infixes, with breakOnNested 2
+maxColumn = 49
+newlines.infix.termSite {
+  style = some
+  breakOnNested = true
+}
+===
+object a {
+  if ((foo > bar) && bar.baz && baz > qux && qux > xyz) {}
+  a = (foo > bar) && bar.baz && baz > qux && qux > xyz
+  b = ((foo > bar) && bar.baz && baz > qux && qux > xyz)
+  c = {(foo > bar) && bar.baz && baz > qux && qux > xyz}
+}
+>>>
+object a {
+  if (
+    (foo > bar) &&
+    bar.baz && baz > qux && qux > xyz
+  ) {}
+  a = (foo > bar) &&
+    bar.baz && baz > qux && qux > xyz
+  b = (
+    (foo > bar) &&
+      bar.baz && baz > qux && qux > xyz
+  )
+  c = {
+    (foo > bar) &&
+    bar.baz && baz > qux && qux > xyz
+  }
+}
+<<< mixed nested infixes, with breakOnNested 3
+maxColumn = 49
+newlines.infix.termSite {
+  style = some
+  breakOnNested = true
+}
+===
+object a {
+  if (foo > bar && (bar.baz) && baz > qux && qux > xyz) {}
+  a = foo > bar && (bar.baz) && baz > qux && qux > xyz
+  b = (foo > bar && (bar.baz) && baz > qux && qux > xyz)
+  c = {foo > bar && (bar.baz) && baz > qux && qux > xyz}
+}
+>>>
+object a {
+  if (
+    foo > bar && (bar.baz) && baz > qux &&
+    qux > xyz
+  ) {}
+  a =
+    foo > bar && (bar.baz) && baz > qux &&
+      qux > xyz
+  b = (
+    foo > bar && (bar.baz) && baz > qux &&
+      qux > xyz
+  )
+  c = {
+    foo > bar && (bar.baz) && baz > qux &&
+    qux > xyz
+  }
+}
+<<< mixed nested infixes, with breakOnNested 4
+maxColumn = 49
+newlines.infix.termSite {
+  style = some
+  breakOnNested = true
+}
+===
+object a {
+  if (foo > bar && bar.baz && (baz > qux) && qux > xyz) {}
+  a = foo > bar && bar.baz && (baz > qux) && qux > xyz
+  b = (foo > bar && bar.baz && (baz > qux) && qux > xyz)
+  c = {foo > bar && bar.baz && (baz > qux) && qux > xyz}
+}
+>>>
+object a {
+  if (
+    foo > bar && bar.baz &&
+    (baz > qux) &&
+    qux > xyz
+  ) {}
+  a =
+    foo > bar && bar.baz &&
+      (baz > qux) &&
+      qux > xyz
+  b = (
+    foo > bar && bar.baz &&
+      (baz > qux) &&
+      qux > xyz
+  )
+  c = {
+    foo > bar && bar.baz &&
+    (baz > qux) &&
+    qux > xyz
+  }
+}
+<<< mixed nested infixes, with breakOnNested 5
+maxColumn = 49
+newlines.infix.termSite {
+  style = some
+  breakOnNested = true
+}
+===
+object a {
+  if (foo > bar && bar.baz && baz > qux && (qux > xyz)) {}
+  a = foo > bar && bar.baz && baz > qux && (qux > xyz)
+  b = (foo > bar && bar.baz && baz > qux && (qux > xyz))
+  c = {foo > bar && bar.baz && baz > qux && (qux > xyz)}
+}
+>>>
+object a {
+  if (
+    foo > bar && bar.baz && baz > qux &&
+    (qux > xyz)
+  ) {}
+  a =
+    foo > bar && bar.baz && baz > qux &&
+      (qux > xyz)
+  b = (
+    foo > bar && bar.baz && baz > qux &&
+      (qux > xyz)
+  )
+  c = {
+    foo > bar && bar.baz && baz > qux &&
+    (qux > xyz)
+  }
+}
+<<< mixed nested infixes, with breakOnNested 6
+maxColumn = 49
+newlines.infix.termSite {
+  style = some
+  breakOnNested = true
+}
+===
+object a {
+  if ((foo > bar) && (bar.baz) && baz > qux && qux > xyz) {}
+  a = (foo > bar) && (bar.baz) && baz > qux && qux > xyz
+  b = ((foo > bar) && (bar.baz) && baz > qux && qux > xyz)
+  c = {(foo > bar) && (bar.baz) && baz > qux && qux > xyz}
+}
+>>>
+object a {
+  if (
+    (foo > bar) &&
+    (bar.baz) && baz > qux && qux > xyz
+  ) {}
+  a = (foo > bar) &&
+    (bar.baz) && baz > qux && qux > xyz
+  b = (
+    (foo > bar) &&
+      (bar.baz) && baz > qux && qux > xyz
+  )
+  c = {
+    (foo > bar) &&
+    (bar.baz) && baz > qux && qux > xyz
+  }
+}
+<<< mixed nested infixes, with breakOnNested 7
+maxColumn = 49
+newlines.infix.termSite {
+  style = some
+  breakOnNested = true
+}
+===
+object a {
+  if ((foo > bar) && (bar.baz) && baz > qux && (qux > xyz)) {}
+  a = (foo > bar) && (bar.baz) && baz > qux && (qux > xyz)
+  b = ((foo > bar) && (bar.baz) && baz > qux && (qux > xyz))
+  c = {(foo > bar) && (bar.baz) && baz > qux && (qux > xyz)}
+}
+>>>
+object a {
+  if (
+    (foo > bar) &&
+    (bar.baz) && baz > qux &&
+    (qux > xyz)
+  ) {}
+  a = (foo > bar) &&
+    (bar.baz) && baz > qux &&
+    (qux > xyz)
+  b = (
+    (foo > bar) &&
+      (bar.baz) && baz > qux &&
+      (qux > xyz)
+  )
+  c = {
+    (foo > bar) &&
+    (bar.baz) && baz > qux &&
+    (qux > xyz)
+  }
+}
+<<< mixed nested infixes, with breakOnNested 8
+maxColumn = 49
+newlines.infix.termSite {
+  style = some
+  breakOnNested = true
+}
+===
+object a {
+  if ((foo > bar) && bar.baz && (baz > qux) && (qux > xyz)) {}
+  a = (foo > bar) && bar.baz && (baz > qux) && (qux > xyz)
+  b = ((foo > bar) && bar.baz && (baz > qux) && (qux > xyz))
+  c = {(foo > bar) && bar.baz && (baz > qux) && (qux > xyz)}
+}
+>>>
+object a {
+  if (
+    (foo > bar) &&
+    bar.baz &&
+    (baz > qux) &&
+    (qux > xyz)
+  ) {}
+  a = (foo > bar) &&
+    bar.baz &&
+    (baz > qux) &&
+    (qux > xyz)
+  b = (
+    (foo > bar) &&
+      bar.baz &&
+      (baz > qux) &&
+      (qux > xyz)
+  )
+  c = {
+    (foo > bar) &&
+    bar.baz &&
+    (baz > qux) &&
+    (qux > xyz)
+  }
+}
+<<< mixed nested infixes, with breakOnNested 9
+maxColumn = 49
+newlines.infix.termSite {
+  style = some
+  breakOnNested = true
+}
+===
+object a {
+  if (foo > bar && (bar.baz) && (baz > qux) && (qux > xyz)) {}
+  a = foo > bar && (bar.baz) && (baz > qux) && (qux > xyz)
+  b = (foo > bar && (bar.baz) && (baz > qux) && (qux > xyz))
+  c = {foo > bar && (bar.baz) && (baz > qux) && (qux > xyz)}
+}
+>>>
+object a {
+  if (
+    foo > bar && (bar.baz) &&
+    (baz > qux) &&
+    (qux > xyz)
+  ) {}
+  a =
+    foo > bar && (bar.baz) &&
+      (baz > qux) &&
+      (qux > xyz)
+  b = (
+    foo > bar && (bar.baz) &&
+      (baz > qux) &&
+      (qux > xyz)
+  )
+  c = {
+    foo > bar && (bar.baz) &&
+    (baz > qux) &&
+    (qux > xyz)
+  }
+}
+<<< mixed nested infixes, with breakOnNested 10
+maxColumn = 49
+newlines.infix.termSite {
+  style = some
+  breakOnNested = true
+}
+===
+object a {
+  if ((foo > bar) && (bar.baz) && (baz > qux) && (qux > xyz)) {}
+  a = (foo > bar) && (bar.baz) && (baz > qux) && (qux > xyz)
+  b = ((foo > bar) && (bar.baz) && (baz > qux) && (qux > xyz))
+  c = {(foo > bar) && (bar.baz) && (baz > qux) && (qux > xyz)}
+}
+>>>
+object a {
+  if (
+    (foo > bar) &&
+    (bar.baz) &&
+    (baz > qux) &&
+    (qux > xyz)
+  ) {}
+  a = (foo > bar) &&
+    (bar.baz) &&
+    (baz > qux) &&
+    (qux > xyz)
+  b = (
+    (foo > bar) &&
+      (bar.baz) &&
+      (baz > qux) &&
+      (qux > xyz)
+  )
+  c = {
+    (foo > bar) &&
+    (bar.baz) &&
+    (baz > qux) &&
+    (qux > xyz)
+  }
+}
+<<< mixed nested infixes, with breakOnNested 11
+maxColumn = 49
+newlines.infix.termSite {
+  style = some
+  breakOnNested = true
+}
+===
+!sym.isStaticOwner || (
+  sym.isModuleClass &&
+  sym.hasAnnotation(JSTypeAnnot) &&
+   !sym.hasAnnotation(JSNativeAnnotation)
+ )
+>>>
+!sym.isStaticOwner || (
+  sym.isModuleClass &&
+    sym.hasAnnotation(JSTypeAnnot) &&
+    !sym.hasAnnotation(JSNativeAnnotation)
+)
+<<< blank before nested infix, with breakOnNested 12
+maxColumn = 49
+newlines.infix.termSite {
+  style = some
+  breakOnNested = true
+}
+===
+object a {
+  !sym.isStaticOwner
+
+  (
+    sym.isModuleClass &&
+    sym.hasAnnotation(JSTypeAnnot) &&
+     !sym.hasAnnotation(JSNativeAnnotation)
+  )
+}
+>>>
+object a {
+  !sym.isStaticOwner
+
+  (
+    sym.isModuleClass &&
+      sym.hasAnnotation(JSTypeAnnot) &&
+      !sym.hasAnnotation(JSNativeAnnotation)
+  )
+}
+<<< nested infix as a statement
+maxColumn = 49
+newlines.infix.termSite {
+  style = some
+}
+===
+object a {
+   val thisFile = this.symbol.associatedFile
+   val thatFile = other.associatedFile
+   (  thisFile == null
+   || thatFile == null
+   || thisFile.path == thatFile.path // Cheap possibly wrong check, then expensive normalization
+   || thisFile.canonicalPath == thatFile.canonicalPath
+   )
+}
+>>>
+object a {
+  val thisFile = this.symbol.associatedFile
+  val thatFile = other.associatedFile
+  (
+    thisFile == null || thatFile == null ||
+      thisFile.path ==
+      thatFile
+        .path // Cheap possibly wrong check, then expensive normalization
+      ||
+      thisFile.canonicalPath ==
+      thatFile.canonicalPath
+  )
+}
+<<< tucked try-catch
+object a {
+  val foo = try {
+    bar
+  } catch {
+    case baz => qux
+  }
+  foo = try {
+    bar
+  } catch {
+    case baz => qux
+  }
+  val foo =
+  try {
+    bar
+  } catch {
+    case baz => qux
+  }
+  foo =
+  try {
+    bar
+  } catch {
+    case baz => qux
+  }
+}
+>>>
+object a {
+  val foo =
+    try {
+      bar
+    } catch {
+      case baz =>
+        qux
+    }
+  foo =
+    try {
+      bar
+    } catch {
+      case baz =>
+        qux
+    }
+  val foo =
+    try {
+      bar
+    } catch {
+      case baz =>
+        qux
+    }
+  foo =
+    try {
+      bar
+    } catch {
+      case baz =>
+        qux
+    }
+}
+<<< tucked for-yield
+object a {
+  val foo = for {
+    bar <- baz
+  } yield {
+    qux
+  }
+  foo = for {
+    bar <- baz
+  } yield {
+    qux
+  }
+  val foo =
+  for {
+    bar <- baz
+  } yield {
+    qux
+  }
+  foo =
+  for {
+    bar <- baz
+  } yield {
+    qux
+  }
+}
+>>>
+object a {
+  val foo =
+    for {
+      bar <- baz
+    } yield {
+      qux
+    }
+  foo =
+    for {
+      bar <- baz
+    } yield {
+      qux
+    }
+  val foo =
+    for {
+      bar <- baz
+    } yield {
+      qux
+    }
+  foo =
+    for {
+      bar <- baz
+    } yield {
+      qux
+    }
+}
+<<< tucked if-else
+object a {
+  val foo = if (bar) {
+    baz
+  } else {
+    qux
+  }
+  foo = if (bar) {
+    baz
+  } else {
+    qux
+  }
+  val foo =
+  if (bar) {
+    baz
+  } else {
+    qux
+  }
+  foo =
+  if (bar) {
+    baz
+  } else {
+    qux
+  }
+}
+>>>
+object a {
+  val foo =
+    if (bar) {
+      baz
+    } else {
+      qux
+    }
+  foo =
+    if (bar) {
+      baz
+    } else {
+      qux
+    }
+  val foo =
+    if (bar) {
+      baz
+    } else {
+      qux
+    }
+  foo =
+    if (bar) {
+      baz
+    } else {
+      qux
+    }
+}
+<<< trailing comment in case body, indent more, body empty
+comments.indentTrailingInCaseBody = more
+===
+foo match {
+  case bar =>
+    // bar1
+
+    // bar2
+  case baz =>
+    // baz1
+
+    // baz2
+
+  case qux =>
+    // qux1
+  case quux =>
+    // quux1
+
+    // quux2
+}
+>>>
+foo match {
+  case bar =>
+    // bar1
+
+  // bar2
+  case baz =>
+    // baz1
+
+    // baz2
+
+  case qux =>
+    // qux1
+  case quux =>
+    // quux1
+
+    // quux2
+}
+<<< trailing comment in case body, indent less, body empty
+comments.indentTrailingInCaseBody = less
+===
+foo match {
+  case bar =>
+    // bar1
+
+    // bar2
+  case baz =>
+    // baz1
+
+    // baz2
+
+  case qux =>
+    // qux1
+  case quux =>
+    // quux1
+
+    // quux2
+}
+>>>
+foo match {
+  case bar =>
+    // bar1
+
+  // bar2
+  case baz =>
+    // baz1
+
+  // baz2
+
+  case qux =>
+    // qux1
+  case quux =>
+    // quux1
+
+  // quux2
+}
+<<< trailing comment in case body, indent more, body one line
+comments.indentTrailingInCaseBody = more
+===
+foo match {
+  case bar => bbar
+    // bar1
+
+    // bar2
+  case baz => bbaz
+    // baz1
+
+    // baz2
+
+  case qux => bqux
+    // qux1
+  case quux => bquux
+    // quux1
+
+    // quux2
+}
+>>>
+foo match {
+  case bar =>
+    bbar
+    // bar1
+
+  // bar2
+  case baz =>
+    bbaz
+    // baz1
+
+    // baz2
+
+  case qux =>
+    bqux
+    // qux1
+  case quux =>
+    bquux
+    // quux1
+
+    // quux2
+}
+<<< trailing comment in case body, indent less, body one line
+comments.indentTrailingInCaseBody = less
+===
+foo match {
+  case bar => bbar
+    // bar1
+
+    // bar2
+  case baz => bbaz
+    // baz1
+
+    // baz2
+
+  case qux => bqux
+    // qux1
+  case quux => bquux
+    // quux1
+
+    // quux2
+}
+>>>
+foo match {
+  case bar =>
+    bbar
+    // bar1
+
+  // bar2
+  case baz =>
+    bbaz
+    // baz1
+
+  // baz2
+
+  case qux =>
+    bqux
+    // qux1
+  case quux =>
+    bquux
+    // quux1
+
+  // quux2
+}
+<<< infix with comment
+maxColumn = 70
+===
+ val needSbt = cfg.getVersion < ScalafmtVersion(3, 0, 0, 7) && {
+   val extension = getExtension(file.toString)
+   extension == "md" || // added in 3.0.0-RC7
+   cfg.getVersion < ScalafmtVersion(2, 6, 3) && extension == "sbt" ||
+   extension == "sc" // added in 2.6.3
+ }
+>>>
+val needSbt =
+  cfg.getVersion < ScalafmtVersion(3, 0, 0, 7) && {
+    val extension = getExtension(file.toString)
+    extension == "md" || // added in 3.0.0-RC7
+    cfg.getVersion < ScalafmtVersion(2, 6, 3) && extension == "sbt" ||
+    extension == "sc" // added in 2.6.3
+  }
+<<< infix with unary
+maxColumn = 24
+===
+object a {
+  foo + bar + (baz + quxQuxQuxQux)
+  foo + bar + !(baz + quxQuxQuxQux)
+}
+>>>
+object a {
+  foo + bar +
+    (baz + quxQuxQuxQux)
+  foo + bar + !(
+    baz + quxQuxQuxQux
+  )
+}
+<<< infix with unary, comment
+maxColumn = 54
+===
+object a {
+  foo + bar + /* c1 */ (baz + /* c2 */ quxQuxQuxQuxQuxQuxQuxQuxQuxQuxQux)
+  foo + bar + /* c1 */ !(baz + /* c2 */ quxQuxQuxQuxQuxQuxQuxQuxQuxQuxQux)
+}
+>>>
+object a {
+  foo + bar + /* c1 */
+    (baz + /* c2 */ quxQuxQuxQuxQuxQuxQuxQuxQuxQuxQux)
+  foo + bar + /* c1 */
+    !(
+      baz + /* c2 */ quxQuxQuxQuxQuxQuxQuxQuxQuxQuxQux
+    )
+}

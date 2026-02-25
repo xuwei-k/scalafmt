@@ -1474,6 +1474,8 @@ object a {
   } // c8
 }
 <<< init-only secondary ctors
+rewrite.redundantBraces.maxLines = 10
+===
 class a(vi: Int, vs: String) {
   def this() = {
 
@@ -1494,6 +1496,8 @@ class a(vi: Int, vs: String) {
     this(vi, "")
 }
 <<< procedure-style secondary ctors
+rewrite.redundantBraces.maxLines = 10
+===
 class a(vi: Int, vs: String) {
   def this() {
 
@@ -2042,6 +2046,7 @@ object a {
 }
 <<< #3912 insert braces in anno
 rewrite.insertBraces.minLines = 1
+rewrite.redundantBraces.maxBreaks = 0
 ===
 @ComponentScans(value =
     Array(
@@ -2491,4 +2496,73 @@ object a {
   while (
     true
   )
+}
+<<< secondary ctor, multiline
+class Foo(bar: Bar) {
+  def this(baz: Baz) = {
+    this({
+      val bar = baz.toBar
+      bar
+    })
+  }
+}
+>>>
+class Foo(bar: Bar) {
+  def this(baz: Baz) = {
+    this({
+      val bar = baz.toBar
+      bar
+    })
+  }
+}
+<<< secondary ctor, oneline with comment
+class Foo(bar: Bar) {
+  def this(baz: Baz) = {
+    this(baz.toBar)
+    // qux
+  }
+}
+>>>
+class Foo(bar: Bar) {
+  def this(baz: Baz) = {
+    this(baz.toBar)
+    // qux
+  }
+}
+<<< secondary ctor, oneline with comment, procedure-style
+class Foo(bar: Bar) {
+  def this(baz: Baz) {
+    this(baz.toBar)
+    // qux
+  }
+}
+>>>
+class Foo(bar: Bar) {
+  def this(baz: Baz) {
+    this(baz.toBar)
+    // qux
+  }
+}
+<<< remove and then insert, around function
+rewrite.redundantBraces.maxBreaks = 0
+rewrite.insertBraces.settings.minBreaks = 1
+===
+object a {
+  @Test def testLocalClassWithReflectiveInstantiationInLambda_Issue3227(): Unit = {
+    // Test that the presence of the following code does not prevent linking
+    { () =>
+      @EnableReflectiveInstantiation
+      class Foo
+    }
+  }
+}
+>>>
+object a {
+  @Test def testLocalClassWithReflectiveInstantiationInLambda_Issue3227()
+      : Unit = {
+    // Test that the presence of the following code does not prevent linking
+    () =>
+      @EnableReflectiveInstantiation
+      class Foo
+  }
 }

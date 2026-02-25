@@ -45,7 +45,7 @@ import metaconfig._
   *   - If [[LineEndings.unix]], output will include only unix line endings
   *   - If [[LineEndings.windows]], output will include only windows line
   *     endings
-  *   - If [[LineEndings.preserve]], output will include endings included in
+  *   - If [[LineEndings.keep]], output will include endings included in
   *     original file (windows if there was at least one windows line ending,
   *     unix if there was zero occurrences of windows line endings)
   * @param includeCurlyBraceInSelectChains
@@ -111,7 +111,7 @@ case class ScalafmtConfig(
     indent: Indents = Indents(),
     align: Align = Align(),
     spaces: Spaces = Spaces(),
-    literals: Literals = Literals(),
+    literals: Literals = Literals.default,
     lineEndings: Option[LineEndings] = None,
     rewrite: RewriteSettings = RewriteSettings.default,
     newlines: Newlines = Newlines(),
@@ -129,7 +129,7 @@ case class ScalafmtConfig(
 ) {
   import ScalafmtConfig._
 
-  private[scalafmt] lazy val alignMap: Map[String, Seq[AlignToken.Matcher]] =
+  private[scalafmt] lazy val alignMap: Map[String, Seq[TreePattern.Matcher]] =
     align.tokens.map(x => x.code -> x).toMap.map { case (k, v) =>
       k -> v.getMatcher
     }
@@ -163,7 +163,7 @@ case class ScalafmtConfig(
   def withGitAutoCRLF(value: String): ScalafmtConfig = value.toLowerCase match {
     case "input" => withLineEndings(LineEndings.unix)
     case "true" => withLineEndings(LineEndings.windows)
-    case "false" => withLineEndings(LineEndings.preserve)
+    case "false" => withLineEndings(LineEndings.keep)
     case _ => this
   }
 
@@ -182,7 +182,8 @@ case class ScalafmtConfig(
 
   private lazy val expandedFileOverride = Try {
     val langPrefix = "lang:"
-    val param = fileOverride.values.filter(_._1.nonEmpty)
+    // longest pattern first
+    val param = fileOverride.values.filter(_._1.nonEmpty).sortBy(-_._1.length)
     val hasLayout = project.layout.isDefined
     val patStyles = param.map { case (pat, conf) =>
       val isLang = hasLayout && pat.startsWith(langPrefix)
@@ -237,7 +238,7 @@ case class ScalafmtConfig(
     .wrapMaxColumn.getOrElse(maxColumn)
 
   @inline
-  private[scalafmt] def dialect = runner.getDialectForParser
+  private[scalafmt] implicit def dialect: Dialect = runner.getDialectForParser
 
   private[scalafmt] def getTrailingCommas = rewrite.trailingCommas.style
 
@@ -294,6 +295,15 @@ case class ScalafmtConfig(
 
   def importSelectorsRewrite: Newlines.SourceHints = rewrite.imports.selectors
     .getOrElse(newlines.source)
+
+  def importSelectorsBinPack: ImportSelectors = binPack.importSelectors
+    .getOrElse(newlines.source match {
+      case Newlines.fold => ImportSelectors.fold
+      case Newlines.keep => ImportSelectors.keep
+      case Newlines.unfold => ImportSelectors.unfold
+      case _ => null
+    })
+
 }
 
 object ScalafmtConfig {
@@ -346,7 +356,7 @@ object ScalafmtConfig {
       Configured.error(err)
     }
 
-  private def validate(cfg: ScalafmtConfig): Configured[ScalafmtConfig] = {
+  private def checkErrors(cfg: ScalafmtConfig): Configured[ScalafmtConfig] = {
     // scalafmt: { maxColumn = 140 }
     import cfg._
     import ValidationOps._
@@ -369,8 +379,10 @@ object ScalafmtConfig {
         mustIgnoreSourceSplit(newlines.beforeMultilineDef)
         addIf(newlines.beforeTypeBounds eq Newlines.keep)
         addIf(binPack.parentConstructors eq BinPack.ParentCtors.keep)
+        addIf(binPack.importSelectors.orNull eq ImportSelectors.keep)
         addIf(newlines.selectChains.style.orNull eq Newlines.keep)
         addIf(getTrailingCommas.eq(TrailingCommas.keep))
+        addIfDirect(!newlines.infix.sourceIgnoredIfSet, "newlines.infix.XXX.style is keep; reduce maxCountPerFile instead")
       }
       if (newlines.source == Newlines.unfold) addIf(align.arrowEnumeratorGenerator)
       if (errors.nonEmpty) {
@@ -396,10 +408,10 @@ object ScalafmtConfig {
       checkPositiveOpt(indent.significant, indent.ctorSite)
       if (rewrite.scala3.endMarker.insertMinSpan != 0)
         addIf(rewrite.scala3.endMarker.removeMaxSpan >= rewrite.scala3.endMarker.insertMinSpan)
-      addIf(rewrite.insertBraces.minLines != 0 && rewrite.scala3.endMarker.insertMinSpan != 0)
-      addIf(rewrite.insertBraces.minLines != 0 && rewrite.scala3.removeOptionalBraces.oldSyntaxToo)
+      addIf(rewrite.insertBraces.settings.minBreaks != 0 && rewrite.scala3.endMarker.insertMinSpan != 0)
+      addIf(rewrite.insertBraces.settings.minBreaks != 0 && rewrite.scala3.removeOptionalBraces.oldSyntaxToo)
       if (RedundantBraces.usedIn(rewrite)) {
-        if (rewrite.insertBraces.minLines != 0) addIf(rewrite.insertBraces.minLines < rewrite.redundantBraces.maxBreaks)
+        if (rewrite.insertBraces.settings.minBreaks != 0) addIf(rewrite.insertBraces.settings.minBreaks <= rewrite.redundantBraces.maxBreaks)
         if (rewrite.redundantBraces.oneStatApply.bracesMinSpan >= 0)
           addIf(rewrite.redundantBraces.oneStatApply.bracesMinSpan < rewrite.redundantBraces.oneStatApply.parensMaxSpan)
       }
@@ -410,49 +422,88 @@ object ScalafmtConfig {
         addIf(rewrite.scala3.removeOptionalBraces.fewerBracesMaxSpan < 0)
         addIf(rewrite.scala3.removeOptionalBraces.fewerBracesMinSpan > rewrite.scala3.removeOptionalBraces.fewerBracesMaxSpan)
       }
-      addIfDirect( // if we fold but not bin pack, we might end up with very long lines
-        (importSelectorsRewrite eq Newlines.fold) && binPack.importSelectors.contains(ImportSelectors.singleLine),
-        "rewrite.imports.selectors == fold && binPack.importSelectors == singleLine",
-      )
+      if (rewrite.rules.contains(Imports)) binPack.importSelectors match {
+        case Some(ImportSelectors.singleLine) => // if we fold but not bin pack, we might end up with very long lines
+          addIfDirect(importSelectorsRewrite eq Newlines.fold, "rewrite.imports.selectors == fold && binPack.importSelectors == singleLine")
+        case Some(ImportSelectors.keep) =>
+          val isEnabled = cfg.importSelectorsRewrite.ignoreSourceSplit || !cfg.rewrite.imports.noGroups
+          addIfDirect(isEnabled, "binPack.importSelectors == keep and rewrite.rules enables Imports")
+        case _ =>
+      }
     }
     // scalafmt: {}
     if (allErrors.isEmpty) Configured.ok(cfg)
     else Configured.error(allErrors.mkString("can't use: [\n\t", "\n\t", "\n]"))
   }
 
+  private def validateImports(cfg: ScalafmtConfig): Configured[ScalafmtConfig] =
+    Configured.Ok {
+      val binPackWouldBeKeep = cfg.binPack.importSelectors.isEmpty &&
+        cfg.newlines.keep && cfg.rewrite.rules.contains(Imports)
+      if (binPackWouldBeKeep) { // check rule is enabled
+        val selectors = cfg.importSelectorsRewrite
+        if (selectors.ignoreSourceSplit || !cfg.rewrite.imports.noGroups) {
+          val fold = selectors eq Newlines.fold
+          val bp = if (fold) ImportSelectors.fold else ImportSelectors.unfold
+          cfg.copy(binPack = cfg.binPack.copy(importSelectors = Some(bp)))
+        } else cfg
+      } else cfg
+    }
+
+  private val validations: Seq[ScalafmtConfig => Configured[ScalafmtConfig]] =
+    Seq(checkErrors, validateImports)
+
   private val baseDecoder = generic.deriveDecoderEx(default).noTypos
     .detectSectionRenames
 
   implicit final val decoder: ConfDecoderEx[ScalafmtConfig] =
-    (stateOpt, conf) => {
-      val stylePreset = conf match {
-        case x: Conf.Obj =>
-          val section = Seq(Presets.presetKey, "style")
-            .flatMap(y => x.field(y).map(y -> _))
-          section.headOption.map { case (field, obj) =>
-            obj -> Conf.Obj((x.map - field).toList)
-          }
-        case _ => None
-      }
-      val parsed = stylePreset match {
-        case Some((styleConf, restConf)) => readActiveStylePresets(styleConf)
-            .andThen { x =>
-              val preset = stateOpt.fold(x) { state =>
-                val isDefaultDialect = x.runner.isDefaultDialect
-                val dialect =
-                  (if (isDefaultDialect) state else x).runner.dialect
-                x.copy(
-                  version = state.version,
-                  runner = x.runner.withParser(state.runner.parser)
-                    .withDialect(dialect),
-                )
-              }
-              baseDecoder.read(Some(preset), restConf)
+    new ConfDecoderEx[ScalafmtConfig] {
+      override def read(
+          state: Option[ScalafmtConfig],
+          conf: Conf,
+      ): Configured[ScalafmtConfig] = {
+        val stylePreset = conf match {
+          case x: Conf.Obj =>
+            val section = Seq(Presets.presetKey, "style")
+              .flatMap(y => x.field(y).map(y -> _))
+            section.headOption.map { case (field, obj) =>
+              obj -> Conf.Obj(x.values.filter { case (k, _) => k != field })
             }
-        case _ => baseDecoder.read(stateOpt, conf)
+          case _ => None
+        }
+        val parsed = stylePreset match {
+          case Some((styleConf, restConf)) => readActiveStylePresets(styleConf)
+              .andThen { x =>
+                val preset = state.fold(x) { state =>
+                  val isDefaultDialect = x.runner.isDefaultDialect
+                  val dialect =
+                    (if (isDefaultDialect) state else x).runner.dialect
+                  x.copy(
+                    version = state.version,
+                    runner = x.runner.withParser(state.runner.parser)
+                      .withDialect(dialect),
+                  )
+                }
+                baseDecoder.read(Some(preset), restConf)
+              }
+          case _ => baseDecoder.read(state, conf)
+        }
+        validations.foldLeft(parsed)(_ andThen _)
       }
-      val res = parsed.andThen(validate)
-      res
+
+      override def convert(conf: Conf): Conf = baseDecoder.convert(conf) match {
+        case c @ Conf.Obj(elems) =>
+          val fileOverrideKey = Conf.nameOf(default.fileOverride).value
+          elems.collectFirst {
+            case (`fileOverrideKey`, Conf.Obj(vv)) if vv.nonEmpty =>
+              val fo = fileOverrideKey -> Conf.Obj(vv.map {
+                case (k, v: Conf.Obj) => k -> baseDecoder.convert(v)
+                case x => x
+              })
+              Conf.Obj(fo :: elems.filter(_._1 != fileOverrideKey))
+          }.getOrElse(c)
+        case c => c
+      }
     }
 
   def fromHoconString(

@@ -24,12 +24,12 @@ class FormatOps(
   import TokenOps._
   import TreeOps._
 
-  private[internal] val (initStyle, ownersMap) =
-    getStyleAndOwners(topSourceTree, baseStyle)
-
-  implicit val dialect: Dialect = initStyle.dialect
   implicit val (tokens: FormatTokens, styleMap: StyleMap) =
-    FormatTokens(topSourceTree.tokens, ownersMap)(initStyle)
+    FormatTokens(topSourceTree)(baseStyle)
+
+  private[internal] val initStyle = styleMap.init
+  implicit val dialect: Dialect = initStyle.dialect
+
   import tokens._
 
   private[internal] implicit val soft: SoftKeywordClasses =
@@ -66,7 +66,7 @@ class FormatOps(
       case _
           if AsInfixOp(start.rightOwner)
             .orElse(AsInfixOp(prevNonComment(start).leftOwner))
-            .exists(style.newlines.infix.keep) =>
+            .exists(style.newlines.infix.get(_).isNone) =>
         if (start.hasBreak) start else null
       case _: T.LeftParen if (start.rightOwner match {
             case _: Member.ArgClause =>
@@ -80,7 +80,8 @@ class FormatOps(
           val isDefnSite = isParamClauseSite(owner)
           implicit val clauseSiteFlags: ClauseSiteFlags =
             ClauseSiteFlags(owner, isDefnSite)
-          val bpFlags = getBinpackSiteFlags(matchingRight(start), start, false)
+          val bpFlags =
+            getBinpackSiteFlags(isDefnSite, matchingRight(start), start)
           if (bpFlags.scalaJsStyle)
             if (start.hasBreak) start else scalaJsOptCloseOnRight(start, bpFlags)
           else if (
@@ -137,17 +138,6 @@ class FormatOps(
     if (nft eq start) start
     else getSlbEndOnLeft(if (nft ne null) nft else next(start))
   }
-
-  /** js.native is very special in Scala.js.
-    *
-    * Context: https://github.com/scalameta/scalafmt/issues/108
-    */
-  def isJsNative(body: Tree): Boolean =
-    initStyle.newlines.neverBeforeJsNative &&
-      (body match {
-        case Term.Select(Term.Name("js"), Term.Name("native")) => true
-        case _ => false
-      })
 
   def parensTuple(ft: FT): TokenRanges = matchingOptLeft(ft)
     .fold(TokenRanges.empty)(other => TokenRanges(TokenRange(ft, other)))
@@ -206,17 +196,22 @@ class FormatOps(
       getOneArgPerLineSplitsAfterComma(right, splits)
   }
 
-  def splitOneArgPerLineAfterCommaOnBreak(comma: FT): Policy =
+  def splitOneArgPerLineAfterCommaOnBreak(
+      comma: FT,
+  )(implicit fl: FileLine, ft: FT): Policy =
     splitOneArgPerLineAfterCommaOnBreak(TokenRanges.empty)(comma)
 
-  def splitOneArgPerLineAfterCommaOnBreak(exclude: TokenRanges)(
-      comma: FT,
-  ): Policy = Policy ? (comma.right.is[T.Comment] && comma.noBreak) ||
-    delayedBreakPolicy(Policy.End < comma, exclude)(
-      Policy.onlyFor(comma, prefix = "NL->A[,]")(
-        getOneArgPerLineSplitsAfterComma(comma.right, _),
-      ),
-    )
+  def splitOneArgPerLineAfterCommaOnBreak(
+      exclude: TokenRanges,
+  )(comma: FT)(implicit fl: FileLine, ft: FT): Policy = Policy ?
+    (comma.right.is[T.Comment] && comma.noBreak) || {
+      val policy = delayedBreakPolicy(Policy.End < comma, exclude)(
+        Policy.onlyFor(comma, prefix = "NL->A[,]")(
+          getOneArgPerLineSplitsAfterComma(comma.right, _),
+        ),
+      )
+      Policy.End >= nextNonComment(ft) ==> policy
+    }
 
   private def getOneArgPerLineSplitsAfterComma(r: T, s: Seq[Split]) =
     if (r.is[T.LeftBrace]) SplitTag.OneArgPerLine.activateOnly(s)
@@ -305,71 +300,100 @@ class FormatOps(
   def insideInfixSplit(
       app: Member.Infix,
   )(implicit style: ScalafmtConfig, ft: FT): Seq[Split] = {
+    // we'll be RETURNING!!!
     val op = app.op.value
     if (app.is[Type] && style.spaces.neverAroundInfixTypes.contains(op))
-      Seq(Split(NoSplit, 0))
-    else {
-      val isBeforeOp = ft.meta.leftOwner ne app.op
-      // RETURNING!!!
-      if (isBeforeOp && isFewerBracesLhs(app.lhs)) return Seq(Split(Newline, 0))
-      def useSpaceBeforeArg = style.spaces.beforeInfixArgInParens(op) ||
-        (app.arg match {
-          case _: Lit.Unit => false
-          case x: Member.ArgClause if x.values.lengthCompare(1) != 0 => false
-          case x => !isEnclosedWithinParensOrBraces(x)
-        })
-      def useSpaceAroundOp = app.isAssignment || !isOperatorPart(op.head) ||
-        op.length != 1 && !isOperatorPart(op.last) ||
-        style.spaces.aroundSymbolicInfixOperators.forall(_.matches(op)) || {
-          if (isBeforeOp) prevNonComment(ft).left match {
-            case x: T.Ident => isOperatorPart(x.value.last)
-            case _ => false
-          }
-          else nextNonComment(ft).right match {
-            case x: T.Ident => isOperatorPart(x.value.head)
-            case _ => false
-          }
-        }
-      def spaceMod = Space(useSpaceAroundOp && (isBeforeOp || useSpaceBeforeArg))
+      return Seq(Split(NoSplit, 0))
 
-      val afterInfix = style.newlines.infix.get(app)
-      if (!afterInfix.isKeep)
-        if (isBeforeOp) Seq(Split(spaceMod, 0))
-        else {
-          val (fullInfix, enclosedIn) = InfixSplits.findMaybeEnclosingInfix(app)
-          val ok = enclosedIn.isDefined || fullInfix.parent.forall {
-            case t: Defn.Val => t.rhs eq fullInfix
-            case t: Defn.Var => t.body eq fullInfix
-            case _ => true
-          }
-          if (ok) InfixSplits(app, ft, fullInfix)
-            .getBeforeLhsOrRhs(afterInfix, spaceMod = spaceMod)
-          else Seq(Split(spaceMod, 0))
+    val isBeforeOp = ft.meta.leftOwner ne app.op
+    if (isBeforeOp && isFewerBracesLhs(app.lhs)) return Seq(Split(Newline, 0))
+
+    def useSpaceBeforeArg = style.spaces.beforeInfixArgInParens(op) ||
+      (app.arg match {
+        case _: Lit.Unit => false
+        case x: Member.ArgClause if x.values.lengthCompare(1) != 0 => false
+        case x => !isEnclosedWithinParensOrBraces(x)
+      })
+    def useSpaceAroundOp = app.isAssignment || !isOperatorPart(op.head) ||
+      op.length != 1 && !isOperatorPart(op.last) ||
+      style.spaces.aroundSymbolicInfixOperators.forall(_.matches(op)) || {
+        if (isBeforeOp) prevNonComment(ft).left match {
+          case x: T.Ident => isOperatorPart(x.value.last)
+          case _ => false
         }
-      else {
-        // we don't modify line breaks generally around infix expressions
-        // TODO: if that ever changes, modify how rewrite rules handle infix
-        val (fullInfix, fullInfixEnclosedIn) = InfixSplits
-          .findMaybeEnclosingInfix(app)
-        val fullInfixEnclosedInParens = fullInfixEnclosedIn.exists(_.isRight)
-        val okSpace = isBeforeOp || style.newlines.ignoreInSyntax ||
-          tokens.getNonMultilineEnd(ft).isRight
-        def okToBreak: Boolean = !isBeforeOp || fullInfixEnclosedInParens ||
-          initStyle.dialect.allowInfixOperatorAfterNL ||
-          (fullInfix.parent match {
-            case Some(p: Case) => p.cond.contains(fullInfix)
-            case _ => false
-          }) || { // check if the break was in the original code
-            val optokens = app.op.tokens
-            val idx = optokens.rskipWideIf(_.is[T.Trivia], -1, Int.MinValue)
-            optokens.getWideOpt(idx).contains(ft.left) // no rewritten tokens
-          }
-        val mod =
-          if (ft.noBreak && okSpace || !okToBreak) spaceMod
-          else Newline2x(fullInfixEnclosedInParens && ft.hasBlankLine)
-        def split(implicit fl: FileLine) = Split(mod, 0)
-        if (isBeforeOp && isFewerBracesRhs(app.arg)) Seq(split)
-        else Seq(InfixSplits.withNLIndent(split, app, fullInfix))
+        else nextNonComment(ft).right match {
+          case x: T.Ident => isOperatorPart(x.value.head)
+          case _ => false
+        }
+      }
+    def spaceMod = Space(useSpaceAroundOp && (isBeforeOp || useSpaceBeforeArg))
+    def spc(implicit fl: FileLine) = Split(spaceMod, 0)
+    def spaceSplits(implicit fl: FileLine) = Seq(spc)
+
+    val afterInfix = style.newlines.infix.get(app)
+    if (isBeforeOp && afterInfix.sourceIgnoredAt(ft)) return spaceSplits
+
+    val (fullInfix, fullInfixEnclosedIn) = InfixSplits
+      .findMaybeEnclosingInfix(app)
+
+    def sourceIgnoredSplits(implicit fl: FileLine) = {
+      val ok = fullInfixEnclosedIn.isDefined || fullInfix.parent.forall {
+        case t: Defn.Val => t.rhs eq fullInfix
+        case t: Defn.Var => t.body eq fullInfix
+        case _ => true
+      }
+      if (ok) InfixSplits(app, ft, fullInfix, fullInfixEnclosedIn)
+        .getBeforeLhsOrRhs(afterInfix, spaceMod = spaceMod)
+      else spaceSplits
+    }
+
+    if (afterInfix.sourceIgnored) return sourceIgnoredSplits
+
+    // we don't modify line breaks generally around infix expressions
+    // TODO: if that ever changes, modify how rewrite rules handle infix
+    val fullInfixEnclosedInParens = fullInfixEnclosedIn.exists(_.isRight)
+    def okSpaceAfterOp(xft: FT) = xft.noBreak &&
+      (style.newlines.ignoreInSyntax || tokens.getNonMultilineEnd(xft).isDefined)
+    def okBreakBeforeOp: Boolean = fullInfixEnclosedInParens ||
+      initStyle.dialect.allowInfixOperatorAfterNL ||
+      (fullInfix.parent match {
+        case Some(p: Case) => p.cond.contains(fullInfix)
+        case Some(p: Member.ArgClause) => isEnclosedWithinParens(p)
+        case _ => false
+      }) || app.op.tokens.rfindWideNot(_.is[T.HTrivia], -1, Int.MinValue)
+        .exists(_.is[T.AtEOL]) // had a break in the original code
+
+    def modNL = Newline2x(fullInfixEnclosedInParens && ft.hasBlankLine)
+    def nl(cost: Int)(implicit fl: FileLine) = Split(modNL, cost)
+    def withIndent(split: Split) =
+      Seq(InfixSplits.withNLIndent(split, app, (fullInfix, fullInfixEnclosedIn)))
+
+    if (isBeforeOp)
+      if (ft.noBreak) withIndent(spc) // !sourceIgnored
+      else if (!okBreakBeforeOp) spaceSplits
+      else if (isFewerBracesRhs(app.arg)) Seq(nl(0))
+      else if (!afterInfix.isNone) withIndent {
+        val nft = next(ft) // if we break before, let's not break immediately after
+        if (okSpaceAfterOp(nft)) nl(0).withSingleLine(nft)
+          .andPolicy(penalizeOneNewline(nft, Constants.ShouldBeSingleLine))
+        else nl(0)
+      }
+      else withIndent(nl(0))
+    else {
+      // now are after the op
+      val useSpace = okSpaceAfterOp(ft)
+      if (afterInfix.isNone) withIndent(if (useSpace) spc else nl(0))
+      else if (useSpace)
+        if (prev(ft).hasBreak && okBreakBeforeOp) spaceSplits
+        else sourceIgnoredSplits
+      else (ft.right match {
+        case _: T.LeftBrace => matchingOptRight(ft)
+        case _ => None
+      }) match {
+        case Some(cft) if cft.right.end >= app.arg.pos.end =>
+          sourceIgnoredSplits
+            .map(s => if (s.isNL) s.copy(cost = 0, rank = -1) else s)
+        case _ => withIndent(nl(1))
       }
     }
   }
@@ -495,7 +519,7 @@ class FormatOps(
       }
     else if (!isFirstCtor) Seq(Split(Space, 0), Split(Newline, 1))
     else if (style.binPack.parentConstructors eq BinPack.ParentCtors.ForceBreak)
-      Seq(Split(nlMod, 0, policy = nlPolicy(false)).withIndent(indent))
+      Seq(Split(nlMod, 0, nlPolicy(false)).withIndent(indent))
     else {
       val parentCtors = style.binPack.parentConstructors
       val nlOnelineTag = parentCtors match {
@@ -519,8 +543,7 @@ class FormatOps(
           .preActivateFor(nlOnelineTag.left.toOption)
           .withSingleLineNoOptimal(lastFt, noSyntaxNL = noSyntaxNL)
           .withIndent(indent),
-        Split(nlMod, 1, policy = nlPolicy(isAlways) & pnlPolicy)
-          .withIndent(indent),
+        Split(nlMod, 1, nlPolicy(isAlways) & pnlPolicy).withIndent(indent),
       )
     }
   }
@@ -680,7 +703,7 @@ class FormatOps(
           // If we can fit the type params, make it so
           Split(space, 0).withSingleLine(lpNext).orPolicy(slbPolicy)
         }
-      val nlSplit = Split(Newline, 1, policy = policy).withIndent(firstIndent)
+      val nlSplit = Split(Newline, 1, policy).withIndent(firstIndent)
       Seq(slbSplit, noSplit.andPolicy(noSlbPolicy), nlSplit)
     } else {
       val rightIsImplicit = soft.ImplicitOrUsing(r)
@@ -703,12 +726,12 @@ class FormatOps(
       Seq(
         // If we can fit all in one block, make it so
         slbSplit.notIf(noSlb),
-        Split(space, 0, policy = policy).onlyIf(spaceImplicit).andPolicy(
+        Split(space, 0, policy).onlyIf(spaceImplicit).andPolicy(
           decideNewlinesOnlyAfterClose(nft),
           isRightCommentThenBreak(nft),
         ).withIndent(firstIndent),
         // Otherwise split vertically
-        Split(nlMod, 1, policy = policy).withIndent(firstIndent),
+        Split(nlMod, 1, policy).withIndent(firstIndent),
       )
     }
 
@@ -980,8 +1003,8 @@ class FormatOps(
                 style.binPack.callSite == BinPack.Site.Never
               case _ => true
             })
-          val opt = if (style.newlines.keep) miniSlbEnd else blast
-          Split(Space, 0, policy = slbPolicy & (policy | penalize(penalty)))
+          val opt = if (style.newlines.keep) miniSlbEnd else expire
+          Split(Space, 0, slbPolicy & (policy | penalize(penalty)))
             .withOptimalToken(opt, killOnFail = slbLite, recurseOnly = slbLite)
         }
       }
@@ -998,15 +1021,20 @@ class FormatOps(
       )
       def hasStateColumn = spaceIndents.exists(_.hasStateColumn)
       val adjustedBody = getBlockStat(body)
+      def getExprBeg(expr: Tree): FT = {
+        val exprBeg = getHead(expr)
+        val exprHasLB = exprBeg.left.is[T.LeftBrace]
+        if (exprHasLB) exprBeg else prevNonCommentBefore(exprBeg)
+      }
       val (spaceSplit, nlSplit) = adjustedBody match {
-        case t: Term.If if isKeep || ifWithoutElse(t) || hasStateColumn =>
-          val thenBeg = getHead(t.thenp)
-          val thenHasLB = thenBeg.left.is[T.LeftBrace]
-          val end = if (thenHasLB) thenBeg else prevNonCommentBefore(thenBeg)
-          getSplits(getSlbSplit(end))
-        case _: Term.If => getSlbSplits()
-        case _: Term.TryClause =>
-          if (hasStateColumn) getSplits(getSpaceSplit(1)) else getSlbSplits()
+        case t: Term.If =>
+          if (isKeep || ifWithoutElse(t) || hasStateColumn)
+            getSplits(getSlbSplit(getExprBeg(t.thenp)))
+          else getSlbSplits()
+        case t: Term.TryClause =>
+          if (hasStateColumn) getSplits(getSpaceSplit(1))
+          else if (isKeep) getSplits(getSlbSplit(getExprBeg(t.expr)))
+          else getSlbSplits()
         case _: Term.Block | _: Term.MatchLike | _: Type.Match |
             _: Term.NewAnonymous => getSplits(getSpaceSplit(1))
         case t: Term.ForYield => getDelimsIfEnclosed(t.enumsBlock) match {
@@ -1056,10 +1084,12 @@ class FormatOps(
       if (tokens.isEmpty(body)) Seq(Split(Space, 0))
       else foldedNonEmptyNonComment(body, nlSplitFunc, isKeep, spaceIndents)
 
-    private def unfoldedSpaceNonEmptyNonComment(body: Tree, slbOnly: Boolean)(
-        implicit style: ScalafmtConfig,
-    ): Split = {
-      val expire = nextNonCommentSameLine(getLastNonTrivial(body))
+    private def unfoldedSpaceNonEmptyNonComment(
+        body: Tree,
+        slbOnly: Boolean,
+        last: FT,
+    )(implicit style: ScalafmtConfig): Split = {
+      val expire = nextNonCommentSameLine(last)
       def slbSplit(end: FT)(implicit fileLine: FileLine) = Split(Space, 0)
         .withSingleLine(end, noSyntaxNL = true)
       if (slbOnly) slbSplit(expire)
@@ -1079,11 +1109,29 @@ class FormatOps(
         nlSplitFunc: Int => Split,
         spaceIndents: Seq[Indent],
         slbOnly: Boolean,
-    )(implicit style: ScalafmtConfig): Seq[Split] =
+    )(implicit style: ScalafmtConfig, ft: FT): Seq[Split] =
       if (tokens.isEmpty(body)) Seq(Split(Space, 0).withIndents(spaceIndents))
       else {
-        val spaceSplit = unfoldedSpaceNonEmptyNonComment(body, slbOnly)
-        Seq(spaceSplit.withIndents(spaceIndents), nlSplitFunc(1).forThisLine)
+        val nextFt = nextNonCommentSameLineAfter(ft)
+        val last = getLastNonTrivial(body)
+        getClosingIfWithinParens(last)(nextFt).fold {
+          val spaceSplit =
+            if (!style.newlines.sourceIgnored && ft.hasBreak) Split.ignored
+            else unfoldedSpaceNonEmptyNonComment(body, slbOnly, last)
+          Seq(spaceSplit.withIndents(spaceIndents), nlSplitFunc(1).forThisLine)
+        } { _ =>
+          val policy = Policy.onlyFor(nextFt, "CTRLUF")(ss =>
+            ss.map(s =>
+              if (s.isNL) s
+              else s.withSingleLine(last, extend = true, noOptimal = !s.noCost),
+            ),
+          )
+          Seq(
+            Split(Space, 0, policy),
+            nlSplitFunc(1).forThisLine
+              .withSingleLineNoOptimal(last, extend = true),
+          )
+        }
       }
 
     def checkComment(
@@ -1290,7 +1338,7 @@ class FormatOps(
       style: ScalafmtConfig,
       clauseSiteFlags: ClauseSiteFlags,
   ): BinpackSiteFlags = {
-    val literalArgList = styleMap.opensLiteralArgumentList(ftAfterOpen)
+    val literalArgList = styleMap.isForcedBinPack(ftAfterOpen)
     getBinpackSiteFlags(ftAfterOpen, ftBeforeClose, literalArgList)
   }
 
@@ -1349,7 +1397,7 @@ class FormatOps(
             if (!shouldDangle) scalaJsStyle && closeBreak
             else nlOpenExcludingCfg && !style.newlines.keepBreak(!closeBreak)
           nlBothExcludingCfg ||
-          closeBreak && preserveConfigStyle(ftAfterOpen, true)
+          closeBreak && preserveConfigStyle(ftAfterOpen, breakBeforeClose = true)
         }
         // close on open NL; doesn't cover case with no break after open
         val nlClose = nlBothIncludingCfg || dangleForTrailingCommas ||
@@ -1501,13 +1549,15 @@ class FormatOps(
 
     def getPolicy(isCallSite: Boolean, exclude: TokenRanges)(
         afterArg: FT,
-    ): (Option[FT], Policy) = afterArg.right match {
-      case _: T.Comma // check for trailing comma, which needs no breaks
-          if !nextNonCommentAfter(afterArg).right.is[T.CloseDelim] =>
-        (None, splitOneArgPerLineAfterCommaOnBreak(exclude)(next(afterArg)))
-      case _: T.CloseDelim if isCallSite => policyOnRightDelim(afterArg, exclude)
-      case _ => (None, Policy.NoPolicy)
-    }
+    )(implicit fl: FileLine, ft: FT): (Option[FT], Policy) =
+      afterArg.right match {
+        case _: T.Comma // check for trailing comma, which needs no breaks
+            if !nextNonCommentAfter(afterArg).right.is[T.CloseDelim] =>
+          (None, splitOneArgPerLineAfterCommaOnBreak(exclude)(next(afterArg)))
+        case _: T.CloseDelim if isCallSite =>
+          policyOnRightDelim(afterArg, exclude)
+        case _ => (None, Policy.NoPolicy)
+      }
   }
 
   def indentedPackage(body: Pkg.Body): Boolean = getHeadOpt(body)

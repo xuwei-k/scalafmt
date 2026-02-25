@@ -192,7 +192,7 @@ object a {
     have message """Cannot resolve column name "user" among (segment_id);"""
 }
 <<< 1.c.3: block followed by an infix, break before, overflowing if no break
-newlines.afterInfix = keep
+newlines.infix.termSite.maxCountPerFile = 0
 maxColumn = 80
 ===
 object a {
@@ -207,7 +207,7 @@ object a {
     have message """Cannot resolve column name "user" among (segment_id);"""
 }
 <<< 1.c.4: block followed by an infix, no break before, overflowing if no break
-newlines.afterInfix = keep
+newlines.infix.termSite.maxCountPerFile = 0
 maxColumn = 80
 ===
 object a {
@@ -1224,7 +1224,7 @@ danglingParentheses.preset = false
 ===
 case class AttributeInfo(symbol : Symbol, typeRef : Type, value : Option[Any],
   values : Seq[String ~ Any]) // sym_Ref info_Ref {constant_Ref} {nameRef constantRef}
->>> { stateVisits = 62, stateVisits2 = 32 }
+>>>
 case class AttributeInfo(
     symbol: Symbol,
     typeRef: Type,
@@ -3106,7 +3106,7 @@ object a {
     ))
   )
 }
->>> { stateVisits = 960, stateVisits2 = 960 }
+>>>
 object a {
   foo(
     bar.baz(
@@ -3503,11 +3503,10 @@ object a {
 }
 >>>
 object a {
-  def validate(d: DirectoryProxy, step: Int): Unit = if (
-    step != 0
-  ) /* c1 */ { /* c2 */
-    d.name should be("dir" + step)
-  }
+  def validate(d: DirectoryProxy, step: Int): Unit =
+    if (step != 0) /* c1 */ { /* c2 */
+      d.name should be("dir" + step)
+    }
 }
 <<< #2113 case 1
 object a {
@@ -5820,7 +5819,7 @@ object a {
     a
 }
 <<< #2019 infix
-newlines.afterInfix = keep
+newlines.infix.termSite.maxCountPerFile = 0
 rewrite.insertBraces.minLines = 2
 ===
 object a {
@@ -5850,7 +5849,7 @@ object a {
   }
 }
 <<< #2019 if-else !alwaysBeforeElseAfterCurlyIf
-newlines.afterInfix = keep
+newlines.infix.termSite.maxCountPerFile = 0
 newlines.alwaysBeforeElseAfterCurlyIf = false
 rewrite.insertBraces.minLines = 2
 ===
@@ -5909,7 +5908,7 @@ object a {
   }
 }
 <<< #2019 if-else alwaysBeforeElseAfterCurlyIf
-newlines.afterInfix = keep
+newlines.infix.termSite.maxCountPerFile = 0
 newlines.alwaysBeforeElseAfterCurlyIf = true
 rewrite.insertBraces.minLines = 2
 ===
@@ -5973,7 +5972,7 @@ object a {
 }
 <<< #2019 try !alwaysBeforeElseAfterCurlyIf !allBlocks
 maxColumn = 12
-newlines.afterInfix = keep
+newlines.infix.termSite.maxCountPerFile = 0
 newlines.alwaysBeforeElseAfterCurlyIf = false
 rewrite.insertBraces.minLines = 2
 ===
@@ -6000,7 +5999,7 @@ object a {
 }
 <<< #2019 try !alwaysBeforeElseAfterCurlyIf allBlocks
 maxColumn = 12
-newlines.afterInfix = keep
+newlines.infix.termSite.maxCountPerFile = 0
 newlines.alwaysBeforeElseAfterCurlyIf = false
 rewrite.insertBraces.minLines = 2
 rewrite.insertBraces.allBlocks = true
@@ -6029,7 +6028,7 @@ object a {
 }
 <<< #2019 try alwaysBeforeElseAfterCurlyIf !allBlocks
 maxColumn = 12
-newlines.afterInfix = keep
+newlines.infix.termSite.maxCountPerFile = 0
 newlines.alwaysBeforeElseAfterCurlyIf = true
 rewrite.insertBraces.minLines = 2
 ===
@@ -6057,7 +6056,7 @@ object a {
 }
 <<< #2019 try alwaysBeforeElseAfterCurlyIf allBlocks
 maxColumn = 12
-newlines.afterInfix = keep
+newlines.infix.termSite.maxCountPerFile = 0
 newlines.alwaysBeforeElseAfterCurlyIf = true
 rewrite.insertBraces.minLines = 2
 rewrite.insertBraces.allBlocks = true
@@ -6088,7 +6087,7 @@ object a {
 }
 <<< #2019 function
 maxColumn = 12
-newlines.afterInfix = keep
+newlines.infix.termSite.maxCountPerFile = 0
 rewrite.insertBraces.minLines = 2
 ===
 object a {
@@ -6122,7 +6121,7 @@ object a {
 }
 <<< #2019 partial function
 maxColumn = 25
-newlines.afterInfix = keep
+newlines.infix.termSite.maxCountPerFile = 0
 rewrite.insertBraces.minLines = 2
 ===
 object a {
@@ -6140,7 +6139,7 @@ object a {
 }
 <<< #2019 for-yield !allBlocks
 maxColumn = 12
-newlines.afterInfix = keep
+newlines.infix.termSite.maxCountPerFile = 0
 rewrite.insertBraces.minLines = 2
 ===
 object a {
@@ -6169,7 +6168,7 @@ object a {
 }
 <<< #2019 for-yield allBlocks
 maxColumn = 12
-newlines.afterInfix = keep
+newlines.infix.termSite.maxCountPerFile = 0
 rewrite.insertBraces.minLines = 2
 rewrite.insertBraces.allBlocks = true
 ===
@@ -6200,7 +6199,7 @@ object a {
 }
 <<< #2019 for-do !allBlocks
 maxColumn = 12
-newlines.afterInfix = keep
+newlines.infix.termSite.maxCountPerFile = 0
 rewrite.insertBraces.minLines = 2
 ===
 object a {
@@ -6270,7 +6269,7 @@ object a {
 }
 <<< #2019 for-do allBlocks
 maxColumn = 12
-newlines.afterInfix = keep
+newlines.infix.termSite.maxCountPerFile = 0
 rewrite.insertBraces.minLines = 2
 rewrite.insertBraces.allBlocks = true
 ===
@@ -6384,12 +6383,12 @@ object a {
 object a {
   foo
     .
-      // c2
+    // c2
     bar(baz)
     .foo(bar, baz)
   foo
     . // c1
-      // c2
+    // c2
     bar(baz)
     .foo(bar, baz)
   foo
@@ -6418,6 +6417,158 @@ object a {
     )
     .settings(commonJavaSettings)
     .settings(foo)
+}
+<<< comment in select chain, after dot 3
+object a {
+  foo. // c1
+    bar(baz). // c2
+    foo(bar, baz). // c3
+    qux
+  foo.
+    // c1
+    bar(baz).
+    // c2
+    foo(bar, baz).
+    // c3
+    qux
+  foo // c1
+    .bar(baz). // c2
+    foo(bar, baz). // c3
+    qux
+  foo
+    // c1
+    .bar(baz).
+    // c2
+    foo(bar, baz).
+    // c3
+    qux
+  foo. // c1
+    bar(baz) // c2
+    .foo(bar, baz). // c2
+    qux
+  foo.
+    // c1
+    bar(baz)
+    // c2
+    .foo(bar, baz).
+    // c2
+    qux
+  foo. // c1
+    bar(baz). // c2
+    foo(bar, baz) // c3
+    .qux
+  foo.
+    // c1
+    bar(baz).
+    // c2
+    foo(bar, baz)
+    // c3
+    .qux
+}
+>>>
+object a {
+  foo
+    . // c1
+    bar(baz)
+    . // c2
+    foo(bar, baz)
+    . // c3
+    qux
+  foo
+    .
+    // c1
+    bar(baz)
+    .
+    // c2
+    foo(bar, baz)
+    .
+    // c3
+    qux
+  foo // c1
+    .bar(baz)
+    . // c2
+    foo(bar, baz)
+    . // c3
+    qux
+  foo
+    // c1
+    .bar(baz)
+    .
+    // c2
+    foo(bar, baz)
+    .
+    // c3
+    qux
+  foo
+    . // c1
+    bar(baz) // c2
+    .foo(bar, baz)
+    . // c2
+    qux
+  foo
+    .
+    // c1
+    bar(baz)
+    // c2
+    .foo(bar, baz)
+    .
+    // c2
+    qux
+  foo
+    . // c1
+    bar(baz)
+    . // c2
+    foo(bar, baz) // c3
+    .qux
+  foo
+    .
+    // c1
+    bar(baz)
+    .
+    // c2
+    foo(bar, baz)
+    // c3
+    .qux
+}
+<<< break in select chain, after dot 3
+maxColumn = 20
+===
+object a {
+  foo.
+    bar(baz).
+    foo(bar, baz).
+    qux
+  foo
+    .bar(baz).
+    foo(bar, baz).
+    qux
+  foo.
+    bar(baz)
+    .foo(bar, baz).
+    qux
+  foo.
+    bar(baz).
+    foo(bar, baz)
+    .qux
+}
+>>>
+object a {
+  foo
+    .bar(baz)
+    .foo(bar, baz)
+    .qux
+  foo
+    .bar(baz)
+    .foo(bar, baz)
+    .qux
+  foo
+    .bar(baz)
+    .foo(bar, baz)
+    .qux
+  foo
+    .bar(baz)
+    .foo(bar, baz)
+    .qux
 }
 <<< try with match expr
 object a {
@@ -9029,7 +9180,7 @@ object a {
     )
   )
 }
->>> { stateVisits = 949, stateVisits2 = 605 }
+>>>
 object a {
   div(cls := "cover")(
     div(cls := "doc")(bodyContents),
@@ -10046,7 +10197,7 @@ private object MemoMap {
         }
       }
 }
->>> { stateVisits = 296, stateVisits2 = 243 }
+>>>
 private object MemoMap {
   def make(implicit
       trace: Trace
@@ -10185,7 +10336,7 @@ object a {
         }
   }
 }
->>> { stateVisits = 991, stateVisits2 = 887 }
+>>>
 object a {
   private object MemoMap {
     def make(implicit trace: Trace): UIO[MemoMap] =
@@ -10318,7 +10469,7 @@ object a {
       .map(_.filterNot(_.getCanonicalPath.contains("SSLOptions")))
   }
 }
->>> { stateVisits = 1222, stateVisits2 = 682 }
+>>>
 object a {
   private def ignoreUndocumentedPackages(
       packages: Seq[Seq[File]]
@@ -10458,7 +10609,7 @@ object a {
       .map(filterNot(getCanonicalPath.contains("SSLOptions")))
   }
 }
->>> { stateVisits = 783, stateVisits2 = 539 }
+>>>
 object a {
   private def ignoreUndocumentedPackages(
       packages: Seq[Seq[File]]
@@ -11713,6 +11864,7 @@ object ZStreamSpec extends DefaultRunnableSpec {
             )(equalTo(Chunk(List(2, 1, 1, 1, 1), List(2))))
           )
         ),
+
         suite("bufferDropping")(
           testM("buffer the Stream with Error")(
             assertM(
@@ -11914,7 +12066,7 @@ object Foo {
 <<< #4705 term=some, type=keep
 maxColumn = 80
 newlines.infix.termSite.style = some
-newlines.infix.typeSite.style = keep
+newlines.infix.typeSite.maxCountPerFileForKeep = 0
 ===
 object Foo {
   def oldStyle: Traverse[Option] with MonadError[Option, Unit] with Alternative[Option] with CommutativeMonad[Option] with CoflatMap[Option] with Align[Option] =
@@ -11933,15 +12085,15 @@ object Foo {
     with Align[Option] =
     ???
 
-  def newStyle: Traverse[Option] & MonadError[Option, Unit] & Alternative[
-    Option
-  ] & CommutativeMonad[Option] & CoflatMap[Option] & Align[Option] =
+  def newStyle: Traverse[Option] & MonadError[Option, Unit] &
+    Alternative[Option] & CommutativeMonad[Option] & CoflatMap[Option] &
+    Align[Option] =
     Traverse[Option] & MonadError[Option, Unit] & Alternative[Option] &
       CommutativeMonad[Option] & CoflatMap[Option] & Align[Option]
 }
 <<< #4705 term=keep, type=some
 maxColumn = 80
-newlines.infix.termSite.style = keep
+newlines.infix.termSite.maxCountPerFileForKeep = 0
 newlines.infix.typeSite.style = some
 ===
 object Foo {
@@ -11964,9 +12116,8 @@ object Foo {
   def newStyle: Traverse[Option] & MonadError[Option, Unit] &
     Alternative[Option] & CommutativeMonad[Option] & CoflatMap[Option] &
     Align[Option] =
-    Traverse[Option] & MonadError[Option, Unit] & Alternative[
-      Option
-    ] & CommutativeMonad[Option] & CoflatMap[Option] & Align[Option]
+    Traverse[Option] & MonadError[Option, Unit] & Alternative[Option] &
+      CommutativeMonad[Option] & CoflatMap[Option] & Align[Option]
 }
 <<< consistency between string and interpolation: stripMargin, ignoreInSyntax
 maxColumn = 40
@@ -12907,6 +13058,51 @@ bar(
         |xyzzy
         |""".stripMargin
 )
+<<< apply with nested interpolations, !ignoreInSyntax
+maxColumn = 50
+align.stripMargin = true
+newlines.ignoreInSyntax = false
+assumeStandardLibraryStripMargin = true
+===
+bar(
+  "bar" -> s"""|qux ${foo}""".stripMargin,
+  "bar" -> s"""|qux ${"""aaa
+               |xyzzy
+               |""".stripMargin}""".stripMargin,
+  "bar" -> s"""|qux ${s"foo"}""".stripMargin,
+  "bar" -> s"""|qux ${s"""foo
+               |xyzzy
+               |""".stripMargin}""".stripMargin
+)
+>>>
+bar(
+  "bar" -> s"""|qux ${foo}""".stripMargin,
+  "bar" ->
+    s"""|qux ${"""aaa
+                 |xyzzy
+                 |""".stripMargin}""".stripMargin,
+  "bar" -> s"""|qux ${s"foo"}""".stripMargin,
+  "bar" ->
+    s"""|qux ${s"""foo
+                  |xyzzy
+                  |""".stripMargin}""".stripMargin
+)
+<<< expr before multiline, !ignoreInSyntax
+newlines.ignoreInSyntax = false
+===
+object a {
+  val cursor = (" " * index) + "^"
+   s"""|$desc near index $index
+       |$regex
+       |$cursor""".stripMargin
+}
+>>>
+object a {
+  val cursor = (" " * index) + "^"
+  s"""|$desc near index $index
+       |$regex
+       |$cursor""".stripMargin
+}
 <<< `if` as single-arg of apply, openParenCallSite
 align.openParenCallSite = true
 newlines.configStyle.callSite.prefer = false
@@ -12982,3 +13178,822 @@ res.append(try {
   foo
   bar
 } finally { baz })
+<<< import with binPack.importSelectors unspecified
+maxColumn = 60
+===
+import packagename1.{
+  AVeryLongClass1, AVeryLongClass2,
+  AVeryLongClass3, AVeryLongClass4
+}, packagename2.{
+     AVeryLongClass1, AVeryLongClass2,
+     AVeryLongClass3, AVeryLongClass4
+   },
+   packagename3.{
+     AVeryLongClass1, AVeryLongClass2,
+     AVeryLongClass3, AVeryLongClass4
+   }
+>>>
+import packagename1.{
+  AVeryLongClass1,
+  AVeryLongClass2,
+  AVeryLongClass3,
+  AVeryLongClass4
+}, packagename2.{
+  AVeryLongClass1,
+  AVeryLongClass2,
+  AVeryLongClass3,
+  AVeryLongClass4
+}, packagename3.{
+  AVeryLongClass1,
+  AVeryLongClass2,
+  AVeryLongClass3,
+  AVeryLongClass4
+}
+<<< import with binPack.importSelectors = fold
+maxColumn = 60
+binPack.importSelectors = fold
+===
+import packagename1.{
+  AVeryLongClass1, AVeryLongClass2,
+  AVeryLongClass3, AVeryLongClass4
+}, packagename2.{
+     AVeryLongClass1, AVeryLongClass2,
+     AVeryLongClass3, AVeryLongClass4
+   },
+   packagename3.{
+     AVeryLongClass1, AVeryLongClass2,
+     AVeryLongClass3, AVeryLongClass4
+   }
+>>>
+import packagename1.{
+  AVeryLongClass1, AVeryLongClass2, AVeryLongClass3,
+  AVeryLongClass4
+}, packagename2.{
+  AVeryLongClass1, AVeryLongClass2, AVeryLongClass3,
+  AVeryLongClass4
+}, packagename3.{
+  AVeryLongClass1, AVeryLongClass2, AVeryLongClass3,
+  AVeryLongClass4
+}
+<<< import with binPack.importSelectors = unfold
+maxColumn = 60
+binPack.importSelectors = unfold
+===
+import packagename1.{
+  AVeryLongClass1, AVeryLongClass2,
+  AVeryLongClass3, AVeryLongClass4
+}, packagename2.{
+     AVeryLongClass1, AVeryLongClass2,
+     AVeryLongClass3, AVeryLongClass4
+   },
+   packagename3.{
+     AVeryLongClass1, AVeryLongClass2,
+     AVeryLongClass3, AVeryLongClass4
+   }
+>>>
+import packagename1.{
+  AVeryLongClass1,
+  AVeryLongClass2,
+  AVeryLongClass3,
+  AVeryLongClass4
+}, packagename2.{
+  AVeryLongClass1,
+  AVeryLongClass2,
+  AVeryLongClass3,
+  AVeryLongClass4
+}, packagename3.{
+  AVeryLongClass1,
+  AVeryLongClass2,
+  AVeryLongClass3,
+  AVeryLongClass4
+}
+<<< mixed nested infixes, with breakOnNested 1
+maxColumn = 49
+newlines.infix.termSite {
+  style = some
+  breakOnNested = true
+}
+===
+object a {
+  if (foo > bar && bar.baz && baz > qux && qux > xyz) {}
+  a = foo > bar && bar.baz && baz > qux && qux > xyz
+  b = (foo > bar && bar.baz && baz > qux && qux > xyz)
+  c = {foo > bar && bar.baz && baz > qux && qux > xyz}
+}
+>>>
+object a {
+  if (
+    foo > bar && bar.baz && baz > qux &&
+    qux > xyz
+  ) {}
+  a = foo > bar && bar.baz && baz > qux &&
+    qux > xyz
+  b =
+    (foo > bar && bar.baz && baz > qux &&
+      qux > xyz)
+  c = {
+    foo > bar && bar.baz && baz > qux &&
+    qux > xyz
+  }
+}
+<<< mixed nested infixes, with breakOnNested 2
+maxColumn = 49
+newlines.infix.termSite {
+  style = some
+  breakOnNested = true
+}
+===
+object a {
+  if ((foo > bar) && bar.baz && baz > qux && qux > xyz) {}
+  a = (foo > bar) && bar.baz && baz > qux && qux > xyz
+  b = ((foo > bar) && bar.baz && baz > qux && qux > xyz)
+  c = {(foo > bar) && bar.baz && baz > qux && qux > xyz}
+}
+>>>
+object a {
+  if (
+    (foo > bar) &&
+    bar.baz && baz > qux && qux > xyz
+  ) {}
+  a = (foo > bar) &&
+    bar.baz && baz > qux && qux > xyz
+  b =
+    ((foo > bar) &&
+      bar.baz && baz > qux && qux > xyz)
+  c = {
+    (foo > bar) &&
+    bar.baz && baz > qux && qux > xyz
+  }
+}
+<<< mixed nested infixes, with breakOnNested 3
+maxColumn = 49
+newlines.infix.termSite {
+  style = some
+  breakOnNested = true
+}
+===
+object a {
+  if (foo > bar && (bar.baz) && baz > qux && qux > xyz) {}
+  a = foo > bar && (bar.baz) && baz > qux && qux > xyz
+  b = (foo > bar && (bar.baz) && baz > qux && qux > xyz)
+  c = {foo > bar && (bar.baz) && baz > qux && qux > xyz}
+}
+>>>
+object a {
+  if (
+    foo > bar && (bar.baz) && baz > qux &&
+    qux > xyz
+  ) {}
+  a = foo > bar && (bar.baz) && baz > qux &&
+    qux > xyz
+  b =
+    (foo > bar && (bar.baz) && baz > qux &&
+      qux > xyz)
+  c = {
+    foo > bar && (bar.baz) && baz > qux &&
+    qux > xyz
+  }
+}
+<<< mixed nested infixes, with breakOnNested 4
+maxColumn = 49
+newlines.infix.termSite {
+  style = some
+  breakOnNested = true
+}
+===
+object a {
+  if (foo > bar && bar.baz && (baz > qux) && qux > xyz) {}
+  a = foo > bar && bar.baz && (baz > qux) && qux > xyz
+  b = (foo > bar && bar.baz && (baz > qux) && qux > xyz)
+  c = {foo > bar && bar.baz && (baz > qux) && qux > xyz}
+}
+>>>
+object a {
+  if (
+    foo > bar && bar.baz &&
+    (baz > qux) &&
+    qux > xyz
+  ) {}
+  a = foo > bar && bar.baz &&
+    (baz > qux) &&
+    qux > xyz
+  b =
+    (foo > bar && bar.baz &&
+      (baz > qux) &&
+      qux > xyz)
+  c = {
+    foo > bar && bar.baz &&
+    (baz > qux) &&
+    qux > xyz
+  }
+}
+<<< mixed nested infixes, with breakOnNested 5
+maxColumn = 49
+newlines.infix.termSite {
+  style = some
+  breakOnNested = true
+}
+===
+object a {
+  if (foo > bar && bar.baz && baz > qux && (qux > xyz)) {}
+  a = foo > bar && bar.baz && baz > qux && (qux > xyz)
+  b = (foo > bar && bar.baz && baz > qux && (qux > xyz))
+  c = {foo > bar && bar.baz && baz > qux && (qux > xyz)}
+}
+>>>
+object a {
+  if (
+    foo > bar && bar.baz && baz > qux &&
+    (qux > xyz)
+  ) {}
+  a = foo > bar && bar.baz && baz > qux &&
+    (qux > xyz)
+  b =
+    (foo > bar && bar.baz && baz > qux &&
+      (qux > xyz))
+  c = {
+    foo > bar && bar.baz && baz > qux &&
+    (qux > xyz)
+  }
+}
+<<< mixed nested infixes, with breakOnNested 6
+maxColumn = 49
+newlines.infix.termSite {
+  style = some
+  breakOnNested = true
+}
+===
+object a {
+  if ((foo > bar) && (bar.baz) && baz > qux && qux > xyz) {}
+  a = (foo > bar) && (bar.baz) && baz > qux && qux > xyz
+  b = ((foo > bar) && (bar.baz) && baz > qux && qux > xyz)
+  c = {(foo > bar) && (bar.baz) && baz > qux && qux > xyz}
+}
+>>>
+object a {
+  if (
+    (foo > bar) &&
+    (bar.baz) && baz > qux && qux > xyz
+  ) {}
+  a = (foo > bar) &&
+    (bar.baz) && baz > qux && qux > xyz
+  b =
+    ((foo > bar) &&
+      (bar.baz) && baz > qux && qux > xyz)
+  c = {
+    (foo > bar) &&
+    (bar.baz) && baz > qux && qux > xyz
+  }
+}
+<<< mixed nested infixes, with breakOnNested 7
+maxColumn = 49
+newlines.infix.termSite {
+  style = some
+  breakOnNested = true
+}
+===
+object a {
+  if ((foo > bar) && (bar.baz) && baz > qux && (qux > xyz)) {}
+  a = (foo > bar) && (bar.baz) && baz > qux && (qux > xyz)
+  b = ((foo > bar) && (bar.baz) && baz > qux && (qux > xyz))
+  c = {(foo > bar) && (bar.baz) && baz > qux && (qux > xyz)}
+}
+>>>
+object a {
+  if (
+    (foo > bar) &&
+    (bar.baz) && baz > qux &&
+    (qux > xyz)
+  ) {}
+  a = (foo > bar) &&
+    (bar.baz) && baz > qux &&
+    (qux > xyz)
+  b =
+    ((foo > bar) &&
+      (bar.baz) && baz > qux &&
+      (qux > xyz))
+  c = {
+    (foo > bar) &&
+    (bar.baz) && baz > qux &&
+    (qux > xyz)
+  }
+}
+<<< mixed nested infixes, with breakOnNested 8
+maxColumn = 49
+newlines.infix.termSite {
+  style = some
+  breakOnNested = true
+}
+===
+object a {
+  if ((foo > bar) && bar.baz && (baz > qux) && (qux > xyz)) {}
+  a = (foo > bar) && bar.baz && (baz > qux) && (qux > xyz)
+  b = ((foo > bar) && bar.baz && (baz > qux) && (qux > xyz))
+  c = {(foo > bar) && bar.baz && (baz > qux) && (qux > xyz)}
+}
+>>>
+object a {
+  if (
+    (foo > bar) &&
+    bar.baz &&
+    (baz > qux) &&
+    (qux > xyz)
+  ) {}
+  a = (foo > bar) &&
+    bar.baz &&
+    (baz > qux) &&
+    (qux > xyz)
+  b =
+    ((foo > bar) &&
+      bar.baz &&
+      (baz > qux) &&
+      (qux > xyz))
+  c = {
+    (foo > bar) &&
+    bar.baz &&
+    (baz > qux) &&
+    (qux > xyz)
+  }
+}
+<<< mixed nested infixes, with breakOnNested 9
+maxColumn = 49
+newlines.infix.termSite {
+  style = some
+  breakOnNested = true
+}
+===
+object a {
+  if (foo > bar && (bar.baz) && (baz > qux) && (qux > xyz)) {}
+  a = foo > bar && (bar.baz) && (baz > qux) && (qux > xyz)
+  b = (foo > bar && (bar.baz) && (baz > qux) && (qux > xyz))
+  c = {foo > bar && (bar.baz) && (baz > qux) && (qux > xyz)}
+}
+>>>
+object a {
+  if (
+    foo > bar && (bar.baz) &&
+    (baz > qux) &&
+    (qux > xyz)
+  ) {}
+  a = foo > bar && (bar.baz) &&
+    (baz > qux) &&
+    (qux > xyz)
+  b =
+    (foo > bar && (bar.baz) &&
+      (baz > qux) &&
+      (qux > xyz))
+  c = {
+    foo > bar && (bar.baz) &&
+    (baz > qux) &&
+    (qux > xyz)
+  }
+}
+<<< mixed nested infixes, with breakOnNested 10
+maxColumn = 49
+newlines.infix.termSite {
+  style = some
+  breakOnNested = true
+}
+===
+object a {
+  if ((foo > bar) && (bar.baz) && (baz > qux) && (qux > xyz)) {}
+  a = (foo > bar) && (bar.baz) && (baz > qux) && (qux > xyz)
+  b = ((foo > bar) && (bar.baz) && (baz > qux) && (qux > xyz))
+  c = {(foo > bar) && (bar.baz) && (baz > qux) && (qux > xyz)}
+}
+>>>
+object a {
+  if (
+    (foo > bar) &&
+    (bar.baz) &&
+    (baz > qux) &&
+    (qux > xyz)
+  ) {}
+  a = (foo > bar) &&
+    (bar.baz) &&
+    (baz > qux) &&
+    (qux > xyz)
+  b =
+    ((foo > bar) &&
+      (bar.baz) &&
+      (baz > qux) &&
+      (qux > xyz))
+  c = {
+    (foo > bar) &&
+    (bar.baz) &&
+    (baz > qux) &&
+    (qux > xyz)
+  }
+}
+<<< mixed nested infixes, with breakOnNested 11
+maxColumn = 49
+newlines.infix.termSite {
+  style = some
+  breakOnNested = true
+}
+===
+!sym.isStaticOwner || (
+  sym.isModuleClass &&
+  sym.hasAnnotation(JSTypeAnnot) &&
+   !sym.hasAnnotation(JSNativeAnnotation)
+ )
+>>>
+!sym.isStaticOwner || (
+  sym.isModuleClass &&
+    sym.hasAnnotation(JSTypeAnnot) &&
+    !sym.hasAnnotation(JSNativeAnnotation)
+)
+<<< blank before nested infix, with breakOnNested 12
+maxColumn = 49
+newlines.infix.termSite {
+  style = some
+  breakOnNested = true
+}
+===
+object a {
+  !sym.isStaticOwner
+
+  (
+    sym.isModuleClass &&
+    sym.hasAnnotation(JSTypeAnnot) &&
+     !sym.hasAnnotation(JSNativeAnnotation)
+  )
+}
+>>>
+object a {
+  !sym.isStaticOwner
+
+  (
+    sym.isModuleClass &&
+      sym.hasAnnotation(JSTypeAnnot) &&
+      !sym.hasAnnotation(JSNativeAnnotation)
+  )
+}
+<<< nested infix as a statement
+maxColumn = 49
+newlines.infix.termSite {
+  style = some
+}
+===
+object a {
+   val thisFile = this.symbol.associatedFile
+   val thatFile = other.associatedFile
+   (  thisFile == null
+   || thatFile == null
+   || thisFile.path == thatFile.path // Cheap possibly wrong check, then expensive normalization
+   || thisFile.canonicalPath == thatFile.canonicalPath
+   )
+}
+>>>
+object a {
+  val thisFile = this.symbol.associatedFile
+  val thatFile = other.associatedFile
+  (thisFile == null || thatFile == null ||
+    thisFile.path ==
+    thatFile.path // Cheap possibly wrong check, then expensive normalization
+    ||
+    thisFile.canonicalPath ==
+    thatFile.canonicalPath)
+}
+<<< tucked try-catch
+object a {
+  val foo = try {
+    bar
+  } catch {
+    case baz => qux
+  }
+  foo = try {
+    bar
+  } catch {
+    case baz => qux
+  }
+  val foo =
+  try {
+    bar
+  } catch {
+    case baz => qux
+  }
+  foo =
+  try {
+    bar
+  } catch {
+    case baz => qux
+  }
+}
+>>>
+object a {
+  val foo = try {
+    bar
+  } catch {
+    case baz => qux
+  }
+  foo = try {
+    bar
+  } catch {
+    case baz => qux
+  }
+  val foo =
+    try {
+      bar
+    } catch {
+      case baz => qux
+    }
+  foo =
+    try {
+      bar
+    } catch {
+      case baz => qux
+    }
+}
+<<< tucked for-yield
+object a {
+  val foo = for {
+    bar <- baz
+  } yield {
+    qux
+  }
+  foo = for {
+    bar <- baz
+  } yield {
+    qux
+  }
+  val foo =
+  for {
+    bar <- baz
+  } yield {
+    qux
+  }
+  foo =
+  for {
+    bar <- baz
+  } yield {
+    qux
+  }
+}
+>>>
+object a {
+  val foo = for {
+    bar <- baz
+  } yield {
+    qux
+  }
+  foo = for {
+    bar <- baz
+  } yield {
+    qux
+  }
+  val foo =
+    for {
+      bar <- baz
+    } yield {
+      qux
+    }
+  foo =
+    for {
+      bar <- baz
+    } yield {
+      qux
+    }
+}
+<<< tucked if-else
+object a {
+  val foo = if (bar) {
+    baz
+  } else {
+    qux
+  }
+  foo = if (bar) {
+    baz
+  } else {
+    qux
+  }
+  val foo =
+  if (bar) {
+    baz
+  } else {
+    qux
+  }
+  foo =
+  if (bar) {
+    baz
+  } else {
+    qux
+  }
+}
+>>>
+object a {
+  val foo = if (bar) {
+    baz
+  } else {
+    qux
+  }
+  foo = if (bar) {
+    baz
+  } else {
+    qux
+  }
+  val foo =
+    if (bar) {
+      baz
+    } else {
+      qux
+    }
+  foo =
+    if (bar) {
+      baz
+    } else {
+      qux
+    }
+}
+<<< trailing comment in case body, indent more, body empty
+comments.indentTrailingInCaseBody = more
+===
+foo match {
+  case bar =>
+    // bar1
+
+    // bar2
+  case baz =>
+    // baz1
+
+    // baz2
+
+  case qux =>
+    // qux1
+  case quux =>
+    // quux1
+
+    // quux2
+}
+>>>
+foo match {
+  case bar =>
+    // bar1
+
+  // bar2
+  case baz =>
+    // baz1
+
+    // baz2
+
+  case qux =>
+    // qux1
+  case quux =>
+    // quux1
+
+    // quux2
+}
+<<< trailing comment in case body, indent less, body empty
+comments.indentTrailingInCaseBody = less
+===
+foo match {
+  case bar =>
+    // bar1
+
+    // bar2
+  case baz =>
+    // baz1
+
+    // baz2
+
+  case qux =>
+    // qux1
+  case quux =>
+    // quux1
+
+    // quux2
+}
+>>>
+foo match {
+  case bar =>
+    // bar1
+
+  // bar2
+  case baz =>
+    // baz1
+
+  // baz2
+
+  case qux =>
+    // qux1
+  case quux =>
+    // quux1
+
+  // quux2
+}
+<<< trailing comment in case body, indent more, body one line
+comments.indentTrailingInCaseBody = more
+===
+foo match {
+  case bar => bbar
+    // bar1
+
+    // bar2
+  case baz => bbaz
+    // baz1
+
+    // baz2
+
+  case qux => bqux
+    // qux1
+  case quux => bquux
+    // quux1
+
+    // quux2
+}
+>>>
+foo match {
+  case bar => bbar
+    // bar1
+
+  // bar2
+  case baz => bbaz
+    // baz1
+
+    // baz2
+
+  case qux => bqux
+    // qux1
+  case quux => bquux
+    // quux1
+
+    // quux2
+}
+<<< trailing comment in case body, indent less, body one line
+comments.indentTrailingInCaseBody = less
+===
+foo match {
+  case bar => bbar
+    // bar1
+
+    // bar2
+  case baz => bbaz
+    // baz1
+
+    // baz2
+
+  case qux => bqux
+    // qux1
+  case quux => bquux
+    // quux1
+
+    // quux2
+}
+>>>
+foo match {
+  case bar => bbar
+    // bar1
+
+  // bar2
+  case baz => bbaz
+    // baz1
+
+  // baz2
+
+  case qux => bqux
+    // qux1
+  case quux => bquux
+    // quux1
+
+  // quux2
+}
+<<< infix with comment
+maxColumn = 70
+===
+ val needSbt = cfg.getVersion < ScalafmtVersion(3, 0, 0, 7) && {
+   val extension = getExtension(file.toString)
+   extension == "md" || // added in 3.0.0-RC7
+   cfg.getVersion < ScalafmtVersion(2, 6, 3) && extension == "sbt" ||
+   extension == "sc" // added in 2.6.3
+ }
+>>>
+val needSbt = cfg.getVersion < ScalafmtVersion(3, 0, 0, 7) && {
+  val extension = getExtension(file.toString)
+  extension == "md" || // added in 3.0.0-RC7
+  cfg.getVersion < ScalafmtVersion(2, 6, 3) && extension == "sbt" ||
+  extension == "sc" // added in 2.6.3
+}
+<<< infix with unary
+maxColumn = 24
+===
+object a {
+  foo + bar + (baz + quxQuxQuxQux)
+  foo + bar + !(baz + quxQuxQuxQux)
+}
+>>>
+object a {
+  foo + bar + (baz + quxQuxQuxQux)
+  foo + bar + !(baz + quxQuxQuxQux)
+}
+<<< infix with unary, comment
+maxColumn = 40
+===
+object a {
+  foo + bar + /* c1 */ (baz + /* c2 */ quxQuxQuxQuxQuxQuxQuxQuxQuxQuxQux)
+  foo + bar + /* c1 */ !(baz + /* c2 */ quxQuxQuxQuxQuxQuxQuxQuxQuxQuxQux)
+}
+>>>
+object a {
+  foo + bar + /* c1 */ (baz + /* c2 */ quxQuxQuxQuxQuxQuxQuxQuxQuxQuxQux)
+  foo + bar + /* c1 */ !(baz + /* c2 */ quxQuxQuxQuxQuxQuxQuxQuxQuxQuxQux)
+}

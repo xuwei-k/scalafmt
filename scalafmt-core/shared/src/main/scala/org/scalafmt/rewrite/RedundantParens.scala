@@ -19,17 +19,17 @@ object RedundantParens extends Rewrite with FormatTokensRewrite.RuleFactory {
   override def create(implicit ftoks: FormatTokens): FormatTokensRewrite.Rule =
     new RedundantParens
 
-  private def infixNeedsParens(outer: Member.Infix, inner: Tree): Boolean = {
-    val sgOuter = TreeSyntacticGroup(outer)
-    val sgInner = TreeSyntacticGroup(inner)
-    val side = if (outer.lhs eq inner) Side.Left else Side.Right
-    SyntacticGroupOps.groupNeedsParenthesis(sgOuter, sgInner, side)
+  private def infixNeedsParens(outer: Member.Infix, inner: Tree)(implicit
+      style: ScalafmtConfig,
+  ): Boolean = {
+    import style.dialect
+    TreeSyntacticGroup.groupNeedsParens(outer, inner)
   }
 
   def breaksBeforeOp(
       ia: Member.Infix,
   )(implicit style: ScalafmtConfig, ftoks: FormatTokens): Boolean = {
-    val keepInfix = style.newlines.infix.keep(ia)
+    val keepInfix = !style.newlines.infix.sourceIgnored(ia)
     def impl(ia: Member.Infix): Boolean = {
       val beforeOp = ftoks.prevNonCommentSameLine(ftoks.tokenJustBefore(ia.op))
       beforeOp.hasBreak && (keepInfix || beforeOp.left.is[T.Comment]) ||
@@ -103,8 +103,10 @@ class RedundantParens(implicit val ftoks: FormatTokens)
       session: Session,
       style: ScalafmtConfig,
   ): Option[(Replacement, Replacement)] =
-    if (left.isRemove && RewriteTrailingCommas.checkIfPrevious)
-      Some((left, removeToken))
+    if (
+      left.isRemove && RewriteTrailingCommas.checkIfPrevious &&
+      RedundantBraces.okCommentBeforeClose(ft)
+    ) Some((left, removeToken))
     else None
 
   private def okToReplaceWithCount(numParens: Int, tree: Tree, lpOuter: FT)(
@@ -131,7 +133,14 @@ class RedundantParens(implicit val ftoks: FormatTokens)
 
     case t => t.parent.forall {
         case _: Enumerator.Guard => RewriteCtx.isPostfixExpr(t)
-        case p: Case => p.cond.contains(t) && RewriteCtx.isPostfixExpr(t)
+        case p: Case => p.cond.contains(t) && RewriteCtx.isPostfixExpr(t) ||
+          (p.pat eq t)
+        case _: Pat.Alternative => t match {
+            case _: Pat.ExtractInfix => false
+            case t: Pat.Typed => !t.rhs.is[Type.ApplyInfix] ||
+              ftoks.isEnclosedWithinParens(t.rhs)
+            case _ => true
+          }
         case _: Term.Do => false
         case p: Term.While => p.expr.eq(t) && style.dialect.allowQuietSyntax &&
           ftoks.tokenBefore(p.body).left.is[T.KwDo]
@@ -185,12 +194,12 @@ class RedundantParens(implicit val ftoks: FormatTokens)
       case RedundantParensSettings.InfixSide.many
           if tia.op.value != pia.op.value =>
         val tiaPrecedence = tia.precedence
-        tiaPrecedence <= precedenceHigh ||
-        tiaPrecedence < precedenceLowest && pia.precedence >= precedenceLowest
+        tiaPrecedence >= precedenceHigh ||
+        tiaPrecedence > precedenceLowest && pia.precedence <= precedenceLowest
       case RedundantParensSettings.InfixSide.some =>
         val tiaPrecedence = tia.precedence
-        tiaPrecedence <= precedenceVeryHigh ||
-        tiaPrecedence <= precedenceMedium && pia.precedence >= precedenceLowest
+        tiaPrecedence >= precedenceVeryHigh ||
+        tiaPrecedence >= precedenceMedium && pia.precedence <= precedenceLowest
       case _ => true
     }
 

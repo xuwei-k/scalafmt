@@ -42,12 +42,11 @@ object Imports extends RewriteFactory {
   object Settings {
     implicit val surface: generic.Surface[Settings] = generic.deriveSurface
     implicit val codec: ConfCodecEx[Settings] = generic
-      .deriveCodecEx(new Settings).noTypos
-      .withSectionRenames(annotation.SectionRename(
-        "expand",
-        "selectors",
-        { case Conf.Bool(value) => if (value) Conf.Str("unfold") else Conf.Null() },
-      ))
+      .deriveCodecEx(new Settings).noTypos.withSectionRenames(
+        annotation.SectionRename { case Conf.Bool(value) =>
+          if (value) Conf.nameOf(Newlines.unfold) else Conf.Null()
+        }("expand", "selectors"),
+      )
 
   }
 
@@ -56,7 +55,7 @@ object Imports extends RewriteFactory {
     case object no extends ContiguousGroups
     case object only extends ContiguousGroups
 
-    implicit val codec: ConfCodecEx[ContiguousGroups] = ReaderUtil
+    implicit val codec: ConfCodecEx[ContiguousGroups] = ConfCodecEx
       .oneOf(only, no)
   }
 
@@ -66,21 +65,21 @@ object Imports extends RewriteFactory {
     case object none extends SortCatchallGroup
     case object tail extends SortCatchallGroup
 
-    implicit val codec: ConfCodecEx[SortCatchallGroup] = ReaderUtil
+    implicit val codec: ConfCodecEx[SortCatchallGroup] = ConfCodecEx
       .oneOf(full, none, tail)
   }
 
   override def hasChanged(v1: RewriteSettings, v2: RewriteSettings): Boolean =
     v1.imports ne v2.imports
 
-  override def create(implicit ctx: RewriteCtx): RewriteSession = {
+  override def create(implicit ctx: RewriteCtx): Option[RewriteSession] = {
     val settings = ctx.style.rewrite.imports
     val selectors = ctx.style.importSelectorsRewrite
-    if (selectors eq Newlines.unfold) new ExpandFull
-    else if (selectors eq Newlines.fold) new Fold
-    else if (settings.numGroups != 0) new ExpandPart
-    else if (settings.sort ne Sort.none) new ExpandNone
-    else new RewriteSession.None
+    if (selectors eq Newlines.unfold) Some(new ExpandFull)
+    else if (selectors eq Newlines.fold) Some(new Fold)
+    else if (settings.numGroups != 0) Some(new ExpandPart)
+    else if (settings.sort ne Sort.none) Some(new ExpandNone)
+    else None
   }
 
   private val allImportRules: Set[Rewrite] =
@@ -89,6 +88,7 @@ object Imports extends RewriteFactory {
   def validateImports(obj: RewriteSettings): Configured[RewriteSettings] = {
     val (importRules, nonImportRules) = obj.rules
       .partition(allImportRules.contains)
+    if (importRules.isEmpty) return Configured.Ok(obj) // nothing to do
 
     val errBuf = Seq.newBuilder[String]
 
@@ -190,7 +190,7 @@ object Imports extends RewriteFactory {
 
   private[scalafmt] object Sort {
 
-    implicit val reader: ConfCodecEx[Sort] = ReaderUtil
+    implicit val reader: ConfCodecEx[Sort] = ConfCodecEx
       .oneOf[Sort](none, ascii, original, scalastyle)
 
     case object none extends Sort {
@@ -938,7 +938,7 @@ object Imports extends RewriteFactory {
 }
 
 abstract class ShouldUseImports extends RewriteFactory {
-  override final def create(implicit ctx: RewriteCtx): RewriteSession =
+  override final def create(implicit ctx: RewriteCtx): Option[RewriteSession] =
     throw new NotImplementedError("should use Imports")
 }
 

@@ -543,3 +543,777 @@ object a {
   foo +
       bar + baz
 }
+<<< infix style=keep break before op within arg clause, RedundantParens
+maxColumn = 75
+rewrite.rules = [RedundantParens]
+rewrite.redundantParens.preset = all
+newlines.infix.termSite.style = keep
+===
+require(
+  fraction >= (0.0 - RandomSampler.roundingEpsilon)
+    && fraction <= (1.0 + RandomSampler.roundingEpsilon),
+  s"Sampling fraction ($fraction) must be on interval [0, 1]")
+>>>
+require(fraction >= 0.0 - RandomSampler.roundingEpsilon
+          && fraction <= 1.0 + RandomSampler.roundingEpsilon,
+        s"Sampling fraction ($fraction) must be on interval [0, 1]")
+<<< infix style=keep no break before op but after brace, within arg clause, RedundantBraces
+maxColumn = 75
+rewrite.rules = [RedundantBraces]
+rewrite.redundantParens.preset = all
+newlines.infix.termSite.style = keep
+===
+require(
+  fraction >= {
+    0.0 - RandomSampler.roundingEpsilon
+  } && fraction <= {
+    1.0 + RandomSampler.roundingEpsilon
+  },
+  s"Sampling fraction ($fraction) must be on interval [0, 1]")
+>>>
+require(fraction >=
+          0.0 - RandomSampler.roundingEpsilon
+          && fraction <=
+          1.0 + RandomSampler.roundingEpsilon,
+        s"Sampling fraction ($fraction) must be on interval [0, 1]")
+<<< infix style=keep no break before op but after brace, no arg clause, RedundantBraces
+maxColumn = 75
+rewrite.rules = [RedundantBraces]
+rewrite.redundantParens.preset = all
+newlines.infix.termSite.style = keep
+===
+fraction >= {
+  0.0 - RandomSampler.roundingEpsilon
+} && fraction <= {
+  1.0 + RandomSampler.roundingEpsilon
+}
+>>>
+fraction >=
+  0.0 - RandomSampler.roundingEpsilon &&
+  fraction <=
+  1.0 + RandomSampler.roundingEpsilon
+<<< infix style=keep 1
+maxColumn = 60
+newlines.infix.termSite.style = keep
+===
+{
+  val info = new DefaultParamInfo(m)
+  !info.isForConstructor && info.attachedMethod.hasAnnotation(JSNativeAnnotation)
+}
+>>>
+{
+  val info = new DefaultParamInfo(m)
+  !info.isForConstructor &&
+  info.attachedMethod.hasAnnotation(JSNativeAnnotation)
+}
+<<< infix style=keep 2
+maxColumn = 60
+newlines.infix.termSite.style = keep
+===
+List(
+  str("esVersion") -> int(esVersion.edition),
+  str("assumingES6") -> bool(useECMAScript2015Semantics), // different name for historical reasons
+)
+>>>
+List(
+    str("esVersion") -> int(esVersion.edition),
+    str("assumingES6") -> bool(
+        useECMAScript2015Semantics
+    ) // different name for historical reasons
+)
+<<< infix style=keep turn space to break after infix op
+maxColumn = 60
+rewrite.rules = [RedundantParens]
+rewrite.redundantParens.preset = all
+newlines.infix.termSite.style = keep
+===
+  typedPrimaryConstrBody(templ) {
+    ctor setType supertpe // this is an essential hack, otherwise it will occasionally fail to typecheck
+    atPos(supertpt.pos.focus)(supercall)
+  } match {
+    case EmptyTree => MissingTypeArgumentsParentTpeError(supertpt); supertpt
+    case tpt       => TypeTree(tpt.tpe) setPos supertpt.pos  // scala/bug#7224: don't .focus positions of the TypeTree of a parent that exists in source
+  }
+>>>
+typedPrimaryConstrBody(templ) {
+  ctor setType
+    supertpe // this is an essential hack, otherwise it will occasionally fail to typecheck
+  atPos(supertpt.pos.focus)(supercall)
+} match {
+  case EmptyTree =>
+    MissingTypeArgumentsParentTpeError(supertpt); supertpt
+  case tpt =>
+    TypeTree(tpt.tpe) setPos
+      supertpt.pos // scala/bug#7224: don't .focus positions of the TypeTree of a parent that exists in source
+}
+<<< infix style=keep with scala.js
+maxColumn = 75
+preset = scala.js
+newlines.source = keep
+newlines.infix.termSite.style = keep
+===
+def scalaOrdering[A: Order: SOrdering: Arbitrary]: Prop = forAll((a1: A, a2: A) => Order[A].order(a1, a2) == Ordering.fromInt(SOrdering[A].compare(a1, a2)))
+>>>
+def scalaOrdering[A: Order: SOrdering: Arbitrary]: Prop = forAll(
+    (a1: A, a2: A) =>
+      Order[A].order(a1, a2) ==
+        Ordering.fromInt(SOrdering[A].compare(a1, a2)))
+<<< infix style=keep with arg in braces, unfold
+maxColumn = 80
+align.openParenCallSite = false
+align.openParenDefnSite = false
+newlines.source = unfold
+newlines.infix.termSite.maxCountPerFileForKeep = 0
+===
+object a {
+  object b {
+    val implicitInformation = mbr.byConversion match {
+      case Some(conv) =>
+        Dt(`class`= "implicit", elems= Txt("Implicit")) ++
+        {
+          Dd(elems=
+            (Txt("This member is added by an implicit conversion from ") :: (typeToHtml(inTpl.resultType, hasLinks = true) :+ Txt(" to"))) ++
+            constraintText
+          )
+        }
+    }
+  }
+}
+>>>
+object a {
+  object b {
+    val implicitInformation =
+      mbr.byConversion match {
+        case Some(conv) =>
+          Dt(`class` = "implicit", elems = Txt("Implicit")) ++ {
+            Dd(elems = (
+                Txt("This member is added by an implicit conversion from ") ::
+                  (typeToHtml(inTpl.resultType, hasLinks = true) :+ Txt(" to"))
+            ) ++
+              constraintText)
+          }
+      }
+  }
+}
+<<< infix style=keep with indent aloneArgOrBody
+maxColumn = 45
+newlines.source = keep
+newlines.infix.termSite.style = keep
+indent.infix {
+  exemptScope = [ aloneArgOrBody, notWithinAssign ]
+  excludeRegex = "^[\\p{Punct}](?:|.*?[^=])$" # non-assignment operators
+}
+===
+lazy val sharedSettings = Def.settings(
+   foo / bar += "baz' -> 'foo / bar += baz",
+   foo / bar += "baz" -> "foo / bar += baz",
+   foo / bar / baz += "qux' -> 'foo / bar / baz += qux",
+   foo / bar / baz += "qux" -> "foo / bar / baz += qux",
+   foo / bar / baz += "qux' -> 'foo / bar / baz += foo / bar / baz",
+   foo / bar / baz += "qux" -> "foo / bar / baz += foo / bar / baz",
+)
+>>>
+lazy val sharedSettings = Def.settings(
+    foo / bar += "baz' -> 'foo / bar += baz",
+    foo / bar += "baz" -> "foo / bar += baz",
+    foo / bar / baz +=
+      "qux' -> 'foo / bar / baz += qux",
+    foo / bar / baz +=
+      "qux" -> "foo / bar / baz += qux",
+    foo / bar / baz +=
+      "qux' -> 'foo / bar / baz += foo / bar / baz",
+    foo / bar / baz += "qux" ->
+      "foo / bar / baz += foo / bar / baz"
+)
+<<< exemptScope notWithinAssign, within enclosed infix lhs, no assign
+maxColumn = 50
+newlines.source = keep
+newlines.infix.termSite.style = keep
+indent.infix {
+  exemptScope = [ aloneArgOrBody, notWithinAssign ]
+  excludeRegex = "^[\\p{Punct}]"
+}
+===
+def foo = {
+  (
+    sym.isModuleClass &&
+    sym.hasAnnotation(JSTypeAnnot) &&
+    !sym.hasAnnotation(JSNativeAnnotation)
+  ) ||
+    !sym.isStaticOwner
+}
+>>>
+def foo = {
+  (
+      sym.isModuleClass &&
+        sym.hasAnnotation(JSTypeAnnot) &&
+        !sym.hasAnnotation(JSNativeAnnotation)
+  ) ||
+  !sym.isStaticOwner
+}
+<<< exemptScope notWithinAssign, within enclosed infix rhs, no assign
+maxColumn = 50
+newlines.source = keep
+newlines.infix.termSite.style = keep
+indent.infix {
+  exemptScope = [ aloneArgOrBody, notWithinAssign ]
+  excludeRegex = "^[\\p{Punct}]"
+}
+===
+def foo = {
+  !sym.isStaticOwner || (
+    sym.isModuleClass &&
+    sym.hasAnnotation(JSTypeAnnot) &&
+    !sym.hasAnnotation(JSNativeAnnotation)
+  )
+}
+>>>
+def foo = {
+  !sym.isStaticOwner || (
+      sym.isModuleClass &&
+        sym.hasAnnotation(JSTypeAnnot) &&
+        !sym.hasAnnotation(JSNativeAnnotation)
+  )
+}
+<<< exemptScope notWithinAssign, within enclosed infix lhs, with assign
+maxColumn = 100
+newlines.source = keep
+newlines.infix.termSite.style = keep
+indent.infix {
+  exemptScope = [ notWithinAssign ]
+  excludeRegex = "^[\\p{Punct}]"
+}
+===
+def foo = {
+  sym.isStaticOwner += (sym.isModuleClass && sym.hasAnnotation(JSTypeAnnot)) &&
+    !sym.hasAnnotation(JSNativeAnnotation)
+  sym.isStaticOwner += (
+    sym.isModuleClass && sym.hasAnnotation(JSTypeAnnot)
+  ) &&
+    !sym.hasAnnotation(JSNativeAnnotation)
+  sym.isStaticOwner += (
+    sym.isModuleClass &&
+    sym.hasAnnotation(JSTypeAnnot)
+  ) &&
+    !sym.hasAnnotation(JSNativeAnnotation)
+  sym.isStaticOwner +=
+  (
+    sym.isModuleClass && sym.hasAnnotation(JSTypeAnnot)
+  ) &&
+    !sym.hasAnnotation(JSNativeAnnotation)
+  sym.isStaticOwner +=
+  (
+    sym.isModuleClass &&
+    sym.hasAnnotation(JSTypeAnnot)
+  ) &&
+    !sym.hasAnnotation(JSNativeAnnotation)
+  sym.isStaticOwner += (
+    sym.isModuleClass && sym.hasAnnotation(JSTypeAnnot)
+  ) &&
+    !sym.hasAnnotation(JSNativeAnnotation)
+  sym.isStaticOwner += (
+    sym.isModuleClass &&
+    sym.hasAnnotation(JSTypeAnnot)
+  ) &&
+    !sym.hasAnnotation(JSNativeAnnotation)
+}
+>>>
+def foo = {
+  sym.isStaticOwner += (sym.isModuleClass && sym.hasAnnotation(JSTypeAnnot)) &&
+    !sym.hasAnnotation(JSNativeAnnotation)
+  sym.isStaticOwner += (
+      sym.isModuleClass && sym.hasAnnotation(JSTypeAnnot)
+  ) &&
+    !sym.hasAnnotation(JSNativeAnnotation)
+  sym.isStaticOwner += (
+      sym.isModuleClass &&
+        sym.hasAnnotation(JSTypeAnnot)
+  ) &&
+    !sym.hasAnnotation(JSNativeAnnotation)
+  sym.isStaticOwner +=
+    (
+        sym.isModuleClass && sym.hasAnnotation(JSTypeAnnot)
+    ) &&
+      !sym.hasAnnotation(JSNativeAnnotation)
+  sym.isStaticOwner +=
+    (
+        sym.isModuleClass &&
+          sym.hasAnnotation(JSTypeAnnot)
+    ) &&
+      !sym.hasAnnotation(JSNativeAnnotation)
+  sym.isStaticOwner += (
+      sym.isModuleClass && sym.hasAnnotation(JSTypeAnnot)
+  ) &&
+    !sym.hasAnnotation(JSNativeAnnotation)
+  sym.isStaticOwner += (
+      sym.isModuleClass &&
+        sym.hasAnnotation(JSTypeAnnot)
+  ) &&
+    !sym.hasAnnotation(JSNativeAnnotation)
+}
+<<< exemptScope aloneArgOrBody+notWithinAssign, within enclosed infix lhs, with assign
+maxColumn = 100
+newlines.source = keep
+newlines.infix.termSite.style = keep
+indent.infix {
+  exemptScope = [ aloneArgOrBody, notWithinAssign ]
+  excludeRegex = "^[\\p{Punct}]"
+}
+===
+def foo = {
+  sym.isStaticOwner += (sym.isModuleClass && sym.hasAnnotation(JSTypeAnnot)) &&
+    !sym.hasAnnotation(JSNativeAnnotation)
+  sym.isStaticOwner += (
+    sym.isModuleClass && sym.hasAnnotation(JSTypeAnnot)
+  ) &&
+    !sym.hasAnnotation(JSNativeAnnotation)
+  sym.isStaticOwner += (
+    sym.isModuleClass &&
+    sym.hasAnnotation(JSTypeAnnot)
+  ) &&
+    !sym.hasAnnotation(JSNativeAnnotation)
+  sym.isStaticOwner +=
+  (
+    sym.isModuleClass && sym.hasAnnotation(JSTypeAnnot)
+  ) &&
+    !sym.hasAnnotation(JSNativeAnnotation)
+  sym.isStaticOwner +=
+  (
+    sym.isModuleClass &&
+    sym.hasAnnotation(JSTypeAnnot)
+  ) &&
+    !sym.hasAnnotation(JSNativeAnnotation)
+  sym.isStaticOwner += (
+    sym.isModuleClass && sym.hasAnnotation(JSTypeAnnot)
+  ) &&
+    !sym.hasAnnotation(JSNativeAnnotation)
+  sym.isStaticOwner += (
+    sym.isModuleClass &&
+    sym.hasAnnotation(JSTypeAnnot)
+  ) &&
+    !sym.hasAnnotation(JSNativeAnnotation)
+}
+>>>
+def foo = {
+  sym.isStaticOwner += (sym.isModuleClass && sym.hasAnnotation(JSTypeAnnot)) &&
+    !sym.hasAnnotation(JSNativeAnnotation)
+  sym.isStaticOwner += (
+      sym.isModuleClass && sym.hasAnnotation(JSTypeAnnot)
+  ) &&
+    !sym.hasAnnotation(JSNativeAnnotation)
+  sym.isStaticOwner += (
+      sym.isModuleClass &&
+        sym.hasAnnotation(JSTypeAnnot)
+  ) &&
+    !sym.hasAnnotation(JSNativeAnnotation)
+  sym.isStaticOwner +=
+    (
+        sym.isModuleClass && sym.hasAnnotation(JSTypeAnnot)
+    ) &&
+      !sym.hasAnnotation(JSNativeAnnotation)
+  sym.isStaticOwner +=
+    (
+        sym.isModuleClass &&
+          sym.hasAnnotation(JSTypeAnnot)
+    ) &&
+      !sym.hasAnnotation(JSNativeAnnotation)
+  sym.isStaticOwner += (
+      sym.isModuleClass && sym.hasAnnotation(JSTypeAnnot)
+  ) &&
+    !sym.hasAnnotation(JSNativeAnnotation)
+  sym.isStaticOwner += (
+      sym.isModuleClass &&
+        sym.hasAnnotation(JSTypeAnnot)
+  ) &&
+    !sym.hasAnnotation(JSNativeAnnotation)
+}
+<<< exemptScope notWithinAssign, within enclosed infix rhs, with assign
+maxColumn = 100
+newlines.source = keep
+newlines.infix.termSite.style = keep
+indent.infix {
+  exemptScope = [ notWithinAssign ]
+  excludeRegex = "^[\\p{Punct}]"
+}
+===
+def foo = {
+  sym.isStaticOwner +=
+  !sym.hasAnnotation(JSNativeAnnotation) &&
+  (
+    sym.isModuleClass && sym.hasAnnotation(JSTypeAnnot)
+  )
+  sym.isStaticOwner +=
+  !sym.hasAnnotation(JSNativeAnnotation) &&
+  (
+    sym.isModuleClass &&
+    sym.hasAnnotation(JSTypeAnnot)
+  )
+  sym.isStaticOwner +=
+  !sym.hasAnnotation(JSNativeAnnotation) && (
+    sym.isModuleClass && sym.hasAnnotation(JSTypeAnnot)
+  )
+  sym.isStaticOwner +=
+  !sym.hasAnnotation(JSNativeAnnotation) && (
+    sym.isModuleClass &&
+    sym.hasAnnotation(JSTypeAnnot)
+  )
+  sym.isStaticOwner += !sym.hasAnnotation(JSNativeAnnotation) &&
+  (
+    sym.isModuleClass && sym.hasAnnotation(JSTypeAnnot)
+  )
+  sym.isStaticOwner += !sym.hasAnnotation(JSNativeAnnotation) &&
+  (
+    sym.isModuleClass &&
+    sym.hasAnnotation(JSTypeAnnot)
+  )
+  sym.isStaticOwner += !sym.hasAnnotation(JSNativeAnnotation) && (
+    sym.isModuleClass && sym.hasAnnotation(JSTypeAnnot)
+  )
+  sym.isStaticOwner += !sym.hasAnnotation(JSNativeAnnotation) && (
+    sym.isModuleClass &&
+    sym.hasAnnotation(JSTypeAnnot)
+  )
+}
+>>>
+def foo = {
+  sym.isStaticOwner +=
+    !sym.hasAnnotation(JSNativeAnnotation) &&
+      (
+          sym.isModuleClass && sym.hasAnnotation(JSTypeAnnot)
+      )
+  sym.isStaticOwner +=
+    !sym.hasAnnotation(JSNativeAnnotation) &&
+      (
+          sym.isModuleClass &&
+            sym.hasAnnotation(JSTypeAnnot)
+      )
+  sym.isStaticOwner +=
+    !sym.hasAnnotation(JSNativeAnnotation) && (
+        sym.isModuleClass && sym.hasAnnotation(JSTypeAnnot)
+    )
+  sym.isStaticOwner +=
+    !sym.hasAnnotation(JSNativeAnnotation) && (
+        sym.isModuleClass &&
+          sym.hasAnnotation(JSTypeAnnot)
+    )
+  sym.isStaticOwner += !sym.hasAnnotation(JSNativeAnnotation) &&
+    (
+        sym.isModuleClass && sym.hasAnnotation(JSTypeAnnot)
+    )
+  sym.isStaticOwner += !sym.hasAnnotation(JSNativeAnnotation) &&
+    (
+        sym.isModuleClass &&
+          sym.hasAnnotation(JSTypeAnnot)
+    )
+  sym.isStaticOwner += !sym.hasAnnotation(JSNativeAnnotation) && (
+      sym.isModuleClass && sym.hasAnnotation(JSTypeAnnot)
+  )
+  sym.isStaticOwner += !sym.hasAnnotation(JSNativeAnnotation) && (
+      sym.isModuleClass &&
+        sym.hasAnnotation(JSTypeAnnot)
+  )
+}
+<<< exemptScope aloneArgOrBody+notWithinAssign, within enclosed infix rhs, with assign
+maxColumn = 100
+newlines.source = keep
+newlines.infix.termSite.style = keep
+indent.infix {
+  exemptScope = [ aloneArgOrBody, notWithinAssign ]
+  excludeRegex = "^[\\p{Punct}]"
+}
+===
+def foo = {
+  sym.isStaticOwner +=
+  !sym.hasAnnotation(JSNativeAnnotation) &&
+  (
+    sym.isModuleClass && sym.hasAnnotation(JSTypeAnnot)
+  )
+  sym.isStaticOwner +=
+  !sym.hasAnnotation(JSNativeAnnotation) &&
+  (
+    sym.isModuleClass &&
+    sym.hasAnnotation(JSTypeAnnot)
+  )
+  sym.isStaticOwner +=
+  !sym.hasAnnotation(JSNativeAnnotation) && (
+    sym.isModuleClass && sym.hasAnnotation(JSTypeAnnot)
+  )
+  sym.isStaticOwner +=
+  !sym.hasAnnotation(JSNativeAnnotation) && (
+    sym.isModuleClass &&
+    sym.hasAnnotation(JSTypeAnnot)
+  )
+  sym.isStaticOwner += !sym.hasAnnotation(JSNativeAnnotation) &&
+  (
+    sym.isModuleClass && sym.hasAnnotation(JSTypeAnnot)
+  )
+  sym.isStaticOwner += !sym.hasAnnotation(JSNativeAnnotation) &&
+  (
+    sym.isModuleClass &&
+    sym.hasAnnotation(JSTypeAnnot)
+  )
+  sym.isStaticOwner += !sym.hasAnnotation(JSNativeAnnotation) && (
+    sym.isModuleClass && sym.hasAnnotation(JSTypeAnnot)
+  )
+  sym.isStaticOwner += !sym.hasAnnotation(JSNativeAnnotation) && (
+    sym.isModuleClass &&
+    sym.hasAnnotation(JSTypeAnnot)
+  )
+}
+>>>
+def foo = {
+  sym.isStaticOwner +=
+    !sym.hasAnnotation(JSNativeAnnotation) &&
+      (
+          sym.isModuleClass && sym.hasAnnotation(JSTypeAnnot)
+      )
+  sym.isStaticOwner +=
+    !sym.hasAnnotation(JSNativeAnnotation) &&
+      (
+          sym.isModuleClass &&
+            sym.hasAnnotation(JSTypeAnnot)
+      )
+  sym.isStaticOwner +=
+    !sym.hasAnnotation(JSNativeAnnotation) && (
+        sym.isModuleClass && sym.hasAnnotation(JSTypeAnnot)
+    )
+  sym.isStaticOwner +=
+    !sym.hasAnnotation(JSNativeAnnotation) && (
+        sym.isModuleClass &&
+          sym.hasAnnotation(JSTypeAnnot)
+    )
+  sym.isStaticOwner += !sym.hasAnnotation(JSNativeAnnotation) &&
+    (
+        sym.isModuleClass && sym.hasAnnotation(JSTypeAnnot)
+    )
+  sym.isStaticOwner += !sym.hasAnnotation(JSNativeAnnotation) &&
+    (
+        sym.isModuleClass &&
+          sym.hasAnnotation(JSTypeAnnot)
+    )
+  sym.isStaticOwner += !sym.hasAnnotation(JSNativeAnnotation) && (
+      sym.isModuleClass && sym.hasAnnotation(JSTypeAnnot)
+  )
+  sym.isStaticOwner += !sym.hasAnnotation(JSNativeAnnotation) && (
+      sym.isModuleClass &&
+        sym.hasAnnotation(JSTypeAnnot)
+  )
+}
+<<< exemptScope aloneArgOrBody, scala.js alone in argument
+maxColumn = 50
+newlines {
+  source = keep
+  configStyle.fallBack.prefer = true
+  infix.termSite.style = keep
+}
+binPack {
+  preset = onelineSjs
+  indentCallSiteOnce = true
+  indentCallSiteSingleArg = false
+}
+danglingParentheses.preset = false
+indent.infix {
+  exemptScope = [ aloneArgOrBody, notWithinAssign ]
+  excludeRegex = "^[\\p{Punct}]"
+}
+===
+ Return(obj && (obj DOT classData) &&
+     BracketSelect(
+         obj DOT classData DOT cpn.ancestors, internalName))
+>>>
+Return(obj && (obj DOT classData) &&
+  BracketSelect(
+      obj DOT classData DOT cpn.ancestors,
+      internalName))
+<<< exemptScope aloneArgOrBody, scala.js alone in argument but wrapped in unary
+maxColumn = 50
+newlines {
+  source = keep
+  configStyle.fallBack.prefer = true
+  infix.termSite.style = keep
+}
+binPack {
+  preset = onelineSjs
+  indentCallSiteOnce = true
+  indentCallSiteSingleArg = false
+}
+danglingParentheses.preset = false
+indent.infix {
+  exemptScope = [ aloneArgOrBody, notWithinAssign ]
+  excludeRegex = "^[\\p{Punct}]"
+}
+===
+ Return(!(!(obj && (obj DOT classData) &&
+     BracketSelect(
+         obj DOT classData DOT cpn.ancestors, internalName))))
+>>>
+Return(!(!(obj && (obj DOT classData) &&
+  BracketSelect(
+      obj DOT classData DOT cpn.ancestors,
+      internalName))))
+<<< exemptScope aloneArgOrBody, scala.js last in block, fully enclosed
+maxColumn = 50
+newlines {
+  source = keep
+  configStyle.fallBack.prefer = true
+  infix.termSite.style = keep
+}
+binPack {
+  preset = onelineSjs
+  indentCallSiteOnce = true
+  indentCallSiteSingleArg = false
+}
+danglingParentheses.preset = false
+indent.infix {
+  exemptScope = [ aloneArgOrBody, notWithinAssign ]
+  excludeRegex = "^[\\p{Punct}]"
+}
+===
+ {
+   prefix.getClass() // null check
+   (toffset <= length() && toffset >= 0 &&
+       thisString.asInstanceOf[js.Dynamic].startsWith(
+           prefix, toffset).asInstanceOf[scala.Boolean])
+ }
+>>>
+{
+  prefix.getClass() // null check
+  (toffset <= length() && toffset >= 0 &&
+    thisString.asInstanceOf[
+        js.Dynamic].startsWith(
+        prefix, toffset).asInstanceOf[
+        scala.Boolean])
+}
+<<< assign with alt infix indent, scala.js, within apply
+maxColumn = 40
+newlines {
+  source = keep
+  configStyle.fallBack.prefer = true
+  infix.termSite {
+    style = keep
+    maxCountPerFile = 10000
+  }
+}
+binPack {
+  preset = onelineSjs
+  indentCallSiteOnce = true
+  indentCallSiteSingleArg = false
+}
+danglingParentheses.preset = false
+indent.afterInfixSite = 4
+indent.ctrlSite = 4
+indent.infix {
+  exemptScope = [ aloneArgOrBody, notWithinAssign ]
+  excludeRegex = "^[\\p{Punct}]"
+}
+===
+foo(
+  foo1 / foo2 / foo3 / foo4 := foo5,
+  foo1 / foo2 / foo3 / foo4 := foo5 / foo6,
+  foo1 / foo2 / foo3 / foo4 := foo5 / foo6 / foo7,
+  foo1 / foo2 / foo3 / foo4 := foo5 / foo6 / foo7 / foo8,
+  foo1 / foo2 / foo3 / foo4 := foo5 / foo6 / foo7 / foo8 / foo9,
+  foo1 / foo2 / foo3 / foo4 := foo5 / foo6 / foo7 / foo8 / foo9 / fooA,
+  foo1 / foo2 / foo3 / foo4 := foo5 / foo6 / foo7 / foo8 / foo9 / fooA / fooB,
+  foo1 / foo2 / foo3 / foo4 := foo5 / foo6 / foo7 / foo8 / foo9 / fooA / fooB / fooC,
+  foo1 / foo2 / foo3 / foo4 := foo5 / foo6 / foo7 / foo8 / foo9 / fooA / fooB / fooC / fooD,
+  foo1 / foo2 / foo3 / foo4 := foo5 / foo6 / foo7 / foo8 / foo9 / fooA / fooB / fooC / fooD / fooE,
+  foo1 / foo2 / foo3 / foo4 := foo5 / foo6 / foo7 / foo8 / foo9 / fooA / fooB / fooC / fooD / fooE / fooF,
+)
+>>> { stateVisits = 352, stateVisits2 = 285 }
+foo(
+    foo1 / foo2 / foo3 / foo4 := foo5,
+    foo1 / foo2 / foo3 / foo4 :=
+        foo5 / foo6,
+    foo1 / foo2 / foo3 / foo4 :=
+        foo5 / foo6 / foo7,
+    foo1 / foo2 / foo3 / foo4 :=
+        foo5 / foo6 / foo7 / foo8,
+    foo1 / foo2 / foo3 / foo4 := foo5 /
+        foo6 / foo7 / foo8 / foo9,
+    foo1 / foo2 / foo3 / foo4 := foo5 /
+        foo6 / foo7 / foo8 / foo9 /
+        fooA,
+    foo1 / foo2 / foo3 / foo4 := foo5 /
+        foo6 / foo7 / foo8 / foo9 /
+        fooA / fooB,
+    foo1 / foo2 / foo3 / foo4 := foo5 /
+        foo6 / foo7 / foo8 / foo9 /
+        fooA / fooB / fooC,
+    foo1 / foo2 / foo3 / foo4 := foo5 /
+        foo6 / foo7 / foo8 / foo9 /
+        fooA / fooB / fooC / fooD,
+    foo1 / foo2 / foo3 / foo4 := foo5 /
+        foo6 / foo7 / foo8 / foo9 /
+        fooA / fooB / fooC / fooD /
+        fooE,
+    foo1 / foo2 / foo3 / foo4 := foo5 /
+        foo6 / foo7 / foo8 / foo9 /
+        fooA / fooB / fooC / fooD /
+        fooE / fooF
+)
+<<< assign with alt infix indent, scala.js, within block
+maxColumn = 40
+newlines {
+  source = keep
+  configStyle.fallBack.prefer = true
+  infix.termSite {
+    style = keep
+    maxCountPerFile = 10000
+  }
+}
+binPack {
+  preset = onelineSjs
+  indentCallSiteOnce = true
+  indentCallSiteSingleArg = false
+}
+danglingParentheses.preset = false
+indent.afterInfixSite = 4
+indent.ctrlSite = 4
+indent.infix {
+  exemptScope = [ aloneArgOrBody, notWithinAssign ]
+  excludeRegex = "^[\\p{Punct}]"
+}
+===
+{
+  foo1 / foo2 / foo3 / foo4 := foo5
+  foo1 / foo2 / foo3 / foo4 := foo5 / foo6
+  foo1 / foo2 / foo3 / foo4 := foo5 / foo6 / foo7
+  foo1 / foo2 / foo3 / foo4 := foo5 / foo6 / foo7 / foo8
+  foo1 / foo2 / foo3 / foo4 := foo5 / foo6 / foo7 / foo8 / foo9
+  foo1 / foo2 / foo3 / foo4 := foo5 / foo6 / foo7 / foo8 / foo9 / fooA
+  foo1 / foo2 / foo3 / foo4 := foo5 / foo6 / foo7 / foo8 / foo9 / fooA / fooB
+  foo1 / foo2 / foo3 / foo4 := foo5 / foo6 / foo7 / foo8 / foo9 / fooA / fooB / fooC
+  foo1 / foo2 / foo3 / foo4 := foo5 / foo6 / foo7 / foo8 / foo9 / fooA / fooB / fooC / fooD
+  foo1 / foo2 / foo3 / foo4 := foo5 / foo6 / foo7 / foo8 / foo9 / fooA / fooB / fooC / fooD / fooE
+  foo1 / foo2 / foo3 / foo4 := foo5 / foo6 / foo7 / foo8 / foo9 / fooA / fooB / fooC / fooD / fooE / fooF
+}
+>>> { stateVisits = 307, stateVisits2 = 276 }
+{
+  foo1 / foo2 / foo3 / foo4 := foo5
+  foo1 / foo2 / foo3 / foo4 :=
+      foo5 / foo6
+  foo1 / foo2 / foo3 / foo4 :=
+      foo5 / foo6 / foo7
+  foo1 / foo2 / foo3 / foo4 :=
+      foo5 / foo6 / foo7 / foo8
+  foo1 / foo2 / foo3 / foo4 :=
+      foo5 / foo6 / foo7 / foo8 / foo9
+  foo1 / foo2 / foo3 / foo4 := foo5 /
+      foo6 / foo7 / foo8 / foo9 / fooA
+  foo1 / foo2 / foo3 / foo4 := foo5 /
+      foo6 / foo7 / foo8 / foo9 / fooA /
+      fooB
+  foo1 / foo2 / foo3 / foo4 := foo5 /
+      foo6 / foo7 / foo8 / foo9 / fooA /
+      fooB / fooC
+  foo1 / foo2 / foo3 / foo4 := foo5 /
+      foo6 / foo7 / foo8 / foo9 / fooA /
+      fooB / fooC / fooD
+  foo1 / foo2 / foo3 / foo4 := foo5 /
+      foo6 / foo7 / foo8 / foo9 / fooA /
+      fooB / fooC / fooD / fooE
+  foo1 / foo2 / foo3 / foo4 := foo5 /
+      foo6 / foo7 / foo8 / foo9 / fooA /
+      fooB / fooC / fooD / fooE / fooF
+}

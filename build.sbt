@@ -8,7 +8,7 @@ import sbtcrossproject.CrossPlugin.autoImport.crossProject
 
 def isCI = System.getenv("CI") != null
 
-def scala212 = "2.12.20"
+def scala212 = "2.12.21"
 def scala213 = "2.13.18"
 
 def isScalaVer(ver: String) = Def.setting(scalaBinaryVersion.value == ver)
@@ -41,6 +41,8 @@ inThisBuild {
 name := "scalafmtRoot"
 publish / skip := true
 
+lazy val runAssembly = inputKey[Unit]("Run assembly")
+
 lazy val copyScalaNative = taskKey[Unit]("Copy Scala Native output to root")
 
 copyScalaNative := {
@@ -72,6 +74,15 @@ lazy val dynamic = crossProject(JVMPlatform) // don't build for NativePlatform
     ),
     sharedTestSettings,
     scalacOptions ++= scalacJvmOptions.value,
+    assembly / assemblyMergeStrategy := {
+      case PathList("META-INF", "versions", "9", "module-info.class") =>
+        MergeStrategy.discard
+      case PathList("META-INF", "sisu", "javax.inject.Named") =>
+        MergeStrategy.concat
+      case x =>
+        val oldStrategy = (assembly / assemblyMergeStrategy).value
+        oldStrategy(x)
+    },
   ).dependsOn(interfaces, sysops).dependsOn(core % "test")
   .enablePlugins(BuildInfoPlugin)
 
@@ -102,10 +113,6 @@ lazy val sysops = crossProject(JVMPlatform, NativePlatform, JSPlatform)
     moduleName := "scalafmt-sysops",
     description := "Scalafmt systems operations",
     scalacOptions ++= scalacJvmOptions.value,
-    libraryDependencies ++= {
-      if (!isScala212.value) Nil
-      else Seq("com.github.bigwheel" %% "util-backports" % "2.1")
-    },
     sharedTestSettings,
   ).jsEnablePlugins(ScalaJSPlugin).jsSettings(
     libraryDependencies += "org.scalameta" %%% "io" % scalametaV,
@@ -166,12 +173,18 @@ val scalacJvmOptions = Def.setting {
 lazy val cli = crossProject(JVMPlatform, NativePlatform, JSPlatform)
   .withoutSuffixFor(JVMPlatform).in(file("scalafmt-cli")).settings(
     moduleName := "scalafmt-cli",
+    assembly / aggregate := false,
     assembly / mainClass := Some("org.scalafmt.cli.Cli"),
     assembly / assemblyOption := (assembly / assemblyOption).value
       .withPrependShellScript(Some(defaultUniversalScript(shebang = false))),
     assembly / assemblyJarName := "scalafmt.jar",
     assembly / assemblyMergeStrategy := {
       case "reflect.properties" => MergeStrategy.first
+      case PathList("scala-collection-compat.properties") => MergeStrategy.first
+      case PathList("META-INF", "versions", "9", "module-info.class") =>
+        MergeStrategy.discard
+      case PathList("META-INF", "sisu", "javax.inject.Named") =>
+        MergeStrategy.concat
       case x =>
         val oldStrategy = (assembly / assemblyMergeStrategy).value
         oldStrategy(x)
@@ -183,11 +196,6 @@ lazy val cli = crossProject(JVMPlatform, NativePlatform, JSPlatform)
     scalacOptions ++= scalacJvmOptions.value,
     Compile / mainClass := Some("org.scalafmt.cli.Cli"),
     sharedTestSettings,
-    assembly / assemblyMergeStrategy := {
-      case PathList("scala-collection-compat.properties") =>
-        sbtassembly.MergeStrategy.first
-      case x => (assembly / assemblyMergeStrategy).value(x)
-    },
   ).jvmSettings(
     libraryDependencies += "com.facebook" % "nailgun-server" % "1.0.1",
     nativeImageInstalled := isCI,
@@ -204,6 +212,13 @@ lazy val cli = crossProject(JVMPlatform, NativePlatform, JSPlatform)
         case Some("musl") => Seq("--static", "--libc=musl")
         case _ => Nil
       }
+    },
+    runAssembly := {
+      val jar = (assembly / assemblyOutputPath).value
+      val args = sbt.complete.DefaultParsers.spaceDelimited("<args>").parsed
+      val cmd = Seq("java", "-jar", jar.getAbsolutePath) ++ args
+      val exit = scala.sys.process.Process(cmd).!
+      if (exit != 0) sys.error(s"runAssembly failed with exit code $exit")
     },
   ).nativeSettings(scalaNativeConfig).dependsOn(core, interfaces)
   // TODO: enable NPM publishing

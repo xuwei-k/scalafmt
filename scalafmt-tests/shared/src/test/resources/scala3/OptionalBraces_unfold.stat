@@ -1970,8 +1970,7 @@ object a:
  import Predef.{augmentString => _}
 >>>
 object a:
-   import A.min as minimum
-   import A.`*` as multiply
+   import A.{min as minimum, `*` as multiply}
    import Predef.{augmentString as _, *}
    import scala.annotation as ann
    import java as j
@@ -1992,8 +1991,7 @@ object a {
 }
 >>>
 object a {
-  import A.min as minimum
-  import A.`*` as multiply
+  import A.{min as minimum, `*` as multiply}
   import Predef.{augmentString as _, *}
   import scala.annotation as ann
   import java as j
@@ -3371,7 +3369,7 @@ object a {
     finally a
 }
 <<< #2019 infix
-newlines.afterInfix = keep
+newlines.infix.termSite.maxCountPerFileForKeep = 0
 rewrite.insertBraces.minLines = 2
 ===
 object a {
@@ -3401,7 +3399,7 @@ object a {
   }
 }
 <<< #2019 if-else !alwaysBeforeElseAfterCurlyIf
-newlines.afterInfix = keep
+newlines.infix.termSite.maxCountPerFileForKeep = 0
 newlines.alwaysBeforeElseAfterCurlyIf = false
 rewrite.insertBraces.minLines = 2
 ===
@@ -3462,7 +3460,7 @@ object a {
   }
 }
 <<< #2019 if-else alwaysBeforeElseAfterCurlyIf
-newlines.afterInfix = keep
+newlines.infix.termSite.maxCountPerFileForKeep = 0
 newlines.alwaysBeforeElseAfterCurlyIf = true
 rewrite.insertBraces.minLines = 2
 ===
@@ -3528,7 +3526,7 @@ object a {
 }
 <<< #2019 try !alwaysBeforeElseAfterCurlyIf !allBlocks
 maxColumn = 12
-newlines.afterInfix = keep
+newlines.infix.termSite.maxCountPerFileForKeep = 0
 newlines.alwaysBeforeElseAfterCurlyIf = false
 rewrite.insertBraces.minLines = 2
 rewrite.scala3.removeOptionalBraces = no
@@ -3557,7 +3555,7 @@ object a {
 }
 <<< #2019 try !alwaysBeforeElseAfterCurlyIf allBlocks
 maxColumn = 12
-newlines.afterInfix = keep
+newlines.infix.termSite.maxCountPerFileForKeep = 0
 newlines.alwaysBeforeElseAfterCurlyIf = false
 rewrite.insertBraces.minLines = 2
 rewrite.insertBraces.allBlocks = true
@@ -3588,7 +3586,7 @@ object a {
 }
 <<< #2019 try alwaysBeforeElseAfterCurlyIf !allBlocks
 maxColumn = 12
-newlines.afterInfix = keep
+newlines.infix.termSite.maxCountPerFileForKeep = 0
 newlines.alwaysBeforeElseAfterCurlyIf = true
 rewrite.insertBraces.minLines = 2
 rewrite.scala3.removeOptionalBraces = no
@@ -3618,7 +3616,7 @@ object a {
 }
 <<< #2019 try alwaysBeforeElseAfterCurlyIf allBlocks
 maxColumn = 12
-newlines.afterInfix = keep
+newlines.infix.termSite.maxCountPerFileForKeep = 0
 newlines.alwaysBeforeElseAfterCurlyIf = true
 rewrite.insertBraces.minLines = 2
 rewrite.insertBraces.allBlocks = true
@@ -3651,7 +3649,7 @@ object a {
 }
 <<< #2019 function
 maxColumn = 12
-newlines.afterInfix = keep
+newlines.infix.termSite.maxCountPerFileForKeep = 0
 rewrite.insertBraces.minLines = 2
 ===
 object a {
@@ -3685,7 +3683,7 @@ object a {
 }
 <<< #2019 function with param in parens
 maxColumn = 14
-newlines.afterInfix = keep
+newlines.infix.termSite.maxCountPerFileForKeep = 0
 rewrite.insertBraces.minLines = 2
 ===
 object a {
@@ -3719,7 +3717,7 @@ object a {
 }
 <<< #2019 contextual function
 maxColumn = 13
-newlines.afterInfix = keep
+newlines.infix.termSite.maxCountPerFileForKeep = 0
 rewrite.insertBraces.minLines = 2
 ===
 object a {
@@ -3753,7 +3751,7 @@ object a {
 }
 <<< #2019 poly function
 maxColumn = 14
-newlines.afterInfix = keep
+newlines.infix.termSite.maxCountPerFileForKeep = 0
 rewrite.insertBraces.minLines = 2
 ===
 object a {
@@ -3787,7 +3785,7 @@ object a {
 }
 <<< #2019 partial function
 maxColumn = 25
-newlines.afterInfix = keep
+newlines.infix.termSite.maxCountPerFileForKeep = 0
 rewrite.insertBraces.minLines = 2
 ===
 object a {
@@ -3805,7 +3803,7 @@ object a {
 }
 <<< #2019 for-yield !allBlocks
 maxColumn = 12
-newlines.afterInfix = keep
+newlines.infix.termSite.maxCountPerFileForKeep = 0
 rewrite.insertBraces.minLines = 2
 ===
 object a {
@@ -3834,7 +3832,7 @@ object a {
 }
 <<< #2019 for-yield allBlocks
 maxColumn = 12
-newlines.afterInfix = keep
+newlines.infix.termSite.maxCountPerFileForKeep = 0
 rewrite.insertBraces.minLines = 2
 rewrite.insertBraces.allBlocks = true
 ===
@@ -3865,7 +3863,7 @@ object a {
 }
 <<< #2019 for-do !allBlocks
 maxColumn = 12
-newlines.afterInfix = keep
+newlines.infix.termSite.maxCountPerFileForKeep = 0
 rewrite.insertBraces.minLines = 2
 rewrite.scala3.removeOptionalBraces = no
 indent.significant = null
@@ -3939,7 +3937,7 @@ object a {
 }
 <<< #2019 for-do allBlocks
 maxColumn = 12
-newlines.afterInfix = keep
+newlines.infix.termSite.maxCountPerFileForKeep = 0
 rewrite.insertBraces.minLines = 2
 rewrite.insertBraces.allBlocks = true
 rewrite.scala3.removeOptionalBraces = no
@@ -5410,7 +5408,7 @@ class test:
 <<< overflowing type
 object types:
   type GOutputStreamClass = CStruct21[GObjectClass, CFuncPtr5[Ptr[GOutputStream], Ptr[Byte], gsize, Ptr[GCancellable], Ptr[Ptr[GError]], gssize], CFuncPtr5[Ptr[GOutputStream], Ptr[GInputStream], GOutputStreamSpliceFlags, Ptr[GCancellable], Ptr[Ptr[GError]], gssize], CFuncPtr3[Ptr[GOutputStream], Ptr[GCancellable], Ptr[Ptr[GError]], gboolean], CFuncPtr3[Ptr[GOutputStream], Ptr[GCancellable], Ptr[Ptr[GError]], gboolean], CFuncPtr7[Ptr[GOutputStream], Ptr[Byte], gsize, CInt, Ptr[GCancellable], GAsyncReadyCallback, gpointer, Unit], CFuncPtr3[Ptr[GOutputStream], Ptr[GAsyncResult], Ptr[Ptr[GError]], gssize], CFuncPtr7[Ptr[GOutputStream], Ptr[GInputStream], GOutputStreamSpliceFlags, CInt, Ptr[GCancellable], GAsyncReadyCallback, gpointer, Unit], CFuncPtr3[Ptr[GOutputStream], Ptr[GAsyncResult], Ptr[Ptr[GError]], gssize], CFuncPtr5[Ptr[GOutputStream], CInt, Ptr[GCancellable], GAsyncReadyCallback, gpointer, Unit], CFuncPtr3[Ptr[GOutputStream], Ptr[GAsyncResult], Ptr[Ptr[GError]], gboolean], CFuncPtr5[Ptr[GOutputStream], CInt, Ptr[GCancellable], GAsyncReadyCallback, gpointer, Unit], CFuncPtr3[Ptr[GOutputStream], Ptr[GAsyncResult], Ptr[Ptr[GError]], gboolean], CFuncPtr6[Ptr[GOutputStream], Ptr[GOutputVector], gsize, Ptr[gsize], Ptr[GCancellable], Ptr[Ptr[GError]], gboolean], CFuncPtr7[Ptr[GOutputStream], Ptr[GOutputVector], gsize, CInt, Ptr[GCancellable], GAsyncReadyCallback, gpointer, Unit], CFuncPtr4[Ptr[GOutputStream], Ptr[GAsyncResult], Ptr[gsize], Ptr[Ptr[GError]], gboolean], CFuncPtr0[Unit], CFuncPtr0[Unit], CFuncPtr0[Unit], CFuncPtr0[Unit], CFuncPtr0[Unit]]
->>> { stateVisits = 834, stateVisits2 = 834 }
+>>>
 object types:
    type GOutputStreamClass = CStruct21[
      GObjectClass,
@@ -6549,7 +6547,7 @@ object a:
     }) 
     index
   }
->>> { stateVisits = 986, stateVisits2 = 986 }
+>>>
 object a:
    private val packageIndex
        : scala.collection.Map[String, scala.collection.Seq[Path]] = {
@@ -7227,8 +7225,8 @@ object a:
   )
 >>>
 object a:
-   def foo =
-     (bar match
+   def foo = (
+     bar match
         case _ =>
           (
             baz match
@@ -7236,7 +7234,7 @@ object a:
                  TupleXXL_fromIArray_xs_productIterator_map_asInstanceOf[Object]
                    .toArray_asInstanceOf[IArray_Object] // TODO
           ).asInstanceOf[Tuple]
-     )
+   )
 <<< #4133 enclosed match within enclosed match, with overflow and comment, and rewrite
 rewrite.scala3.removeOptionalBraces = yes
 ===
@@ -7249,8 +7247,8 @@ object a:
   })
 >>>
 object a:
-   def foo =
-     (bar match
+   def foo = (
+     bar match
         case _ =>
           (
             baz match
@@ -7258,7 +7256,7 @@ object a:
                  TupleXXL_fromIArray_xs_productIterator_map_asInstanceOf[Object]
                    .toArray_asInstanceOf[IArray_Object] // TODO
           ).asInstanceOf[Tuple]
-     )
+   )
 <<< rewrite opt-braces match as apply arg
 rewrite.scala3.removeOptionalBraces = yes
 ===
@@ -7462,7 +7460,7 @@ object a {
         g.asInstanceOf[Tuple18[_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _] => Any].apply((x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15, x16, x17, x18))).asInstanceOf[F]
   )
 }
->>> { stateVisits = 627, stateVisits2 = 627 }
+>>>
 object a {
   def tupledFunction18[F, G]: TupledFunction[F, G] = TupledFunction[F, G](
       untupledImpl =
@@ -7906,15 +7904,15 @@ processTreeOpt(s) { s match
 processTreeOpt(s) {
   s match
      case td: TypeDef
-         if !td.symbol.flags.is(Flags.Synthetic) &&
-           (!td.symbol.flags.is(Flags.Case) ||
-             !td.symbol.flags.is(Flags.Enum)) =>
+         if !td.symbol.flags.is(Flags.Synthetic) && (
+           !td.symbol.flags.is(Flags.Case) || !td.symbol.flags.is(Flags.Enum)
+         ) =>
        Some(parseTypeDef(td, c))
 
      case vd: ValDef
-         if !isSyntheticField(vd.symbol) &&
-           (!vd.symbol.flags.is(Flags.Case) ||
-             !vd.symbol.flags.is(Flags.Enum)) =>
+         if !isSyntheticField(vd.symbol) && (
+           !vd.symbol.flags.is(Flags.Case) || !vd.symbol.flags.is(Flags.Enum)
+         ) =>
        Some(parseValDef(c, vd))
 
      case c: ClassDef if c.symbol.shouldDocumentClasslike =>
@@ -8152,10 +8150,10 @@ object Build {
     settings(
       generateScalaDocumentation := Def.inputTaskDyn {
         val outputDirOverride = extraArgs.headOption.fold(identity[GenerationConfig](_))(newDir => {
-          config: GenerationConfig => config.add(OutputDir(newDir))
+          (config: GenerationConfig) => config.add(OutputDir(newDir))
         })
         val justAPI = justAPIArg.fold(identity[GenerationConfig](_))(_ => {
-          config: GenerationConfig => config.remove[SiteRoot]
+          (config: GenerationConfig) => config.remove[SiteRoot]
         })
       }.evaluated,
     )
@@ -8171,13 +8169,13 @@ object Build:
              val outputDirOverride =
                extraArgs
                  .headOption
-                 .fold(identity[GenerationConfig](_)) { newDir =>
-                   config: GenerationConfig => config.add(OutputDir(newDir))
-                 }
+                 .fold(identity[GenerationConfig](_))(newDir =>
+                   (config: GenerationConfig) => config.add(OutputDir(newDir))
+                 )
              val justAPI =
-               justAPIArg.fold(identity[GenerationConfig](_)) { _ =>
-                 config: GenerationConfig => config.remove[SiteRoot]
-               }
+               justAPIArg.fold(identity[GenerationConfig](_))(_ =>
+                 (config: GenerationConfig) => config.remove[SiteRoot]
+               )
            }
            .evaluated
      )
@@ -8316,46 +8314,6 @@ object a:
       case d if e =>
         f
       // comment
-<<< implicit parameter type conversion with "into" modifier 1
-runner.dialect = scala3future
-===
-object a:
-  def ++ (elems: into IterableOnce[A]): List[A]
->>>
-object a:
-   def ++(elems: into IterableOnce[A]): List[A]
-<<< implicit parameter type conversion with "into" modifier 2
-runner.dialect = scala3future
-===
-object a:
-  def ++ (elems: => into IterableOnce[A]): List[A]
->>>
-object a:
-   def ++(elems: => into IterableOnce[A]): List[A]
-<<< implicit parameter type conversion with "into" modifier 3
-runner.dialect = scala3future
-===
-object a:
-  def flatMap[B](f: into A => IterableOnce[B]): List[B]
->>>
-object a:
-   def flatMap[B](f: into A => IterableOnce[B]): List[B]
-<<< implicit parameter type conversion with "into" modifier 4
-runner.dialect = scala3future
-===
-object a:
-  def flatMap[B](f: A => into IterableOnce[B]): List[B]
->>>
-object a:
-   def flatMap[B](f: A => into IterableOnce[B]): List[B]
-<<< implicit parameter type conversion with "into" modifier 5
-runner.dialect = scala3future
-===
-object a:
-  def concatAll(xss: (into IterableOnce[Char])*): List[Char]
->>>
-object a:
-   def concatAll(xss: (into IterableOnce[Char])*): List[Char]
 <<< pure type functions 1
 runner.dialect = scala3future
 ===
@@ -8460,6 +8418,12 @@ object a:
 >>>
 object a:
    def func(f: ->{a, b, c} B): Unit
+<<< #5112 capability capture checking 7
+runner.dialect = scala3future
+===
+def foo[A^] = ???
+>>>
+def foo[A^] = ???
 <<< #4133 select with braced apply and single function arg, within interpolation
 maxColumn = 70
 rewrite.rules = [RedundantBraces]
@@ -8563,18 +8527,19 @@ rewrite.rules = [RedundantBraces, RedundantParens]
 >>>
 val simpleVersionString: String = {
   val v = scalaPropOrElse("version.number", "(unknown)")
-  v +
-    (if (
-       v.contains {
-         "SNAPSHOT"
-       } ||
-       v.contains {
-         "NIGHTLY"
-       }
-     )
-       "-git-" + scalaPropOrElse("git.hash", "(unknown)")
-     else
-       "")
+  v + (
+    if (
+      v.contains {
+        "SNAPSHOT"
+      } ||
+      v.contains {
+        "NIGHTLY"
+      }
+    )
+      "-git-" + scalaPropOrElse("git.hash", "(unknown)")
+    else
+      ""
+  )
 }
 <<< don't rewrite complex infix to parens
 rewrite.redundantBraces.oneStatApply.parensMaxSpan = 500
@@ -8606,9 +8571,10 @@ rewrite.rules = [RedundantBraces, RedundantParens]
 val privateFlag = !sym.isClass && (sym.is(Private) || (sym.isPrimaryConstructor && sym.owner.isTopLevelModuleClass))
 >>>
 val privateFlag =
-  !sym.isClass &&
-    (sym.is(Private) ||
-      (sym.isPrimaryConstructor && sym.owner.isTopLevelModuleClass))
+  !sym.isClass && (
+    sym.is(Private) ||
+      (sym.isPrimaryConstructor && sym.owner.isTopLevelModuleClass)
+  )
 <<< do not rewrite infix to braces
 rewrite.redundantBraces.oneStatApply.bracesMinSpan = 1
 rewrite.rules = [RedundantBraces, RedundantParens]
@@ -8616,10 +8582,11 @@ rewrite.rules = [RedundantBraces, RedundantParens]
 val privateFlag = !sym.isClass && (sym.is(Private) || (sym.isPrimaryConstructor && sym.owner.isTopLevelModuleClass))
 >>>
 val privateFlag =
-  !sym.isClass &&
-    (sym.is {
+  !sym.isClass && (
+    sym.is {
       Private
-    } || (sym.isPrimaryConstructor && sym.owner.isTopLevelModuleClass))
+    } || (sym.isPrimaryConstructor && sym.owner.isTopLevelModuleClass)
+  )
 <<< rewrite infix function to braces
 rewrite.redundantBraces.oneStatApply.bracesMinSpan = 1
 rewrite.rules = [RedundantBraces, RedundantParens]
@@ -9611,3 +9578,169 @@ object a:
       line1
 
       line2
+<<< #5111
+runner.dialect = scala3future
+===
+val foo: Int ?->{a} List[Int] = _ ?=> List(1, 2, 3)
+>>>
+val foo: Int ?->{a} List[Int] = _ ?=> List(1, 2, 3)
+<<< trailing comment in case body, indent more, body empty
+comments.indentTrailingInCaseBody = more
+===
+foo match {
+  case bar =>
+    // bar1
+
+    // bar2
+  case baz =>
+    // baz1
+
+    // baz2
+
+  case qux =>
+    // qux1
+  case quux =>
+    // quux1
+
+    // quux2
+}
+>>>
+foo match {
+  case bar =>
+    // bar1
+
+  // bar2
+  case baz =>
+    // baz1
+
+    // baz2
+
+  case qux =>
+    // qux1
+  case quux =>
+    // quux1
+
+    // quux2
+}
+<<< trailing comment in case body, indent less, body empty
+comments.indentTrailingInCaseBody = less
+===
+foo match {
+  case bar =>
+    // bar1
+
+    // bar2
+  case baz =>
+    // baz1
+
+    // baz2
+
+  case qux =>
+    // qux1
+  case quux =>
+    // quux1
+
+    // quux2
+}
+>>>
+foo match {
+  case bar =>
+    // bar1
+
+  // bar2
+  case baz =>
+    // baz1
+
+  // baz2
+
+  case qux =>
+    // qux1
+  case quux =>
+    // quux1
+
+  // quux2
+}
+<<< trailing comment in case body, indent more, body one line
+comments.indentTrailingInCaseBody = more
+===
+foo match {
+  case bar => bbar
+    // bar1
+
+    // bar2
+  case baz => bbaz
+    // baz1
+
+    // baz2
+
+  case qux => bqux
+    // qux1
+  case quux => bquux
+    // quux1
+
+    // quux2
+}
+>>>
+foo match {
+  case bar =>
+    bbar
+    // bar1
+
+  // bar2
+  case baz =>
+    bbaz
+    // baz1
+
+    // baz2
+
+  case qux =>
+    bqux
+    // qux1
+  case quux =>
+    bquux
+    // quux1
+
+    // quux2
+}
+<<< trailing comment in case body, indent less, body one line
+comments.indentTrailingInCaseBody = less
+===
+foo match {
+  case bar => bbar
+    // bar1
+
+    // bar2
+  case baz => bbaz
+    // baz1
+
+    // baz2
+
+  case qux => bqux
+    // qux1
+  case quux => bquux
+    // quux1
+
+    // quux2
+}
+>>>
+foo match {
+  case bar =>
+    bbar
+    // bar1
+
+  // bar2
+  case baz =>
+    bbaz
+    // baz1
+
+  // baz2
+
+  case qux =>
+    bqux
+    // qux1
+  case quux =>
+    bquux
+    // quux1
+
+  // quux2
+}

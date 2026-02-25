@@ -5,7 +5,6 @@ import org.scalafmt.internal._
 
 import scala.meta._
 import scala.meta.classifiers.Classifier
-import scala.meta.tokens.Token.{Space => _, _}
 import scala.meta.tokens.{Token => T, Tokens}
 
 import scala.annotation.tailrec
@@ -55,7 +54,7 @@ object TokenOps {
     .reverseIterator.find(cond)
 
   def findLastVisibleTokenOpt(tokens: Tokens): Option[T] = findLast(tokens) {
-    case _: Whitespace | _: EOF => false
+    case _: T.Whitespace | _: T.EOF => false
     case _ => true
   }
 
@@ -63,10 +62,10 @@ object TokenOps {
     .getOrElse(tokens.last)
 
   @inline
-  def withNoIndent(ft: FT): Boolean = ft.between.lastOption.is[AtEOL]
+  def withNoIndent(ft: FT): Boolean = ft.between.lastOption.is[T.AtEOL]
 
   @inline
-  def rhsIsCommentedOut(ft: FT): Boolean = ft.right.is[Comment] &&
+  def rhsIsCommentedOut(ft: FT): Boolean = ft.right.is[T.Comment] &&
     rhsIsCommentedOutIfComment(ft)
 
   @inline
@@ -74,7 +73,7 @@ object TokenOps {
     isSingleLineIfComment(ft.right)
 
   @inline
-  def isLeftCommentThenBreak(ft: FT): Boolean = ft.left.is[Comment] &&
+  def isLeftCommentThenBreak(ft: FT): Boolean = ft.left.is[T.Comment] &&
     ft.hasBreak
 
   def isSingleLineIfComment(c: T): Boolean = {
@@ -89,7 +88,7 @@ object TokenOps {
 
   def isBoolOperator(token: T): Boolean = booleanOperators.contains(token.syntax)
 
-  def identModification(ident: Ident): Modification = {
+  def identModification(ident: T.Ident): Modification = {
     val lastCharacter = ident.syntax.last
     Space(!Character.isLetterOrDigit(lastCharacter) && lastCharacter != '`')
   }
@@ -98,12 +97,12 @@ object TokenOps {
   def getMod(ft: FT): Modification = Space.orNL(ft.newlinesBetween)
 
   def endsWithSymbolIdent(tok: T): Boolean = tok match {
-    case Ident(name) => !name.last.isLetterOrDigit && !tok.isBackquoted
+    case tok: T.Ident => !tok.value.last.isLetterOrDigit && !tok.isBackquoted
     case _ => false
   }
 
   def isSymbolicIdent(tok: T): Boolean = tok match {
-    case Ident(name) => isSymbolicName(name)
+    case tok: T.Ident => isSymbolicName(tok.value)
     case _ => false
   }
 
@@ -114,7 +113,7 @@ object TokenOps {
     !head.isLetter && head != '_'
   }
 
-  def getXmlLastLineIndent(tok: Xml.Part): Option[Int] = {
+  def getXmlLastLineIndent(tok: T.Xml.Part): Option[Int] = {
     val part = tok.value
     val afterLastNL = part.lastIndexOf('\n') + 1
     if (afterLastNL <= 0) None
@@ -126,16 +125,24 @@ object TokenOps {
 
   def getIndentTrigger(tree: Tree): T = tree.tokens.head
 
+  def getEndOfBlock(ft: FT)(f: FT => Option[Boolean])(implicit
+      style: ScalafmtConfig,
+      ftoks: FormatTokens,
+  ): Option[(FT, Boolean)] = ft.left match {
+    case _: T.OpenDelim => f(ft)
+        .flatMap(ok => ftoks.matchingOptLeft(ft).map(_ -> ok))
+    case _ => OptionalBraces.get(ft)
+        .flatMap(_.rightBrace.map(x => ftoks.nextNonCommentSameLine(x) -> true))
+  }
+
   def getEndOfBlock(ft: FT, parens: => Boolean, brackets: => Boolean = false)(
       implicit
       style: ScalafmtConfig,
       ftoks: FormatTokens,
-  ): Option[FT] = ft.left match {
-    case _: T.LeftBrace => ftoks.matchingOptLeft(ft)
-    case _: T.LeftParen => if (parens) ftoks.matchingOptLeft(ft) else None
-    case _: T.LeftBracket => if (brackets) ftoks.matchingOptLeft(ft) else None
-    case _ => OptionalBraces.get(ft)
-        .flatMap(_.rightBrace.map(x => ftoks.nextNonCommentSameLine(x)))
+  ): Option[(FT, Boolean)] = getEndOfBlock(ft) {
+    case FT(_: T.LeftParen, _, _) => if (parens) Some(true) else None
+    case FT(_: T.LeftBracket, _, _) => if (brackets) Some(true) else None
+    case _ => Some(true)
   }
 
   def insideBlock[A](start: FT, end: FT)(implicit
@@ -146,7 +153,7 @@ object TokenOps {
   def insideBlock(start: FT, end: FT, matches: FT => Boolean)(implicit
       ftoks: FormatTokens,
   ): TokenRanges = insideBlock(x =>
-    if (matches(x)) ftoks.matchingOptLeft(x) else None,
+    if (matches(x)) ftoks.matchingOptLeft(x).map(_ -> true) else None,
   )(start, end)
 
   def insideBracesBlock(
@@ -155,25 +162,24 @@ object TokenOps {
       parens: Boolean = false,
       brackets: Boolean = false,
   )(implicit style: ScalafmtConfig, ftoks: FormatTokens): TokenRanges =
-    insideBlock(x => getEndOfBlock(x, parens = parens, brackets = brackets))(
-      start,
-      end,
-    )
+    insideBlock(
+      getEndOfBlock(_, parens = parens, brackets = brackets),
+    )(start, end)
 
   def insideBlock(
-      matches: FT => Option[FT],
+      matches: FT => Option[(FT, Boolean)],
   )(start: FT, end: FT)(implicit ftoks: FormatTokens): TokenRanges = {
     var result = TokenRanges.empty
 
     @tailrec
     def run(tok: FT): Unit = if (tok.idx < end.idx) {
-      val nextTokOpt = matches(tok).flatMap(closeFt =>
+      val nextTokOpt = matches(tok).flatMap { case (closeFt, keep) =>
         if (tok.left.start >= closeFt.left.end) None
         else {
-          result = result.append(TokenRange(tok, closeFt))
+          if (keep) result = result.append(TokenRange(tok, closeFt))
           Some(closeFt)
-        },
-      )
+        }
+      }
       val nextTok = nextTokOpt.getOrElse(ftoks.next(tok))
       if (nextTok ne tok) run(nextTok)
     }

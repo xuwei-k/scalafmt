@@ -1361,22 +1361,21 @@ enum IndentWidth {
 }
 >>>
 enum IndentWidth:
-   def foo =
-     try foo
-     catch
-        case a =>
-          that match
-             case b => bb
-             case c => cc
-          end match
-        case b =>
-          that match
-             case c => cc
-             case _ => dd
+   def foo = try foo
+   catch
+      case a =>
+        that match
+           case b => bb
+           case c => cc
+        end match
+      case b =>
+        that match
+           case c => cc
+           case _ => dd
 
-     finally
-        foo
-        bar
+   finally
+      foo
+      bar
 <<< rewrite with catch, format-off
 rewrite.scala3.removeOptionalBraces = oldSyntaxToo
 ===
@@ -1453,23 +1452,22 @@ enum IndentWidth {
 }
 >>>
 enum IndentWidth:
-   def foo =
-     try foo
-     catch
-        case a =>
-          that match
-             // scalafmt: { indent { significant = 1 } }
-             case b => bb
-             case c => cc
-          end match
-        case b =>
-          that match
+   def foo = try foo
+   catch
+      case a =>
+        that match
+           // scalafmt: { indent { significant = 1 } }
+           case b => bb
            case c => cc
-           case _ => dd
+        end match
+      case b =>
+        that match
+         case c => cc
+         case _ => dd
 
-     finally
-      foo
-      bar
+   finally
+    foo
+    bar
 <<< rewrite with try/finally
 rewrite.scala3.removeOptionalBraces = oldSyntaxToo
 ===
@@ -1484,12 +1482,11 @@ object a {
 }
 >>>
 object a:
-   def foo =
-     try foo
-     catch
-        case a => baz
-     finally
-        bar
+   def foo = try foo
+   catch
+      case a => baz
+   finally
+      bar
 <<< rewrite with end markers: this; with equals, only init
 rewrite.scala3.removeOptionalBraces = oldSyntaxToo
 ===
@@ -2518,9 +2515,8 @@ object a:
 >>>
 object a:
    def foo =
-     bar = baz + baz(
-       qux
-     ) // c1
+     bar = baz +
+       baz(qux) // c1
 <<< #2561 no forced dangle in tuples
 newlines {
   beforeOpenParenDefnSite = source
@@ -3165,13 +3161,12 @@ object a {
 }
 >>>
 object a {
-  def foo =
-    try
-      a
-    catch
-      bar
-    finally
-      a
+  def foo = try
+    a
+  catch
+    bar
+  finally
+    a
 }
 <<< TryWithHandler: newline after catch, short
 maxColumn = 12
@@ -3205,13 +3200,12 @@ object a {
 }
 >>>
 object a {
-  def foo =
-    try
-      a
-    catch /* c1 */
-      bar
-    finally
-      a
+  def foo = try
+    a
+  catch /* c1 */
+    bar
+  finally
+    a
 }
 <<< TryWithHandler: newline after catch, break comment
 object a {
@@ -3225,14 +3219,13 @@ object a {
 }
 >>>
 object a {
-  def foo =
-    try
-      a
-    catch
-      /* c2 */
-      bar
-    finally
-      a
+  def foo = try
+    a
+  catch
+    /* c2 */
+    bar
+  finally
+    a
 }
 <<< TryWithHandler: newline after catch, comments
 object a {
@@ -3246,14 +3239,13 @@ object a {
 }
 >>>
 object a {
-  def foo =
-    try
-      a
-    catch /* c1 */
-      /* c2 */
-      bar
-    finally
-      a
+  def foo = try
+    a
+  catch /* c1 */
+    /* c2 */
+    bar
+  finally
+    a
 }
 <<< TryWithHandler: newline after catch, comments
 object a {
@@ -3265,15 +3257,14 @@ object a {
 }
 >>>
 object a {
-  def foo =
-    try
-      a
-    catch /* c1 */ bar
-    finally
-      a
+  def foo = try
+    a
+  catch /* c1 */ bar
+  finally
+    a
 }
 <<< #2019 infix
-newlines.afterInfix = keep
+newlines.infix.termSite.maxCountPerFileForKeep = 0
 rewrite.insertBraces.minLines = 2
 ===
 object a {
@@ -3303,7 +3294,7 @@ object a {
   }
 }
 <<< #2019 if-else !alwaysBeforeElseAfterCurlyIf
-newlines.afterInfix = keep
+newlines.infix.termSite.maxCountPerFileForKeep = 0
 newlines.alwaysBeforeElseAfterCurlyIf = false
 rewrite.insertBraces.minLines = 2
 ===
@@ -3358,7 +3349,7 @@ object a {
   }
 }
 <<< #2019 if-else alwaysBeforeElseAfterCurlyIf
-newlines.afterInfix = keep
+newlines.infix.termSite.maxCountPerFileForKeep = 0
 newlines.alwaysBeforeElseAfterCurlyIf = true
 rewrite.insertBraces.minLines = 2
 ===
@@ -3418,7 +3409,7 @@ object a {
 }
 <<< #2019 try !alwaysBeforeElseAfterCurlyIf !allBlocks
 maxColumn = 12
-newlines.afterInfix = keep
+newlines.infix.termSite.maxCountPerFileForKeep = 0
 newlines.alwaysBeforeElseAfterCurlyIf = false
 rewrite.insertBraces.minLines = 2
 rewrite.scala3.removeOptionalBraces = no
@@ -3447,7 +3438,7 @@ object a {
 }
 <<< #2019 try !alwaysBeforeElseAfterCurlyIf allBlocks
 maxColumn = 12
-newlines.afterInfix = keep
+newlines.infix.termSite.maxCountPerFileForKeep = 0
 newlines.alwaysBeforeElseAfterCurlyIf = false
 rewrite.insertBraces.minLines = 2
 rewrite.insertBraces.allBlocks = true
@@ -3478,7 +3469,7 @@ object a {
 }
 <<< #2019 try alwaysBeforeElseAfterCurlyIf !allBlocks
 maxColumn = 12
-newlines.afterInfix = keep
+newlines.infix.termSite.maxCountPerFileForKeep = 0
 newlines.alwaysBeforeElseAfterCurlyIf = true
 rewrite.insertBraces.minLines = 2
 rewrite.scala3.removeOptionalBraces = no
@@ -3508,7 +3499,7 @@ object a {
 }
 <<< #2019 try alwaysBeforeElseAfterCurlyIf allBlocks
 maxColumn = 12
-newlines.afterInfix = keep
+newlines.infix.termSite.maxCountPerFileForKeep = 0
 newlines.alwaysBeforeElseAfterCurlyIf = true
 rewrite.insertBraces.minLines = 2
 rewrite.insertBraces.allBlocks = true
@@ -3541,7 +3532,7 @@ object a {
 }
 <<< #2019 function
 maxColumn = 12
-newlines.afterInfix = keep
+newlines.infix.termSite.maxCountPerFileForKeep = 0
 rewrite.insertBraces.minLines = 2
 ===
 object a {
@@ -3575,7 +3566,7 @@ object a {
 }
 <<< #2019 function with param in parens
 maxColumn = 14
-newlines.afterInfix = keep
+newlines.infix.termSite.maxCountPerFileForKeep = 0
 rewrite.insertBraces.minLines = 2
 ===
 object a {
@@ -3609,7 +3600,7 @@ object a {
 }
 <<< #2019 contextual function
 maxColumn = 13
-newlines.afterInfix = keep
+newlines.infix.termSite.maxCountPerFileForKeep = 0
 rewrite.insertBraces.minLines = 2
 ===
 object a {
@@ -3643,7 +3634,7 @@ object a {
 }
 <<< #2019 poly function
 maxColumn = 14
-newlines.afterInfix = keep
+newlines.infix.termSite.maxCountPerFileForKeep = 0
 rewrite.insertBraces.minLines = 2
 ===
 object a {
@@ -3677,7 +3668,7 @@ object a {
 }
 <<< #2019 partial function
 maxColumn = 25
-newlines.afterInfix = keep
+newlines.infix.termSite.maxCountPerFileForKeep = 0
 rewrite.insertBraces.minLines = 2
 ===
 object a {
@@ -3695,7 +3686,7 @@ object a {
 }
 <<< #2019 for-yield !allBlocks
 maxColumn = 12
-newlines.afterInfix = keep
+newlines.infix.termSite.maxCountPerFileForKeep = 0
 rewrite.insertBraces.minLines = 2
 ===
 object a {
@@ -3724,7 +3715,7 @@ object a {
 }
 <<< #2019 for-yield allBlocks
 maxColumn = 12
-newlines.afterInfix = keep
+newlines.infix.termSite.maxCountPerFileForKeep = 0
 rewrite.insertBraces.minLines = 2
 rewrite.insertBraces.allBlocks = true
 ===
@@ -3755,7 +3746,7 @@ object a {
 }
 <<< #2019 for-do !allBlocks
 maxColumn = 12
-newlines.afterInfix = keep
+newlines.infix.termSite.maxCountPerFileForKeep = 0
 rewrite.insertBraces.minLines = 2
 rewrite.scala3.removeOptionalBraces = no
 indent.significant = null
@@ -3825,7 +3816,7 @@ object a {
 }
 <<< #2019 for-do allBlocks
 maxColumn = 12
-newlines.afterInfix = keep
+newlines.infix.termSite.maxCountPerFileForKeep = 0
 rewrite.insertBraces.minLines = 2
 rewrite.insertBraces.allBlocks = true
 rewrite.scala3.removeOptionalBraces = no
@@ -6193,9 +6184,8 @@ object a:
        Context
    ): List[Symbol] =
      if (!sym.owner.isClass) Nil
-     else sym.allOverriddenSymbols.toList.filter(
-       _ != NoSymbol
-     ) // TODO: could also be `sym.owner.allOverrid..`
+     else sym.allOverriddenSymbols.toList.filter(_ !=
+       NoSymbol) // TODO: could also be `sym.owner.allOverrid..`
      // else sym.owner.ancestors map (sym overriddenSymbol _) filter (_ != NoSymbol)
 <<< braceless catch, single multi-line case, empty body
 object a:
@@ -6372,7 +6362,7 @@ object a:
     }) 
     index
   }
->>> { stateVisits = 986, stateVisits2 = 986 }
+>>>
 object a:
    private val packageIndex
        : scala.collection.Map[String, scala.collection.Seq[Path]] = {
@@ -6773,10 +6763,9 @@ object a {
 }
 >>>
 object a {
-  def foo =
-    try
-       bar
-    catch case baz => qux
+  def foo = try
+     bar
+  catch case baz => qux
 
   /** c1 */
   def quux = ???
@@ -7226,7 +7215,7 @@ object a {
         g.asInstanceOf[Tuple18[_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _] => Any].apply((x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15, x16, x17, x18))).asInstanceOf[F]
   )
 }
->>> { stateVisits = 1295, stateVisits2 = 1274 }
+>>>
 object a {
   def tupledFunction18[F, G]: TupledFunction[F, G] = TupledFunction[F, G](
       untupledImpl = (g: G) =>
@@ -7353,8 +7342,7 @@ object a:
 >>>
 object a:
    if (args.isEmpty) {
-     run(
-       insertClasspathInArgs(
+     run(insertClasspathInArgs(
          args1,
          List(dottyCompiler, dottyInterfaces, asm, dottyStaging,
            dottyTastyInspector, tastyCore,
@@ -7407,12 +7395,12 @@ object a:
 object a:
    lazy val `stdlib-bootstrapped` = project.in(
      file("stdlib-bootstrapped")).
-   withCommonSettings(Bootstrapped).
-   dependsOn(dottyCompiler(
-     Bootstrapped) % "provided; compile->runtime; test->test").
-   settings(
-     moduleName := "scala-library"
-   )
+     withCommonSettings(Bootstrapped).
+     dependsOn(dottyCompiler(Bootstrapped) %
+       "provided; compile->runtime; test->test").
+     settings(
+       moduleName := "scala-library"
+     )
 <<< #4133 overflow selects/applies, nobreak-dot-nobreak, binpack + !dangling
 maxColumn = 70
 binPack.preset = always
@@ -7424,12 +7412,12 @@ object a:
     )
 >>>
 object a:
-   lazy val `stdlib-bootstrapped` = project.in(
-     file("stdlib-bootstrapped")).withCommonSettings(
-     Bootstrapped).dependsOn(dottyCompiler(
-     Bootstrapped) % "provided; compile->runtime; test->test").settings(
-     moduleName := "scala-library"
-   )
+   lazy val `stdlib-bootstrapped` =
+     project.in(file("stdlib-bootstrapped")).withCommonSettings(
+       Bootstrapped).dependsOn(dottyCompiler(Bootstrapped) %
+       "provided; compile->runtime; test->test").settings(
+       moduleName := "scala-library"
+     )
 <<< #4133 overflow selects/applies, break-dot-nobreak, binpack + !dangling
 maxColumn = 70
 binPack.preset = always
@@ -7447,8 +7435,8 @@ object a:
    lazy val `stdlib-bootstrapped` = project.in(
      file("stdlib-bootstrapped"))
      .withCommonSettings(Bootstrapped)
-     .dependsOn(dottyCompiler(
-       Bootstrapped) % "provided; compile->runtime; test->test")
+     .dependsOn(dottyCompiler(Bootstrapped) %
+       "provided; compile->runtime; test->test")
      .settings(
        moduleName := "scala-library"
      )
@@ -7550,9 +7538,8 @@ object a:
        prevCtx: Context
    )(using Context): Type =
 
-     if Feature.enabled(
-          Feature.relaxedExtensionImports
-        ) && altImports != null && ctx.isImportContext
+     if Feature.enabled(Feature.relaxedExtensionImports) &&
+        altImports != null && ctx.isImportContext
      then
         val curImport = ctx.importInfo.uncheckedNN
         namedImportRef(curImport) match
@@ -7628,15 +7615,15 @@ processTreeOpt(s) { s match
 processTreeOpt(s) {
   s match
      case td: TypeDef
-         if !td.symbol.flags.is(Flags.Synthetic) && (!td.symbol.flags.is(
-           Flags.Case
-         ) || !td.symbol.flags.is(Flags.Enum)) =>
+         if !td.symbol.flags.is(Flags.Synthetic) &&
+           (!td.symbol.flags.is(Flags.Case) ||
+             !td.symbol.flags.is(Flags.Enum)) =>
        Some(parseTypeDef(td, c))
 
      case vd: ValDef
-         if !isSyntheticField(vd.symbol) && (!vd.symbol.flags.is(
-           Flags.Case
-         ) || !vd.symbol.flags.is(Flags.Enum)) =>
+         if !isSyntheticField(vd.symbol) &&
+           (!vd.symbol.flags.is(Flags.Case) ||
+             !vd.symbol.flags.is(Flags.Enum)) =>
        Some(parseValDef(c, vd))
 
      case c: ClassDef if c.symbol.shouldDocumentClasslike =>
@@ -7858,10 +7845,10 @@ object Build {
     settings(
       generateScalaDocumentation := Def.inputTaskDyn {
         val outputDirOverride = extraArgs.headOption.fold(identity[GenerationConfig](_))(newDir => {
-          config: GenerationConfig => config.add(OutputDir(newDir))
+          (config: GenerationConfig) => config.add(OutputDir(newDir))
         })
         val justAPI = justAPIArg.fold(identity[GenerationConfig](_))(_ => {
-          config: GenerationConfig => config.remove[SiteRoot]
+          (config: GenerationConfig) => config.remove[SiteRoot]
         })
       }.evaluated,
     )
@@ -7869,17 +7856,17 @@ object Build {
 >>>
 object Build:
    lazy val scaladoc = project.in(file("scaladoc")).
-   settings(
-     generateScalaDocumentation := Def.inputTaskDyn {
-       val outputDirOverride =
-         extraArgs.headOption.fold(identity[GenerationConfig](_)) { newDir =>
-           config: GenerationConfig => config.add(OutputDir(newDir))
-         }
-       val justAPI = justAPIArg.fold(identity[GenerationConfig](_)) { _ =>
-         config: GenerationConfig => config.remove[SiteRoot]
-       }
-     }.evaluated
-   )
+     settings(
+       generateScalaDocumentation := Def.inputTaskDyn {
+         val outputDirOverride =
+           extraArgs.headOption.fold(identity[GenerationConfig](_))(newDir =>
+             (config: GenerationConfig) => config.add(OutputDir(newDir))
+           )
+         val justAPI = justAPIArg.fold(identity[GenerationConfig](_))(_ =>
+           (config: GenerationConfig) => config.remove[SiteRoot]
+         )
+       }.evaluated
+     )
 <<< AvoidInfix with match, excludeMatch
 rewrite.rules = [AvoidInfix]
 rewrite.avoidInfix.excludeMatch = true
@@ -8008,46 +7995,6 @@ object a:
    b.c match
       case d if e => f
       // comment
-<<< implicit parameter type conversion with "into" modifier 1
-runner.dialect = scala3future
-===
-object a:
-  def ++ (elems: into IterableOnce[A]): List[A]
->>>
-object a:
-   def ++(elems: into IterableOnce[A]): List[A]
-<<< implicit parameter type conversion with "into" modifier 2
-runner.dialect = scala3future
-===
-object a:
-  def ++ (elems: => into IterableOnce[A]): List[A]
->>>
-object a:
-   def ++(elems: => into IterableOnce[A]): List[A]
-<<< implicit parameter type conversion with "into" modifier 3
-runner.dialect = scala3future
-===
-object a:
-  def flatMap[B](f: into A => IterableOnce[B]): List[B]
->>>
-object a:
-   def flatMap[B](f: into A => IterableOnce[B]): List[B]
-<<< implicit parameter type conversion with "into" modifier 4
-runner.dialect = scala3future
-===
-object a:
-  def flatMap[B](f: A => into IterableOnce[B]): List[B]
->>>
-object a:
-   def flatMap[B](f: A => into IterableOnce[B]): List[B]
-<<< implicit parameter type conversion with "into" modifier 5
-runner.dialect = scala3future
-===
-object a:
-  def concatAll(xss: (into IterableOnce[Char])*): List[Char]
->>>
-object a:
-   def concatAll(xss: (into IterableOnce[Char])*): List[Char]
 <<< pure type functions 1
 runner.dialect = scala3future
 ===
@@ -8152,6 +8099,12 @@ object a:
 >>>
 object a:
    def func(f: ->{a, b, c} B): Unit
+<<< #5112 capability capture checking 7
+runner.dialect = scala3future
+===
+def foo[A^] = ???
+>>>
+def foo[A^] = ???
 <<< #4133 select with braced apply and single function arg, within interpolation
 maxColumn = 70
 rewrite.rules = [RedundantBraces]
@@ -8282,18 +8235,18 @@ rewrite.rules = [RedundantBraces, RedundantParens]
 ===
 val privateFlag = !sym.isClass && (sym.is(Private) || (sym.isPrimaryConstructor && sym.owner.isTopLevelModuleClass))
 >>>
-val privateFlag = !sym.isClass && (sym.is(
-  Private
-) || (sym.isPrimaryConstructor && sym.owner.isTopLevelModuleClass))
+val privateFlag = !sym.isClass &&
+  (sym.is(Private) ||
+    (sym.isPrimaryConstructor && sym.owner.isTopLevelModuleClass))
 <<< do not rewrite infix to braces
 rewrite.redundantBraces.oneStatApply.bracesMinSpan = 1
 rewrite.rules = [RedundantBraces, RedundantParens]
 ===
 val privateFlag = !sym.isClass && (sym.is(Private) || (sym.isPrimaryConstructor && sym.owner.isTopLevelModuleClass))
 >>>
-val privateFlag = !sym.isClass && (sym.is {
-  Private
-} || (sym.isPrimaryConstructor && sym.owner.isTopLevelModuleClass))
+val privateFlag = !sym.isClass &&
+  (sym.is { Private } ||
+    (sym.isPrimaryConstructor && sym.owner.isTopLevelModuleClass))
 <<< rewrite infix function to braces
 rewrite.redundantBraces.oneStatApply.bracesMinSpan = 1
 rewrite.rules = [RedundantBraces, RedundantParens]
@@ -8383,10 +8336,9 @@ object a {
 object a {
   sortedRegionEntries.zipWithIndex.collectFirst {
     case (RegionEntry(region, _, shards), i)
-        if shards.contains { neighbor } && shards.size < optimalNumberOfShards(
-          i,
-          sortedRegionEntries.size
-        ) + overfill =>
+        if shards.contains { neighbor } &&
+          shards.size <
+          optimalNumberOfShards(i, sortedRegionEntries.size) + overfill =>
       region
   }
 }
@@ -8629,9 +8581,8 @@ object Foo {
   def newStyle: Traverse[Option] & MonadError[Option, Unit] &
     Alternative[Option] & CommutativeMonad[Option] & CoflatMap[Option] &
     Align[Option] =
-    Traverse[Option] & MonadError[Option, Unit] & Alternative[
-      Option
-    ] & CommutativeMonad[Option] & CoflatMap[Option] & Align[Option]
+    Traverse[Option] & MonadError[Option, Unit] & Alternative[Option] &
+      CommutativeMonad[Option] & CoflatMap[Option] & Align[Option]
 }
 <<< grouped context bounds: before = always, within = always
 runner.parser = source
@@ -9249,3 +9200,161 @@ object a:
       line1
 
       line2
+<<< #5111
+runner.dialect = scala3future
+===
+val foo: Int ?->{a} List[Int] = _ ?=> List(1, 2, 3)
+>>>
+val foo: Int ?->{a} List[Int] = _ ?=> List(1, 2, 3)
+<<< trailing comment in case body, indent more, body empty
+comments.indentTrailingInCaseBody = more
+===
+foo match {
+  case bar =>
+    // bar1
+
+    // bar2
+  case baz =>
+    // baz1
+
+    // baz2
+
+  case qux =>
+    // qux1
+  case quux =>
+    // quux1
+
+    // quux2
+}
+>>>
+foo match {
+  case bar =>
+    // bar1
+
+  // bar2
+  case baz =>
+    // baz1
+
+    // baz2
+
+  case qux =>
+    // qux1
+  case quux =>
+    // quux1
+
+    // quux2
+}
+<<< trailing comment in case body, indent less, body empty
+comments.indentTrailingInCaseBody = less
+===
+foo match {
+  case bar =>
+    // bar1
+
+    // bar2
+  case baz =>
+    // baz1
+
+    // baz2
+
+  case qux =>
+    // qux1
+  case quux =>
+    // quux1
+
+    // quux2
+}
+>>>
+foo match {
+  case bar =>
+    // bar1
+
+  // bar2
+  case baz =>
+    // baz1
+
+  // baz2
+
+  case qux =>
+    // qux1
+  case quux =>
+    // quux1
+
+  // quux2
+}
+<<< trailing comment in case body, indent more, body one line
+comments.indentTrailingInCaseBody = more
+===
+foo match {
+  case bar => bbar
+    // bar1
+
+    // bar2
+  case baz => bbaz
+    // baz1
+
+    // baz2
+
+  case qux => bqux
+    // qux1
+  case quux => bquux
+    // quux1
+
+    // quux2
+}
+>>>
+foo match {
+  case bar => bbar
+    // bar1
+
+  // bar2
+  case baz => bbaz
+    // baz1
+
+    // baz2
+
+  case qux => bqux
+    // qux1
+  case quux => bquux
+    // quux1
+
+    // quux2
+}
+<<< trailing comment in case body, indent less, body one line
+comments.indentTrailingInCaseBody = less
+===
+foo match {
+  case bar => bbar
+    // bar1
+
+    // bar2
+  case baz => bbaz
+    // baz1
+
+    // baz2
+
+  case qux => bqux
+    // qux1
+  case quux => bquux
+    // quux1
+
+    // quux2
+}
+>>>
+foo match {
+  case bar => bbar
+    // bar1
+
+  // bar2
+  case baz => bbaz
+    // baz1
+
+  // baz2
+
+  case qux => bqux
+    // qux1
+  case quux => bquux
+    // quux1
+
+  // quux2
+}

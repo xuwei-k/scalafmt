@@ -157,3 +157,487 @@ else if ('A' <= c && c <= 'F') {
 } else if ('a' <= c && c <= 'f') {
   c - 'a' + 10
 } else { -1 }
+<<< insert braces in if-else, last qualifies
+newlines.source = keep
+maxColumn = 80
+rewrite.insertBraces {
+  settings.minBreaks = 1
+  allBlocks = true
+}
+===
+if (cfoo)
+  tfoo
+else if (cbar)
+  tbar
+else if (cbaz)
+  tbaz
+else {
+  qux
+  quux
+}
+>>>
+if (cfoo) {
+  tfoo
+} else if (cbar) {
+  tbar
+} else if (cbaz) {
+  tbaz
+} else {
+  qux
+  quux
+}
+<<< insert braces in if-else, first qualifies
+newlines.source = keep
+maxColumn = 80
+rewrite.insertBraces {
+  settings.minBreaks = 1
+  allBlocks = true
+}
+===
+if (cfoo) {
+  tfoo1
+  tfoo2
+}
+else if (cbar)
+  tbar
+else if (cbaz)
+  tbaz
+else
+  qux
+>>>
+if (cfoo) {
+  tfoo1
+  tfoo2
+} else if (cbar) {
+  tbar
+} else if (cbaz) {
+  tbaz
+} else {
+  qux
+}
+<<< insert braces in if-else, multiline cond first
+newlines.source = keep
+maxColumn = 80
+rewrite.insertBraces {
+  allBlocks = true
+  settings {
+    minBreaks = 1
+    nonBlocksMinBreaks = 1
+  }
+}
+===
+if (
+  cfoo1 &&
+  cfoo2
+)
+  tfoo
+else if (cbar)
+  tbar
+else if (cbaz)
+  tbaz
+else
+  qux
+>>>
+if (
+    cfoo1 &&
+    cfoo2
+) {
+  tfoo
+} else if (cbar) {
+  tbar
+} else if (cbaz) {
+  tbaz
+} else {
+  qux
+}
+<<< insert braces in if-else, multiline cond last
+newlines.source = keep
+maxColumn = 80
+rewrite.insertBraces {
+  allBlocks = true
+  settings {
+    minBreaks = 1
+    nonBlocksMinBreaks = 1
+  }
+}
+===
+if (cfoo1)
+  tfoo
+else if (cbar)
+  tbar
+else if (
+  cbaz1 &&
+  cbaz2
+)
+  tbaz
+else
+  qux
+>>>
+if (cfoo1) {
+  tfoo
+} else if (cbar) {
+  tbar
+} else if (
+    cbaz1 &&
+    cbaz2
+) {
+  tbaz
+} else {
+  qux
+}
+<<< insert braces in if-else, last qualifies, using then
+newlines.source = keep
+runner.dialect = scala3
+maxColumn = 80
+rewrite.insertBraces {
+  settings.minBreaks = 1
+  allBlocks = true
+}
+===
+if cfoo then
+  tfoo
+else if cbar then
+  tbar
+else if cbaz then
+  tbaz
+else
+  qux
+  quux
+>>>
+if cfoo then {
+  tfoo
+} else if cbar then {
+  tbar
+} else if cbaz then {
+  tbaz
+} else {
+  qux
+  quux
+}
+<<< insert braces in if-else, first qualifies, using then
+newlines.source = keep
+runner.dialect = scala3
+maxColumn = 80
+rewrite.insertBraces {
+  settings.minBreaks = 1
+  allBlocks = true
+}
+===
+if cfoo then
+  tfoo1
+  tfoo2
+else if cbar then
+  tbar
+else if cbaz then
+  tbaz
+else
+  qux
+>>>
+if cfoo then {
+  tfoo1
+  tfoo2
+} else if cbar then {
+  tbar
+} else if cbaz then {
+  tbaz
+} else {
+  qux
+}
+<<< insert braces in if-else, last qualifies, using then and parens
+newlines.source = keep
+runner.dialect = scala3
+maxColumn = 80
+rewrite.insertBraces {
+  settings.minBreaks = 1
+  allBlocks = true
+}
+===
+if (cfoo) then
+  tfoo
+else if (cbar) then
+  tbar
+else if (cbaz) then
+  tbaz
+else
+  qux
+  quux
+>>>
+if (cfoo) then {
+  tfoo
+} else if (cbar) then {
+  tbar
+} else if (cbaz) then {
+  tbaz
+} else {
+  qux
+  quux
+}
+<<< insert braces in if-else, first qualifies, using then and parens
+newlines.source = keep
+runner.dialect = scala3
+maxColumn = 80
+rewrite.insertBraces {
+  settings.minBreaks = 1
+  allBlocks = true
+}
+===
+if (cfoo) then
+  tfoo1
+  tfoo2
+else if (cbar) then
+  tbar
+else if (cbaz) then
+  tbaz
+else
+  qux
+>>>
+if (cfoo) then {
+  tfoo1
+  tfoo2
+} else if (cbar) then {
+  tbar
+} else if (cbaz) then {
+  tbaz
+} else {
+  qux
+}
+<<< insert braces in if-else, first qualifies with comments
+newlines.source = keep
+maxColumn = 80
+rewrite.insertBraces {
+  settings.minBreaks = 1
+  allBlocks = true
+}
+===
+if (cfoo)
+  // tfoo1
+  tfoo2
+else if (cbar)
+  tbar
+else if (cbaz)
+  tbaz
+else
+  qux
+>>>
+if (cfoo) {
+  // tfoo1
+  tfoo2
+} else if (cbar) {
+  tbar
+} else if (cbaz) {
+  tbaz
+} else {
+  qux
+}
+<<< insert braces in if-else, last qualifies with comments
+newlines.source = keep
+maxColumn = 80
+rewrite.insertBraces {
+  settings.minBreaks = 1
+  allBlocks = true
+}
+===
+if (cfoo)
+  tfoo1
+else if (cbar)
+  tbar
+else if (cbaz)
+  tbaz
+else
+  // qux
+  quux
+>>>
+if (cfoo) {
+  tfoo1
+} else if (cbar) {
+  tbar
+} else if (cbaz) {
+  tbaz
+} else {
+  // qux
+  quux
+}
+<<< insert braces in if-else, first qualifies, count break before
+newlines.source = keep
+maxColumn = 80
+rewrite.insertBraces {
+  settings.minBreaks = 2
+  allBlocks = true
+  overrideFor = [{
+    owner = [{ parents = ["Term.If", "Nothing"] }]
+    countBreakBefore = true
+  }]
+}
+===
+if (cfoo)
+  // tfoo1
+  tfoo2
+else if (cbar)
+  tbar
+else if (cbaz)
+  tbaz
+else
+  qux
+>>>
+if (cfoo) {
+  // tfoo1
+  tfoo2
+} else if (cbar) {
+  tbar
+} else if (cbaz) {
+  tbaz
+} else {
+  qux
+}
+<<< insert braces in if-else, last qualifies, count break before
+newlines.source = keep
+maxColumn = 80
+rewrite.insertBraces {
+  settings.minBreaks = 2
+  allBlocks = true
+  overrideFor = [{
+    owner = [{ parents = ["Term.If", "Nothing"] }]
+    countBreakBefore = true
+  }]
+}
+===
+if (cfoo)
+  tfoo1
+else if (cbar)
+  tbar
+else if (cbaz)
+  tbaz
+else
+  // qux
+  quux
+>>>
+if (cfoo) {
+  tfoo1
+} else if (cbar) {
+  tbar
+} else if (cbaz) {
+  tbaz
+} else {
+  // qux
+  quux
+}
+<<< insert braces around if-else as def body or assign
+newlines.source = keep
+maxColumn = 80
+rewrite.insertBraces {
+  settings.minBreaks = 1
+  allBlocks = true
+  overrideFor = [{
+    owner = [{ regex = "Term.If", parents = ["Defn.Def", "Term.Assign"] }]
+    minBreaks = 2
+  }]
+}
+===
+object a {
+  def foo =
+    if (a) b
+    else c
+
+  val foo =
+    if (a) b
+    else c
+
+  var foo =
+    if (a) b
+    else c
+
+  foo =
+    if (a) b
+    else c
+}
+>>>
+object a {
+  def foo =
+    if (a) b
+    else c
+
+  val foo = {
+    if (a) b
+    else c
+  }
+
+  var foo = {
+    if (a) b
+    else c
+  }
+
+  foo =
+    if (a) b
+    else c
+}
+<<< insert braces in try-catch with multiple cases
+newlines.source = keep
+rewrite.insertBraces {
+  settings.minBreaks = 2
+  allBlocks = true
+}
+===
+try
+  foo
+catch {
+   case bar => baz
+   case qux => quux
+} finally
+  xyzzy
+>>>
+try {
+  foo
+} catch {
+  case bar => baz
+  case qux => quux
+} finally {
+  xyzzy
+}
+<<< insert braces in try-catch handler, multiple in finally
+newlines.source = keep
+rewrite.insertBraces {
+  settings.minBreaks = 1
+  allBlocks = true
+}
+===
+try
+  foo
+catch
+  handler
+finally {
+  bar
+  baz
+}
+>>>
+try {
+  foo
+} catch {
+  handler
+} finally {
+  bar
+  baz
+}
+<<< insert braces in try-catch handler, multiple in try
+newlines.source = keep
+rewrite.insertBraces {
+  settings.minBreaks = 1
+  allBlocks = true
+}
+===
+try {
+  foo
+  bar
+}
+catch
+  handler
+finally
+  baz
+>>>
+try {
+  foo
+  bar
+} catch {
+  handler
+} finally {
+  baz
+}

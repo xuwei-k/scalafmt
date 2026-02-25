@@ -48,8 +48,8 @@ class FormatWriter(formatOps: FormatOps) {
             .formatMarginized(totalAlignShift)
         case _: T.Constant.Int => LiteralOps.prettyPrintInteger(ltext)
         case _: T.Constant.Long => LiteralOps.prettyPrintInteger(ltext)
-        case _: T.Constant.Float => LiteralOps.prettyPrintFloat(ltext)
-        case _: T.Constant.Double => LiteralOps.prettyPrintDouble(ltext)
+        case t: T.Constant.Float => LiteralOps.prettyPrintFloat(t, ltext)
+        case t: T.Constant.Double => LiteralOps.prettyPrintDouble(t, ltext)
         case _ =>
           val syntax = Option(location.replace).getOrElse(ltext)
           sb.append(style.rewrite.tokens.getOrElse(syntax, syntax))
@@ -59,8 +59,8 @@ class FormatWriter(formatOps: FormatOps) {
         .foreach { case (indent, owner) =>
           val label = getEndMarkerLabel(owner)
           if (label != null) {
-            val numBlanks = locations
-              .getBlanks(owner, owner, locations.getNest(owner))
+            val (nest, isTop) = locations.getNest(owner.parent)
+            val numBlanks = locations.getBlanks(owner, owner, nest, isTop)
               .fold(0) { case (blanks, _, last) =>
                 val numBlanks = blanks.beforeEndMarker
                 if (numBlanks > 0) numBlanks
@@ -106,7 +106,7 @@ class FormatWriter(formatOps: FormatOps) {
     var useCRLF = initStyle.lineEndings.fold(-1) {
       case LineEndings.unix => -1
       case LineEndings.windows => 1
-      case LineEndings.preserve => 0
+      case LineEndings.keep => 0
     }
 
     @tailrec
@@ -138,7 +138,7 @@ class FormatWriter(formatOps: FormatOps) {
         if (initStyle.rewrite.scala3.endMarker.insertMinSpan > 0)
           checkInsertEndMarkers(result)
       }
-      if (initStyle.rewrite.insertBraces.minLines > 0) checkInsertBraces(result)
+      if (initStyle.rewrite.insertBraces.isEnabled) checkInsertBraces(result)
       if (initStyle.rewrite.bracesToParensForOneLineApply)
         replaceRedundantBraces(result)
     }
@@ -325,6 +325,7 @@ class FormatWriter(formatOps: FormatOps) {
     }
 
   private def checkInsertBraces(locations: Array[FormatLocation]): Unit = {
+    import RewriteSettings.InsertBraces._
     def checkInfix(tree: Tree): Boolean = tree match {
       case ai: Term.ApplyInfix => isEnclosedWithinParens(ai) ||
         prevNonCommentSameLine(tokenJustBefore(ai.op)).noBreak &&
@@ -364,32 +365,44 @@ class FormatWriter(formatOps: FormatOps) {
         case _ => true
       }
       implicit val style = floc.style
-      val ib = style.rewrite.insertBraces
+      implicit val ib = style.rewrite.insertBraces
       val ft = floc.formatToken
-      val ok = !ft.meta.formatOff && ib.minLines > 0 &&
+      val ok = !ft.meta.formatOff && ib.isEnabled && hasBreakAfter(idx) &&
         (!style.rewrite.scala3.removeOptionalBraces.enabled &&
           style.indent.main == style.indent.getSignificant ||
           !OptionalBraces.at(ft)) && floc.missingBracesIndent.isEmpty
       val mb =
-        if (ok) MissingBraces.getBlocks(ft, ib.allBlocks)
-          .filter { case (y, _) =>
-            checkInfix(y) && hasBreakAfter(idx) && noAnnoFor(y)
-          }
+        if (ok) MissingBraces.getBlocks(ft)
+          .filter(res => checkInfix(res.tree) && noAnnoFor(res.tree))
         else None
-      mb.foreach { case (owner, otherBlocks) =>
+      mb.foreach { case MissingBraces.Result(owner, otherBlocks, nonBlocks) =>
         val endFt = nextNonCommentSameLine(getLast(owner))
         val end = endFt.meta.idx
         val eLoc = locations(end)
         val begIndent = floc.state.prev.indentation
-        def checkSpan: Boolean =
-          getLineDiff(floc, eLoc) + addedLines >= ib.minLines ||
-            otherBlocks.exists { case (b, e) =>
-              val bIdx = tokenJustBefore(b).meta.idx
-              val eIdx = getLast(e).meta.idx
-              val span = getLineDiff(locations(bIdx), locations(eIdx))
-              ib.minLines <=
-                (if (bIdx <= idx && eIdx > idx) span + addedLines else span)
-            }
+        def checkOtherSpan(fMinSpan: Settings => Int)(
+            ranges: MissingBraces.AllRanges,
+        ): Boolean = ranges.exists { case (b, e) =>
+          val settings = ib.settingsFor(b)
+          val minSpan = fMinSpan(settings)
+          minSpan > 0 && {
+            val bft = tokenBefore(b)
+            val bIdx =
+              if (settings.countBreakBefore) bft.idx
+              else nextNonCommentSameLine(bft).meta.idx + 1
+            val eIdx = getLast(e).meta.idx
+            val span = getLineDiff(locations(bIdx), locations(eIdx))
+            minSpan <=
+              (if (bIdx <= idx && eIdx > idx) span + addedLines else span)
+          }
+        }
+        def checkSpan: Boolean = {
+          val settings = ib.settingsFor(owner)
+          val diff = getLineDiff(floc, eLoc) + addedLines - settings.minBreaks
+          (if (settings.countBreakBefore) diff >= 0 else diff > 0) ||
+          checkOtherSpan(_.minBreaks)(otherBlocks) ||
+          checkOtherSpan(_.getNonBlocksMinBreaks)(nonBlocks)
+        }
         if (
           !endFt.meta.formatOff && eLoc.hasBreakAfter &&
           !eLoc.missingBracesIndent.contains(begIndent) && checkSpan
@@ -624,7 +637,7 @@ class FormatWriter(formatOps: FormatOps) {
       private def formatDocstring(
           text: String,
       )(implicit sb: StringBuilder): Unit =
-        if (style.docstrings.style eq Docstrings.Preserve) sb.append(text)
+        if (style.docstrings.style eq Docstrings.keep) sb.append(text)
         else if (!formatOnelineDocstring(text)) new FormatMlDoc(text).format()
 
       private abstract class FormatCommentBase(
@@ -795,13 +808,17 @@ class FormatWriter(formatOps: FormatOps) {
           } else {
             val matcher = RegexCompat.leadingAsteriskSpace.matcher(text)
             var pos = 0
+            def append(): Unit = sb.add(text, pos, matcher.start()).append(eol)
             while (matcher.find()) {
-              sb.add(text, pos, matcher.start()).append(eol)
               val end = matcher.end()
               val endMargin = matcher.end(1)
-              if (endMargin == end) // no asterisk
+              if (endMargin == end) { // no asterisk
+                append()
                 pos = if (end < text.length) matcher.start(1) else text.length
-              else { sb.append(spaces); pos = endMargin }
+              } else if (end < text.length && text.charAt(end) != '*') {
+                append()
+                sb.append(spaces); pos = endMargin
+              }
             }
             val lastLength = State.getLineLength(text, pos, text.length)
             sb.add(text, pos, pos + lastLength)
@@ -978,8 +995,18 @@ class FormatWriter(formatOps: FormatOps) {
               word.charAt(0) == '@' && State.nonSpace(word.charAt(1)) || // tag
               word.startsWith("=") || // heading
               word.startsWith("|") || word.startsWith("+-") || // table
-              word == "-" || // list, this and next
-              word.length == 2 && word(1) == '.' && "1aiI".contains(word(0))
+              word == "-" || { // list, this and next
+                val idx = word.length - 1
+                idx > 0 && word(idx) == '.' && {
+                  def chars() = word.iterator.take(idx) // each time new iter
+                  idx == 1 && Character.isLowerCase(word(0)) || // allows `{a-z}.`
+                  idx <= 2 && chars().forall(Character.isDigit) || // allows `{1-99}.`
+                  idx <= 3 && chars().forall { ch => // allows `{i-x}.` using roman numerals
+                    val lch = Character.toLowerCase(ch)
+                    lch == 'i' || lch == 'v' || lch == 'x'
+                  }
+                }
+              }
 
           val wf = new WordFormatter(appendBreak, termIndent, likeNonText)
           val wordIter = text.parts.iterator.buffered
@@ -1200,7 +1227,8 @@ class FormatWriter(formatOps: FormatOps) {
           def processLineEnd(
               wasSlc: Boolean,
           )(implicit floc: FormatLocation): Unit = {
-            val isBlankLine = floc.state.mod.isBlankLine
+            val isBlankLine = floc.state.mod.isBlankLine ||
+              extraBlankTokens.contains(floc.formatToken.idx)
             if (alignContainer ne null) {
               val candidates = columnCandidates.result()
               val block = getOrCreateBlock(alignContainer)
@@ -1438,6 +1466,7 @@ class FormatWriter(formatOps: FormatOps) {
 
     lazy val extraBlankTokens = {
       val extraBlankMap = new mutable.HashMap[Int, Int]
+      val allowNonTop = initStyle.newlines.allowNonTopStatBlankLines
       def setIdx(idx: Int, cnt: Int) = extraBlankMap.updateWith(idx) {
         case Some(v) if v > cnt => Some(v)
         case _ => Some(cnt)
@@ -1453,7 +1482,7 @@ class FormatWriter(formatOps: FormatOps) {
       def setTopStats(owner: Tree, notUnindentedPkg: Boolean)(
           stats: Seq[Tree],
       ): Unit = {
-        val nest = getNest(stats.head)
+        val (nest, isTop) = getNest(Some(owner))
         if (nest < 0) return
         val end = owner.pos.end
         def setStat(
@@ -1474,8 +1503,9 @@ class FormatWriter(formatOps: FormatOps) {
             stat: Tree,
             statLast: Tree,
             isLast: Boolean,
-        ): Option[(Int, Newlines.NumBlanks)] = getBlanks(stat, statLast, nest)
-          .map { case (x, head, last) =>
+        ): Option[(Int, Newlines.NumBlanks)] = {
+          val blanksWithEnds = getBlanks(stat, statLast, nest, isTop)
+          blanksWithEnds.map { case (x, head, last) =>
             val beforeCnt = blanksBefore(x, notUnindentedPkg && idx == 0)
             val beforeFt = leadingComment(head)
             setFtCheck(beforeFt, beforeCnt, head eq beforeFt)
@@ -1485,6 +1515,7 @@ class FormatWriter(formatOps: FormatOps) {
             setIdxCheck(lastIdx, afterCnt, last eq afterFt)
             (lastIdx, x)
           }
+        }
         def setEndMarker(
             stat: Term.EndMarker,
             prevIdx: Int,
@@ -1525,12 +1556,12 @@ class FormatWriter(formatOps: FormatOps) {
               }
               if (!isLast) Some((idxHead, head, t))
               else {
-                setStats(idxHead, head, t, true)
+                setStats(idxHead, head, t, isLast = true)
                 None
               }
             case _ =>
               imports.foreach { case (idxHead, head, last) =>
-                setStats(idxHead, head, last, false)
+                setStats(idxHead, head, last, isLast = false)
               }
               None
           }
@@ -1571,7 +1602,8 @@ class FormatWriter(formatOps: FormatOps) {
         }
         override def apply(tree: Tree): Unit = tree match {
           case t: Source => applySeq(t)(t.stats)
-          case t: Template => applySeqWith(t)(t.body.stats) { stats =>
+          case t: Stat.WithTemplate => apply(t.templ)
+          case t: Template => applySeqWith(t.body)(t.body.stats) { stats =>
               beforeBody(stats)(_.beforeTemplateBodyIfBreakInParentCtors && {
                 val beg = leadingComment(t).meta.idx
                 val end = templateCurlyOrLastNonTrivial(t).meta.idx
@@ -1579,6 +1611,7 @@ class FormatWriter(formatOps: FormatOps) {
               })
               afterBody(t, stats)
             }
+          case _: Template.Body => // it was processed above
           case t: Defn.ExtensionGroup => applySeqWith(t)(t.body match {
               case b: Term.Block => b.stats
               case b => List(b)
@@ -1586,21 +1619,22 @@ class FormatWriter(formatOps: FormatOps) {
               beforeBody(stats)(_ => false)
               afterBody(t, stats)
             }
-          case t: Pkg =>
-            if (indentedPackage(t)) applySeqWith(t)(t.body.stats) { stats =>
+          case t: Pkg => apply(t.body)
+          case t: Pkg.Body =>
+            if (indentedPackage(t)) applySeqWith(t)(t.stats) { stats =>
               beforeBody(stats)(_ => false)
               afterBody(t, stats)
             }
-            else
-              applySeqWith(t, notUnindentedPkg = false)(t.body.stats) { stats =>
-                val ok = stats.head match {
-                  case t: Pkg => indentedPackage(t)
-                  case _ => true
-                }
-                if (ok) beforeBody(stats)(_.hasTopStatBlankLines)
+            else applySeqWith(t, notUnindentedPkg = false)(t.stats) { stats =>
+              val ok = stats.head match {
+                case t: Pkg => indentedPackage(t)
+                case _ => true
               }
-          case t: Stat.WithTemplate => apply(t.templ)
-          case _ => // everything else is not "top-level"
+              if (ok) beforeBody(stats)(_.hasTopStatBlankLines)
+            }
+          case _ if !allowNonTop => // everything else is not "top-level"
+          case t: Tree.Block => applySeq(t)(t.stats)
+          case _ => super.apply(tree)
         }
       }
 
@@ -1609,18 +1643,28 @@ class FormatWriter(formatOps: FormatOps) {
     }
 
     @tailrec
-    final def getNest(tree: Tree, curNest: Int = 0): Int = tree.parent match {
-      case Some(_: Source) | None => curNest
-      case Some(t: Pkg.Body) =>
-        if (indentedPackage(t)) getNest(t, curNest) else curNest
-      case Some(t @ (_: Template | _: Template.Body)) => getNest(t, curNest)
-      case Some(t) => getNest(t, curNest + 1)
+    final def getNest(
+        parent: Option[Tree],
+        curNest: Int = 0,
+        isTop: Boolean = true,
+    ): (Int, Boolean) = parent match {
+      case Some(_: Source) | None => (curNest, isTop)
+      case Some(t: Tree.Block) => getNest(t.parent, curNest, isTop)
+      case Some(t: Pkg) =>
+        if (!indentedPackage(t)) (curNest, isTop)
+        else getNest(t.parent, curNest + 1, isTop)
+      case Some(t: Template) => // skip Stat.WithTemplate
+        getNest(t.parent.parent, curNest + 1, isTop)
+      case Some(t @ (_: Defn.ExtensionGroup)) =>
+        getNest(t.parent, curNest + 1, isTop)
+      case Some(t) => getNest(t.parent, curNest + 1, isTop = false)
     }
 
     def getBlanks(
         statHead: Tree,
         statLast: Tree,
         nest: Int,
+        isTop: Boolean,
     ): Option[(Newlines.NumBlanks, FT, FT)] = {
       val head = tokenJustBefore(statHead)
       val last = getLast(statLast)
@@ -1630,6 +1674,7 @@ class FormatWriter(formatOps: FormatOps) {
         numBreaks = getLineDiff(bLoc, eLoc),
         nest = nest,
         blankGaps = getBlankGapsDiff(bLoc, eLoc),
+        isTop = isTop,
       )
       bLoc.style.newlines.getTopStatBlankLines(statHead)(params)
         .map((_, head, last))

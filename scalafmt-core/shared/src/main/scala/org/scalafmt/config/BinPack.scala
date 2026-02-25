@@ -102,15 +102,14 @@ object BinPack {
   private val oneline = BinPack.ctor(Site.Oneline, ParentCtors.Oneline)
   private val onelineSjs = BinPack.ctor(Site.OnelineSjs, ParentCtors.Oneline)
 
-  private val customPresets = ReaderUtil
-    .Custom(never, always, oneline, onelineSjs)
+  private val customPresets = ConfEnum(never, always, oneline, onelineSjs)
 
-  implicit val decoder: ConfDecoderEx[BinPack] = Presets
-    .mapDecoder(generic.deriveDecoderEx(never).noTypos, "binPack") {
-      case Conf.Bool(true) => always
-      case Conf.Bool(false) => never
-      case Conf.Str(customPresets(obj)) => obj
-    }
+  implicit val decoder: ConfDecoderEx[BinPack] = Presets.contramapDecoder {
+    case Conf.Bool(true) => Conf.nameOf(always)
+    case Conf.Bool(false) => Conf.nameOf(never)
+  }(generic.deriveDecoderEx(never).noTypos, "binPack") {
+    case Conf.Str(customPresets(obj)) => obj
+  }
 
   sealed abstract class ParentCtors
   object ParentCtors {
@@ -122,7 +121,7 @@ object BinPack {
     case object Oneline extends ParentCtors
     case object OnelineIfPrimaryOneline extends ParentCtors
 
-    implicit val oneOfReader: ConfCodecEx[ParentCtors] = ReaderUtil
+    implicit val oneOfReader: ConfCodecEx[ParentCtors] = ConfCodecEx
       .oneOfCustom[ParentCtors](
         source,
         keep,
@@ -132,8 +131,8 @@ object BinPack {
         Oneline,
         OnelineIfPrimaryOneline,
       ) {
-        case Conf.Bool(true) => Configured.ok(Always)
-        case Conf.Bool(false) => Configured.ok(Never)
+        case Conf.Bool(true) => Conf.nameOf(Always)
+        case Conf.Bool(false) => Conf.nameOf(Never)
       }
 
   }
@@ -155,10 +154,10 @@ object BinPack {
       def isOneline: Boolean = true
     }
 
-    implicit val oneOfReader: ConfCodecEx[Site] = ReaderUtil
+    implicit val oneOfReader: ConfCodecEx[Site] = ConfCodecEx
       .oneOfCustom[Site](Never, Always, Oneline, OnelineSjs) {
-        case Conf.Bool(true) => Configured.ok(Always)
-        case Conf.Bool(false) => Configured.ok(Never)
+        case Conf.Bool(true) => Conf.nameOf(Always)
+        case Conf.Bool(false) => Conf.nameOf(Never)
       }
   }
 

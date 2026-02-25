@@ -1,6 +1,6 @@
 package org.scalafmt.rewrite
 
-import org.scalafmt.config.{ReaderUtil, RewriteSettings, ScalafmtConfig}
+import org.scalafmt.config.{RewriteSettings, ScalafmtConfig}
 import org.scalafmt.util.{TokenOps, TokenTraverser, TreeOps}
 
 import scala.meta.tokens.{Token => T}
@@ -18,22 +18,19 @@ case class RewriteCtx(style: ScalafmtConfig, input: Input, tree: Tree) {
 
   private val patchBuilder = mutable.Map.empty[(Int, Int), TokenPatch]
 
-  val tokens = tree.tokens
+  val tokens: Tokens = tree.tokens
   val tokenTraverser = new TokenTraverser(tokens, input)(style)
-  val matchingParens = TreeOps
+  private val matchingParens = TreeOps
     .getMatchingParentheses(tokens)(TokenOps.hash)(identity)
-
-  @inline
-  def getMatching(a: T): T = matchingParens(TokenOps.hash(a))
 
   @inline
   def getMatchingOpt(a: T): Option[T] = matchingParens.get(TokenOps.hash(a))
 
   @inline
-  def isMatching(a: T, b: => T) = getMatchingOpt(a).exists(_ eq b)
+  def isMatching(a: T, b: => T): Boolean = getMatchingOpt(a).exists(_ eq b)
 
   @inline
-  def getIndex(token: T) = tokenTraverser.getIndex(token)
+  def getIndex(token: T): Int = tokenTraverser.getIndex(token)
 
   def applyPatches: String = tokens.iterator
     .map(x => patchBuilder.get(lookupKey(x)).fold(x.text)(_.newTok)).mkString
@@ -81,19 +78,13 @@ case class RewriteCtx(style: ScalafmtConfig, input: Input, tree: Tree) {
 trait Rewrite
 
 abstract class RewriteFactory extends Rewrite {
-  def create(implicit ctx: RewriteCtx): RewriteSession
+  def create(implicit ctx: RewriteCtx): Option[RewriteSession]
   def hasChanged(v1: RewriteSettings, v2: RewriteSettings): Boolean = false
 }
 
 abstract class RewriteSession(implicit ctx: RewriteCtx) {
   def rewrite(tree: Tree): Unit
   implicit val dialect: Dialect = ctx.dialect
-}
-
-object RewriteSession {
-  final class None(implicit ctx: RewriteCtx) extends RewriteSession {
-    def rewrite(tree: Tree): Unit = {}
-  }
 }
 
 object Rewrite {
@@ -112,14 +103,14 @@ object Rewrite {
     AvoidInfix,
     SortModifiers,
     RemoveSemicolons,
+    RewriteLiterals,
+    ProcedureSyntax,
   )
 
-  implicit val reader: ConfCodecEx[Rewrite] = ReaderUtil.oneOf(rewrites: _*)
+  implicit val reader: ConfCodecEx[Rewrite] = ConfCodecEx.oneOf(rewrites: _*)
 
   val name2rewrite: Map[String, Rewrite] = rewrites.view
     .map(x => x.source -> x.value).toMap
-  val rewrite2name: Map[Rewrite, String] = name2rewrite.map(_.swap)
-  val available = name2rewrite.keys.mkString(", ")
 
   val default: Seq[Rewrite] = name2rewrite.values.toSeq
 
@@ -129,7 +120,7 @@ object Rewrite {
     else style.runner.parse(input) match {
       case Parsed.Success(ast) =>
         val ctx = RewriteCtx(style, input, ast)
-        val rewriteSessions = rewrites.map(_.create(ctx)).toList
+        val rewriteSessions = rewrites.flatMap(_.create(ctx)).toArray
         val traverser = new SimpleTraverser {
           override def apply(tree: Tree): Unit = {
             rewriteSessions.foreach(_.rewrite(tree))

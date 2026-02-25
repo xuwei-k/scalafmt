@@ -165,8 +165,6 @@ case class Newlines(
     private[config] val beforeOpenParenDefnSite: Option[BeforeOpenParen] = None,
     private[config] val beforeOpenParenCallSite: Option[BeforeOpenParen] = None,
     penalizeSingleSelectMultiArgList: Boolean = true,
-    beforeCurlyLambdaParams: BeforeCurlyLambdaParams =
-      BeforeCurlyLambdaParams.never,
     private val topLevelStatementBlankLines: Seq[TopStatBlanks] = Seq.empty,
     @DeprecatedName(
       "topLevelStatementsMinBreaks",
@@ -183,6 +181,9 @@ case class Newlines(
     beforeTemplateBodyIfBreakInParentCtors: Boolean = false,
     topLevelBodyIfMinStatements: Seq[BeforeAfter] = Seq.empty,
     topLevelBodyMinStatements: Int = 2,
+    private val beforeParenLambdaParams: Option[BeforeCurlyLambdaParams] = None,
+    beforeCurlyLambdaParams: BeforeCurlyLambdaParams =
+      BeforeCurlyLambdaParams.never,
     @ExtraName("afterCurlyLambda")
     afterCurlyLambdaParams: AfterCurlyLambdaParams =
       AfterCurlyLambdaParams.never,
@@ -271,9 +272,8 @@ case class Newlines(
   lazy val avoidForSimpleOverflowSLC: Boolean = avoidForSimpleOverflow
     .contains(AvoidForSimpleOverflow.slc)
 
-  @inline
-  def alwaysBeforeCurlyLambdaParams = beforeCurlyLambdaParams eq
-    BeforeCurlyLambdaParams.always
+  def getBeforeParenLambdaParams = beforeParenLambdaParams
+    .getOrElse(beforeCurlyLambdaParams)
 
   lazy val getBeforeMultiline = beforeMultiline.getOrElse(source)
   lazy val shouldForceBeforeMultilineAssign = forceBeforeMultilineAssign
@@ -292,10 +292,11 @@ case class Newlines(
         if (topLevelStatements.contains(after)) 1 else 0,
       )
       if (nb.isEmpty) Seq.empty
-      else {
-        val pattern = Some("^Pkg|^Defn\\.|^Decl\\.")
-        Seq(TopStatBlanks(pattern, topLevelStatementsMinBreaks, Some(nb)))
-      }
+      else Seq(TopStatBlanks(
+        regex = Some("^Pkg|^Defn\\.|^Decl\\."),
+        minBreaks = topLevelStatementsMinBreaks,
+        blanks = Some(nb),
+      ))
     } else
       /* minBreaks has to come first; since we'll be adding blanks, this could
        * potentially move us into another setting which didn't match before we
@@ -306,14 +307,15 @@ case class Newlines(
 
   @inline
   def hasTopStatBlankLines = topStatBlankLinesSorted.nonEmpty
+  @inline
+  def allowNonTopStatBlankLines = topLevelStatementBlankLines
+    .exists(_.allowNonTop)
 
-  def getTopStatBlankLines(
-      tree: Tree,
-  )(params: TopStatBlanksParams): Option[NumBlanks] = {
-    val prefix = tree.productPrefix
-    topStatBlankLinesSorted.iterator.takeWhile(_.minBreaks <= params.numBreaks)
-      .find(x => x.checkParams(params, prefix)).flatMap(_.blanks)
-  }
+  def getTopStatBlankLines(tree: Tree)(
+      params: TopStatBlanksParams,
+  ): Option[NumBlanks] = topStatBlankLinesSorted.iterator
+    .takeWhile(_.minBreaks <= params.numBreaks)
+    .find(x => x.checkParams(params, tree)).flatMap(_.blanks)
 
   private def getBeforeOpenParen(bop: BeforeOpenParen): SourceHints =
     Option(bop.src).getOrElse(source)
@@ -373,10 +375,10 @@ object Newlines {
 
   object SourceHints {
     // NB: don't allow specifying classic, only by default
-    implicit val codec: ConfCodecEx[SourceHints] = ReaderUtil
+    implicit val codec: ConfCodecEx[SourceHints] = ConfCodecEx
       .oneOfCustom[SourceHints](keep, fold, unfold) {
-        case Conf.Bool(true) => Configured.Ok(unfold)
-        case Conf.Bool(false) => Configured.Ok(fold)
+        case Conf.Bool(true) => Conf.nameOf(unfold)
+        case Conf.Bool(false) => Conf.nameOf(fold)
       }
   }
 
@@ -390,7 +392,7 @@ object Newlines {
     ): Infix = copy(
       termSite = termSite.checkConfig(termCnt)(None),
       typeSite = Some(typeSite.getOrElse(termSite).checkConfig(typeInfix) {
-        val useSome = !cfg.newlines.keep && cfg.dialect.useInfixTypePrecedence
+        val useSome = cfg.newlines.classic && cfg.dialect.useInfixTypePrecedence
         if (useSome) Some(Infix.some) else None
       }),
       patSite = Some(patSite.getOrElse(termSite).checkConfig(patInfix)(None)),
@@ -402,7 +404,13 @@ object Newlines {
       case _ => termSite
     }
 
-    def keep(tree: Tree): Boolean = get(tree).isKeep
+    def sourceIgnored(tree: Tree): Boolean = get(tree).sourceIgnored
+    def sourceIgnoredAt(ft: FT)(tree: Tree): Boolean = get(tree)
+      .sourceIgnoredAt(ft)
+
+    private[config] def sourceIgnoredIfSet: Boolean =
+      termSite.sourceIgnoredIfSet && typeSite.forall(_.sourceIgnoredIfSet) &&
+        patSite.forall(_.sourceIgnoredIfSet)
   }
 
   object Infix {
@@ -411,12 +419,23 @@ object Newlines {
     implicit lazy val codec: ConfCodecEx[Infix] = generic.deriveCodecEx(default)
       .noTypos
 
-    sealed abstract class Style
-    case object keep extends Style
-    case object some extends Style
-    case object many extends Style
-    implicit val styleReader: ConfCodecEx[Style] = ReaderUtil
-      .oneOf[Style](keep, some, many)
+    sealed abstract class Style {
+      def sourceIgnored: Boolean
+    }
+    case object keep extends Style {
+      def sourceIgnored: Boolean = false
+    }
+    case object none extends Style {
+      def sourceIgnored: Boolean = false
+    }
+    case object some extends Style {
+      def sourceIgnored: Boolean = true
+    }
+    case object many extends Style {
+      def sourceIgnored: Boolean = true
+    }
+    implicit val styleReader: ConfCodecEx[Style] = ConfCodecEx
+      .oneOf[Style](keep, some, many, none)
 
     /** @param style
       *   Controls how line breaks around infix operations are handled
@@ -437,36 +456,46 @@ object Newlines {
         style: Style = null,
         breakOnNested: Boolean = false,
         maxCountPerFile: Int = 500,
+        maxCountPerFileForKeep: Option[Int] = None,
         maxCountPerExprForSome: Int = 10,
     ) {
       def checkConfig(
           infixCount: Int,
       )(orElseStyle: => Option[Style])(implicit cfg: ScalafmtConfig): Site =
-        if (maxCountPerFile < infixCount) copy(style = keep)
-        else if (style eq null) Infix.defaultStyle(cfg.newlines.source)
-          .orElse(orElseStyle).fold(this)(x => copy(style = x))
+        if (isNone) this
+        else if (maxCountPerFile < infixCount) copy(style = none)
+        else if (style eq keep) this
+        else if (maxCountPerFileForKeep.exists(_ < infixCount))
+          copy(style = keep)
+        else if (style eq null) copy(style = cfg.newlines.source match {
+          case Newlines.unfold => many
+          case Newlines.fold => some
+          case Newlines.keep => orElseStyle.getOrElse(keep)
+          case Newlines.classic => orElseStyle.getOrElse(none)
+        })
         else this
-      def isKeep: Boolean = (style eq keep) || (style eq null)
+
+      def isNone: Boolean = style eq none
+      def sourceIgnoredAt(ft: FT): Boolean =
+        if (ft.noBreak) !isNone else sourceIgnored
+      def sourceIgnored: Boolean = style.sourceIgnored
+      private[config] def sourceIgnoredIfSet: Boolean =
+        (style eq null) || sourceIgnored
     }
     object Site {
-      private[Infix] val default = Site()
+      private[scalafmt] val default = Site()
       implicit lazy val surface: generic.Surface[Site] = generic.deriveSurface
       implicit lazy val codec: ConfCodecEx[Site] = generic.deriveCodecEx(default)
         .noTypos
     }
 
-    def defaultStyle(source: SourceHints): Option[Style] = source match {
-      case Newlines.unfold => Some(many)
-      case Newlines.fold => Some(some)
-      case _ => None
-    }
   }
 
   sealed abstract class BeforeAfter
   case object before extends BeforeAfter
   case object after extends BeforeAfter
 
-  implicit val beforeAfterReader: ConfCodecEx[BeforeAfter] = ReaderUtil
+  implicit val beforeAfterReader: ConfCodecEx[BeforeAfter] = ConfCodecEx
     .oneOf[BeforeAfter](before, after)
 
   sealed abstract class AvoidForSimpleOverflow
@@ -478,7 +507,7 @@ object Newlines {
     val all: Seq[sourcecode.Text[AvoidForSimpleOverflow]] =
       Seq(punct, tooLong, slc)
 
-    implicit val codec: ConfCodecEx[AvoidForSimpleOverflow] = ReaderUtil
+    implicit val codec: ConfCodecEx[AvoidForSimpleOverflow] = ConfCodecEx
       .oneOf[AvoidForSimpleOverflow](all: _*)
 
     implicit val seqDecoder: ConfDecoderEx[Seq[AvoidForSimpleOverflow]] =
@@ -492,19 +521,20 @@ object Newlines {
     case object allow extends InInterpolation
     case object avoid extends InInterpolation
     case object oneline extends InInterpolation
-    implicit val codec: ConfCodecEx[InInterpolation] = ReaderUtil
+    implicit val codec: ConfCodecEx[InInterpolation] = ConfCodecEx
       .oneOf[InInterpolation](allow, avoid, oneline)
   }
 
   sealed abstract class AfterCurlyLambdaParams
   object AfterCurlyLambdaParams {
-    case object preserve extends AfterCurlyLambdaParams
+    case object keep extends AfterCurlyLambdaParams
     case object always extends AfterCurlyLambdaParams
     case object never extends AfterCurlyLambdaParams
     case object squash extends AfterCurlyLambdaParams
-    implicit val codec: ConfCodecEx[AfterCurlyLambdaParams] = ReaderUtil
-      .oneOfCustom[AfterCurlyLambdaParams](preserve, always, never, squash) {
-        case Conf.Str("keep") => Configured.Ok(preserve)
+    implicit val codec: ConfCodecEx[AfterCurlyLambdaParams] = ConfCodecEx
+      .oneOfCustom[AfterCurlyLambdaParams](keep, always, never, squash) {
+        case Conf.Str(str) if str.equalsIgnoreCase("preserve") =>
+          Conf.nameOf(keep)
       }
   }
 
@@ -514,15 +544,15 @@ object Newlines {
     case object never extends BeforeCurlyLambdaParams
     case object multiline extends BeforeCurlyLambdaParams
     case object multilineWithCaseOnly extends BeforeCurlyLambdaParams
-    implicit val codec: ConfCodecEx[BeforeCurlyLambdaParams] = ReaderUtil
+    implicit val codec: ConfCodecEx[BeforeCurlyLambdaParams] = ConfCodecEx
       .oneOfCustom[BeforeCurlyLambdaParams](
         never,
         always,
         multiline,
         multilineWithCaseOnly,
       ) {
-        case Conf.Bool(true) => Configured.Ok(always)
-        case Conf.Bool(false) => Configured.Ok(never)
+        case Conf.Bool(true) => Conf.nameOf(always)
+        case Conf.Bool(false) => Conf.nameOf(never)
       }
   }
 
@@ -532,7 +562,7 @@ object Newlines {
 
   object ForceBeforeMultilineAssign {
 
-    implicit val codec: ConfCodecEx[ForceBeforeMultilineAssign] = ReaderUtil
+    implicit val codec: ConfCodecEx[ForceBeforeMultilineAssign] = ConfCodecEx
       .oneOf[ForceBeforeMultilineAssign](never, any, `def`, anyMember, topMember)
 
     case object never extends ForceBeforeMultilineAssign {
@@ -583,15 +613,13 @@ object Newlines {
       .deriveSurface[NumBlanks]
     implicit val encoder: ConfEncoder[NumBlanks] = generic
       .deriveEncoder[NumBlanks]
-    implicit val decoder: ConfDecoderEx[NumBlanks] = {
-      val base = generic.deriveDecoderEx(NumBlanks()).noTypos
-      ConfDecoderEx.from[NumBlanks] {
+    implicit val decoder: ConfDecoderEx[NumBlanks] = generic
+      .deriveDecoderEx(NumBlanks()).noTypos.except {
         case (_, Conf.Num(num)) if num.isWhole =>
           val cnt = num.toInt
-          Configured.Ok(NumBlanks(before = cnt, after = cnt))
-        case (state, conf) => base.read(state, conf)
+          Some(Configured.Ok(NumBlanks(before = cnt, after = cnt)))
+        case _ => None
       }
-    }
   }
 
   /** @param regex
@@ -606,18 +634,21 @@ object Newlines {
     */
   case class TopStatBlanks(
       regex: Option[String] = None,
+      parents: Seq[String] = Nil,
       minBreaks: Int = 1,
       blanks: Option[NumBlanks] = None,
       minNest: Int = 0,
       maxNest: Int = Int.MaxValue,
       minBlankGaps: Int = 0,
       maxBlankGaps: Int = Int.MaxValue,
+      allowNonTop: Boolean = false,
   ) {
-    lazy val pattern = regex.map(_.r.pattern)
-    def checkParams(v: TopStatBlanksParams, prefix: String): Boolean =
+    private lazy val matcher = TreePattern(regex, parents).getMatcher
+    def checkParams(v: TopStatBlanksParams, tree: Tree): Boolean =
       checkRange(v.nest, minNest, maxNest) &&
+        (v.isTop || allowNonTop && !matcher.isEmpty) &&
         checkRange(v.blankGaps, minBlankGaps, maxBlankGaps) &&
-        pattern.forall(_.matcher(prefix).find())
+        matcher.matches(tree)
   }
   object TopStatBlanks {
     implicit val surface: generic.Surface[TopStatBlanks] = generic
@@ -629,6 +660,7 @@ object Newlines {
       numBreaks: Int,
       nest: Int,
       blankGaps: Int,
+      isTop: Boolean,
   )
   private def checkRange(v: Int, min: Int, max: Int) = min <= v && v <= max
 
@@ -636,12 +668,18 @@ object Newlines {
   object BeforeOpenParen {
     implicit val encoder: ConfEncoder[BeforeOpenParen] = SourceHints.codec
       .contramap(_.src)
-    implicit val decoder: ConfDecoderEx[BeforeOpenParen] = ConfDecoderEx.from {
-      case (_, Conf.Str("source")) => Configured.Ok(BeforeOpenParen())
-      case (_, _: Conf.Bool) => Configured.error("beforeOpenParen can't be bool")
-      case (_, conf) => SourceHints.codec.read(None, conf)
-          .map(BeforeOpenParen.apply)
-    }
+    implicit val decoder: ConfDecoderEx[BeforeOpenParen] =
+      new ConfDecoderEx[BeforeOpenParen] {
+        override def read(
+            state: Option[BeforeOpenParen],
+            conf: Conf,
+        ): Configured[BeforeOpenParen] = conf match {
+          case Conf.Str("source") => Configured.Ok(BeforeOpenParen())
+          case _: Conf.Bool => Configured.error("beforeOpenParen can't be bool")
+          case _ => SourceHints.codec.read(None, conf).map(BeforeOpenParen.apply)
+        }
+        override def convert(conf: Conf): Conf = SourceHints.codec.convert(conf)
+      }
   }
 
   /** Clauses where there is a newline after opening `(`` and newline before
@@ -771,14 +809,11 @@ object Newlines {
     implicit val surface: generic.Surface[SelectChain] = generic
       .deriveSurface[SelectChain]
     implicit val encoder: ConfEncoder[SelectChain] = generic.deriveEncoder
-    implicit val decoder: ConfDecoderEx[SelectChain] = {
-      val base = generic.deriveDecoderEx(default).noTypos
-      ConfDecoderEx.from {
-        case (_, conf: Conf.Str) => SourceHints.codec.read(None, conf)
-            .map(x => SelectChain(style = Some(x)))
-        case (state, conf) => base.read(state, conf)
+    implicit val decoder: ConfDecoderEx[SelectChain] = generic
+      .deriveDecoderEx(default).noTypos.contramap {
+        case conf: Conf.Str => Conf.Obj("style" -> conf)
+        case conf => conf
       }
-    }
   }
 
 }
