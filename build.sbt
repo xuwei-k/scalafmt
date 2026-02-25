@@ -135,7 +135,7 @@ lazy val core = crossProject(JVMPlatform, NativePlatform, JSPlatform)
     moduleName := "scalafmt-core",
     buildInfoSettings("org.scalafmt", "Versions"),
     scalacOptions ++= scalacJvmOptions.value,
-    libraryDependencies ++= Seq("org.scalameta" %% "mdoc-parser" % mdocV),
+    libraryDependencies ++= Seq("org.scalameta" %%% "mdoc-parser" % mdocV),
     libraryDependencies ++= {
       if (!isScala212.value) Nil
       else Seq(compilerPlugin(
