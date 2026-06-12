@@ -5,7 +5,7 @@ import org.scalafmt.internal._
 
 import scala.meta._
 import scala.meta.classifiers.Classifier
-import scala.meta.tokens.{Token => T, Tokens}
+import scala.meta.tokens.{Token => T, _}
 
 import scala.annotation.tailrec
 
@@ -49,17 +49,16 @@ object TokenOps {
     // we need Pkg in case docstring comes before the first statement and not owned by Pkg.Body
     ft.meta.rightOwner.isAny[Pkg, Tree.Block]
 
-  // 2.13 implements SeqOps.findLast
-  def findLast[A](seq: Seq[A])(cond: A => Boolean): Option[A] = seq
-    .reverseIterator.find(cond)
+  def findLastVisibleTokenIndex(tokens: Tokens): Int = tokens
+    .rskipIf(_.isAny[T.Whitespace, T.EOF], tokens.length - 1)
 
-  def findLastVisibleTokenOpt(tokens: Tokens): Option[T] = findLast(tokens) {
-    case _: T.Whitespace | _: T.EOF => false
-    case _ => true
+  def findLastVisibleTokenOpt(tokens: Tokens): Option[T] = {
+    val idx = findLastVisibleTokenIndex(tokens)
+    if (idx < 0) None else Some(tokens(idx))
   }
 
-  def findLastVisibleToken(tokens: Tokens): T = findLastVisibleTokenOpt(tokens)
-    .getOrElse(tokens.last)
+  def findLastVisibleToken(tokens: Tokens): T =
+    tokens(findLastVisibleTokenIndex(tokens).max(0))
 
   @inline
   def withNoIndent(ft: FT): Boolean = ft.between.lastOption.is[T.AtEOL]
@@ -131,8 +130,9 @@ object TokenOps {
   ): Option[(FT, Boolean)] = ft.left match {
     case _: T.OpenDelim => f(ft)
         .flatMap(ok => ftoks.matchingOptLeft(ft).map(_ -> ok))
-    case _ => OptionalBraces.get(ft)
-        .flatMap(_.rightBrace.map(x => ftoks.nextNonCommentSameLine(x) -> true))
+    case _ => OptionalBraces.get(ft).flatMap(ob =>
+        ftoks.getLastOpt(ob.block).map(ftoks.nextNonCommentSameLine(_) -> true),
+      )
   }
 
   def getEndOfBlock(ft: FT, parens: => Boolean, brackets: => Boolean = false)(

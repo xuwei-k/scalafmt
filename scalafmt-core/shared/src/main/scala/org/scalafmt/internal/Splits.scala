@@ -38,11 +38,10 @@ object Splits {
         fo: FormatOps,
         cfg: ScalafmtConfig,
     ): Seq[Split] = {
-      gen.foreach { gen =>
-        val res = gen.get
-        if (res.nonEmpty) return res
-      }
-      Seq.empty
+      var res = Seq.empty[Split]
+      val iter = gen.iterator
+      while (res.isEmpty && iter.hasNext) res = iter.next().get
+      res
     }
   }
 
@@ -1487,7 +1486,8 @@ object SplitsAfterLeftParenOrBracket {
     val singleArgAsInfix =
       if (isSingleArg) firstArg.flatMap(asInfixApp) else None
 
-    implicit val clauseSiteFlags = ClauseSiteFlags.atCallSite(leftOwner)
+    implicit val clauseSiteFlags: ClauseSiteFlags = ClauseSiteFlags
+      .atCallSite(leftOwner)
     val flags = getBinpackCallSiteFlags(ft, beforeClose)
     val (nlOpen, nlCloseOnOpen) = flags.nlOpenClose()
     val singleLineOnly = cfg.binPack.literalsSingleLine && flags.literalArgList
@@ -1643,7 +1643,8 @@ object SplitsAfterLeftParenOrBracket {
     val noSplitMod = Space(cfg.spaces.inParentheses)
     if (close.left eq right) Seq(Split(noSplitMod, 0))
     else {
-      implicit val clauseSiteFlags = ClauseSiteFlags.atDefnSite(leftOwner)
+      implicit val clauseSiteFlags: ClauseSiteFlags = ClauseSiteFlags
+        .atDefnSite(leftOwner)
 
       val bracketPenalty =
         if (isBracket) Some(Constants.BracketPenalty) else None
@@ -1761,8 +1762,10 @@ object SplitsAfterLeftParenOrBracket {
     val bracketCoef = if (isBracket) Constants.BracketPenalty else 1
     val mustDangleForTrailingCommas = getMustDangleForTrailingCommas(beforeClose)
 
-    implicit val clauseSiteFlags = ClauseSiteFlags(leftOwner, defnSite)
-    implicit val configStyleFlags = clauseSiteFlags.configStyle
+    implicit val clauseSiteFlags: ClauseSiteFlags =
+      ClauseSiteFlags(leftOwner, defnSite)
+    implicit val configStyleFlags: Newlines.ConfigStyleElement =
+      clauseSiteFlags.configStyle
     val closeBreak = beforeClose.hasBreak
     val forceConfigStyle = mustForceConfigStyle(ft)
     val onlyConfigStyle = forceConfigStyle ||
@@ -2043,7 +2046,8 @@ object SplitsAfterLeftParen extends Splits {
     import fo._, tokens._, ft._
     val close = matchingLeft(ft)
     val beforeClose = prev(close)
-    implicit val clauseSiteFlags = ClauseSiteFlags.atCallSite(leftOwner)
+    implicit val clauseSiteFlags: ClauseSiteFlags = ClauseSiteFlags
+      .atCallSite(leftOwner)
     val isConfig = couldPreserveConfigStyle(ft, beforeClose.hasBreak)
 
     val enclosed = findEnclosedBetweenParens(left, close.left, leftOwner)
@@ -3125,7 +3129,7 @@ object SplitsBeforeWhile extends Splits {
     else {
       val nlOnly = left.is[T.RightBrace] &&
         cfg.newlines.alwaysBeforeElseAfterCurlyIf &&
-        leftOwner.parent.contains(rightOwner) ||
+        isCurlyWithNextKeyword(ft, ft) ||
         !cfg.newlines.sourceIgnored && hasBreak
       val noSplit = Split(nlOnly, 0)(Space)
       val nlSplit = Split(Newline, 1)
@@ -3245,7 +3249,8 @@ object SplitsBeforeElseYield extends Splits {
       cfg: ScalafmtConfig,
   ): Seq[Split] = {
     import fo._, tokens._, ft._
-    if (left.is[T.RightBrace]) Seq(Split(Space, 0))
+    if (ft.hasBlankLine) Seq(Split(Newline2x, 0))
+    else if (left.is[T.RightBrace]) Seq(Split(Space, 0))
     else {
       val noSplit =
         if (cfg.newlines.okSpaceForSource(newlinesBetween)) {
@@ -3407,8 +3412,7 @@ object SplitsBeforeCatchFinally extends Splits {
   ): Seq[Split] = {
     import ft._
     val ok = cfg.newlines.alwaysBeforeElseAfterCurlyIf ||
-      !left.is[T.RightBrace] ||
-      leftOwner.ne(rightOwner) && !leftOwner.parent.contains(rightOwner)
+      !(left.is[T.RightBrace] && isCurlyWithNextKeyword(ft, ft))
     if (ok) Seq(Split(Newline2x(hasBlankLine), 0)) else Seq.empty
   }
 }

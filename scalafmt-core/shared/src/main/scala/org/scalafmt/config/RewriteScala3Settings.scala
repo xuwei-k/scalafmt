@@ -7,10 +7,11 @@ import metaconfig._
 @annotation.SectionRename("countEndMarkerLines", "endMarker.spanHas") // renamed in v3.10.3
 @annotation.SectionRename("removeEndMarkerMaxLines", "endMarker.removeMaxSpan") // renamed in v3.10.3
 @annotation.SectionRename("insertEndMarkerMinLines", "endMarker.insertMinSpan") // renamed in v3.10.3
+@annotation.SectionRename("removeOptionalBraces", "optionalBraces") // renamed in v3.10.8
 case class RewriteScala3Settings(
     convertToNewSyntax: Boolean = false,
     newSyntax: ConvertToNewSyntax = ConvertToNewSyntax.default,
-    removeOptionalBraces: RemoveOptionalBraces = RemoveOptionalBraces.no,
+    optionalBraces: RemoveOptionalBraces = RemoveOptionalBraces.no,
     endMarker: EndMarker = EndMarker.default,
 )
 
@@ -29,18 +30,38 @@ object RewriteScala3Settings {
     ) {
       case Conf.Bool(true) => new RewriteScala3Settings(
           convertToNewSyntax = true,
-          removeOptionalBraces = RemoveOptionalBraces.yes,
+          optionalBraces = RemoveOptionalBraces.yes,
         )
       case Conf.Bool(false) => default
     }
 
+  @annotation.SectionRename("fewerBracesMinSpan", "fewerBraces.minSpan") // 3.10.8
+  @annotation.SectionRename("fewerBracesMaxSpan", "fewerBraces.maxSpan") // 3.10.8
+  @annotation.SectionRename("fewerBracesParensToo", "fewerBraces.parensToo") // 3.10.8
   case class RemoveOptionalBraces(
       enabled: Boolean = true,
-      fewerBracesMinSpan: Int = 2,
-      fewerBracesMaxSpan: Int = 0,
-      fewerBracesParensToo: Boolean = false,
+      preferInsert: Boolean = true,
+      insert: Option[InsertBraces] = None,
+      remove: Option[RemoveBraces] = None,
+      fewerBraces: FewerBraces = FewerBraces.default,
       oldSyntaxToo: Boolean = false,
-  )
+  ) {
+    def isRemoveEnabled: Boolean = remove.forall(_.enabled)
+    def isInsertEnabled: Boolean = insert.exists(_.enabled)
+
+    private[config] def normalized: RemoveOptionalBraces = {
+      val ibOpt = insert.filter(_.enabled)
+      val rbOpt = remove.filter(_.enabled)
+      ibOpt.fold(copy(insert = None, remove = rbOpt))(ib =>
+        rbOpt.fold( // if insert is Some, remove must be too
+          copy(insert = ibOpt, remove = Some(RemoveBraces.default)),
+        )(rb =>
+          if (preferInsert) copy(insert = ibOpt, remove = Some(rb.normalize(ib)))
+          else copy(insert = Some(ib.normalize(rb)), remove = rbOpt),
+        ),
+      )
+    }
+  }
 
   object RemoveOptionalBraces {
 
@@ -54,38 +75,101 @@ object RewriteScala3Settings {
       .deriveEncoder[RemoveOptionalBraces]
 
     implicit final val decoder: ConfDecoderEx[RemoveOptionalBraces] = generic
-      .deriveDecoderEx[RemoveOptionalBraces](no).contramap {
+      .deriveDecoderEx[RemoveOptionalBraces](no).map(_.normalized).noTypos
+      .detectSectionRenames.contramapPartial {
         case Conf.Bool(true) | Conf.Str("yes") => Conf
             .Obj("enabled" -> Conf(true))
         case Conf.Bool(false) | Conf.Str("no") => Conf
             .Obj("enabled" -> Conf(false))
         case Conf.Str("oldSyntaxToo") => Conf
             .Obj("enabled" -> Conf(true), "oldSyntaxToo" -> Conf(true))
-        case conf => conf
       }
+
+  }
+
+  case class RemoveBraces(maxSpan: Int = -1, maxBlankGaps: Int = -1) {
+    def enabled: Boolean = maxSpan >= 0 || maxBlankGaps >= 0
+
+    def normalize(ib: InsertBraces): RemoveBraces = {
+      val span = if (ib.minSpan < 0) maxSpan else maxSpan.min(ib.minSpan - 1)
+      val blankGaps =
+        if (ib.minBlankGaps < 0) maxBlankGaps
+        else maxBlankGaps.min(ib.minBlankGaps - 1)
+      copy(maxSpan = span, maxBlankGaps = blankGaps)
+    }
+  }
+  object RemoveBraces {
+    val default = new RemoveBraces()
+    implicit val surface: generic.Surface[RemoveBraces] = generic.deriveSurface
+    implicit val codec: ConfCodecEx[RemoveBraces] = generic
+      .deriveCodecEx(default).noTypos.detectSectionRenames
+  }
+
+  case class InsertBraces(minSpan: Int = -1, minBlankGaps: Int = -1) {
+    def enabled: Boolean = minSpan >= 0 || minBlankGaps >= 0
+
+    def normalize(rb: RemoveBraces): InsertBraces = {
+      val span = if (rb.maxSpan < 0) minSpan else minSpan.max(rb.maxSpan + 1)
+      val blankGaps =
+        if (rb.maxBlankGaps < 0) minBlankGaps
+        else minBlankGaps.max(rb.maxBlankGaps + 1)
+      copy(minSpan = span, minBlankGaps = blankGaps)
+    }
+  }
+  object InsertBraces {
+    val default = new InsertBraces()
+    implicit val surface: generic.Surface[InsertBraces] = generic.deriveSurface
+    implicit val codec: ConfCodecEx[InsertBraces] = generic
+      .deriveCodecEx(default).noTypos.detectSectionRenames
+  }
+
+  case class FewerBraces(
+      minSpan: Int = 2,
+      maxSpan: Int = 0,
+      parensToo: Boolean = false,
+  )
+  object FewerBraces {
+    val default = new FewerBraces()
+    implicit val surface: generic.Surface[FewerBraces] = generic.deriveSurface
+    implicit val codec: ConfCodecEx[FewerBraces] = generic.deriveCodecEx(default)
+      .noTypos.detectSectionRenames
   }
 
   case class EndMarker(
-      spanIs: EndMarker.SpanIs = EndMarker.SpanIs.lines,
       spanHas: EndMarker.SpanHas = EndMarker.SpanHas.all,
-      removeMaxSpan: Int = 0,
-      insertMinSpan: Int = 0,
+      insert: EndMarker.Insert = EndMarker.Insert.default,
+      remove: EndMarker.Remove = EndMarker.Remove.default,
+      preferInsert: Boolean = true,
   )
 
   object EndMarker {
 
     val default = new EndMarker
     implicit val surface: generic.Surface[EndMarker] = generic.deriveSurface
-    implicit val codec: ConfCodecEx[EndMarker] = generic.deriveCodecEx(default)
-      .noTypos
-
-    sealed abstract class SpanIs
-    object SpanIs {
-      implicit val codec: ConfCodecEx[SpanIs] = ConfCodecEx
-        .oneOf(lines, blankGaps)
-      case object lines extends SpanIs
-      case object blankGaps extends SpanIs
-    }
+    implicit val encoder: ConfEncoder[EndMarker] = generic
+      .deriveEncoder[EndMarker]
+    implicit val decoder: ConfDecoderEx[EndMarker] = generic
+      .deriveDecoderEx(default).noTypos
+      .contramapPartial { case conf: Conf.Obj =>
+        var useBlankGaps = false
+        conf.removeKeyIfVal("spanIs") {
+          case Conf.Str("lines") => null
+          case Conf.Str("blankGaps") => useBlankGaps = true; null
+        }.fold(conf)(x => Conf.Obj(x._2)).replace {
+          case ("insertMinSpan", v: Conf.Num) =>
+            val obj = Insert.default
+            val kv =
+              if (useBlankGaps) Conf.nameOf(obj.minBlankGaps).value -> v
+              else Conf.nameOf(obj.minBreaks).value -> Conf.Num(v.value - 1)
+            List((Conf.nameOf(default.insert), Conf.Obj(kv)))
+          case ("removeMaxSpan", v: Conf.Num) =>
+            val obj = Remove.default
+            val kv =
+              if (useBlankGaps) Conf.nameOf(obj.maxBlankGaps).value -> v
+              else Conf.nameOf(obj.maxBreaks).value -> Conf.Num(v.value - 1)
+            List((Conf.nameOf(default.remove), Conf.Obj(kv)))
+        }
+      }
 
     sealed abstract class SpanHas
     object SpanHas {
@@ -95,6 +179,25 @@ object RewriteScala3Settings {
       case object lastBlockOnly extends SpanHas
     }
 
+    case class Insert(minBreaks: Int = -1, minBlankGaps: Int = -1) {
+      def enabled: Boolean = minBreaks >= 0 || minBlankGaps >= 0
+    }
+    object Insert {
+      val default = new Insert()
+      implicit val surface: generic.Surface[Insert] = generic.deriveSurface
+      implicit val codec: ConfCodecEx[Insert] = generic.deriveCodecEx(default)
+        .noTypos
+    }
+
+    case class Remove(maxBreaks: Int = -1, maxBlankGaps: Int = -1) {
+      def enabled: Boolean = maxBreaks >= 0 || maxBlankGaps >= 0
+    }
+    object Remove {
+      val default = new Remove()
+      implicit val surface: generic.Surface[Remove] = generic.deriveSurface
+      implicit val codec: ConfCodecEx[Remove] = generic.deriveCodecEx(default)
+        .noTypos
+    }
   }
 
   case class ConvertToNewSyntax(

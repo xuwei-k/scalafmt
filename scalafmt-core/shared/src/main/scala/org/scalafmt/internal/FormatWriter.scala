@@ -10,7 +10,6 @@ import org.scalafmt.{Error, Formatted, Scalafmt}
 import scala.meta.internal.Scaladoc
 import scala.meta.internal.parsers.ScaladocParser
 import scala.meta.tokens.{Token => T}
-import scala.meta.transversers.Traverser
 import scala.meta.{Token => _, _}
 
 import java.nio.CharBuffer
@@ -133,9 +132,9 @@ class FormatWriter(formatOps: FormatOps) {
     if (depth == toks.length) { // format completed
       val initStyle = styleMap.init
       if (initStyle.dialect.allowEndMarker) {
-        if (initStyle.rewrite.scala3.endMarker.removeMaxSpan > 0)
+        if (initStyle.rewrite.scala3.endMarker.remove.enabled)
           checkRemoveEndMarkers(result)
-        if (initStyle.rewrite.scala3.endMarker.insertMinSpan > 0)
+        if (initStyle.rewrite.scala3.endMarker.insert.enabled)
           checkInsertEndMarkers(result)
       }
       if (initStyle.rewrite.insertBraces.isEnabled) checkInsertBraces(result)
@@ -215,60 +214,64 @@ class FormatWriter(formatOps: FormatOps) {
 
   private def checkRemoveEndMarkers(locations: Array[FormatLocation]): Unit = {
     var removedLines = 0
-    val endMarkers = new mutable.ListBuffer[(Int, Int)]
-    locations.foreach { x =>
-      val idx = x.formatToken.meta.idx
+
+    // "<left> end name <right>"
+    def process(getOwner: => Option[Tree])(idx: Int): Unit = {
+      val endIdx = locations.lastIndexWhere(_.isNotRemoved, idx)
+      val loc2 = locations(idx + 2)
+      val cfg = loc2.style.rewrite.scala3.endMarker
+      def processBody(begFt: FT, needBreak: Boolean): Unit = {
+        val bLoc = locations(begFt.idx)
+        val eLoc = locations(endIdx)
+        val ok = verifySpan(cfg.preferInsert)(
+          (cfg.remove.maxBreaks, getNumBreaks(needBreak)),
+          (cfg.remove.maxBlankGaps, getBlankGapsDiff),
+        ) { case (max, f) => max >= f(bLoc, eLoc) }
+        if (ok) {
+          val loc2 = locations(idx + 2)
+          locations(idx + 1) = locations(idx + 1).remove
+          locations(idx + 2) = loc2.remove
+          locations(endIdx) = eLoc.copy(state = loc2.state)
+          removedLines += 1
+        }
+      }
+      def processOwner(owner: Tree): Unit = cfg.spanHas match {
+        case RewriteScala3Settings.EndMarker.SpanHas.lastBlockOnly =>
+          val body = getEndMarkerBody(owner)
+          if (body ne null) processBody(tokenBefore(body), needBreak = true)
+        case RewriteScala3Settings.EndMarker.SpanHas.all =>
+          processBody(getHead(owner), needBreak = false)
+      }
+
+      // won't remove end marker if followed by comment
+      if (endIdx >= 0 && loc2.hasBreakAfter) getOwner.foreach(processOwner)
+    }
+
+    (1 until locations.length - 2).foreach { idx =>
+      val x = locations(idx)
       val floc =
         if (removedLines > 0 && x.isNotRemoved) {
           val floc = x.copy(leftLineId = x.leftLineId + removedLines)
           locations(idx) = floc
           floc
         } else x
-      if (endMarkers.nonEmpty && endMarkers(0)._1 == idx) {
-        val begIdx = endMarkers.remove(0)._2
-        val endIdx = locations.lastIndexWhere(_.isNotRemoved, idx)
-        if (endIdx >= 0) {
-          val bLoc = locations(begIdx)
-          val eLoc = locations(endIdx)
-          val span = bLoc.style.rewrite.scala3.endMarker.spanIs match {
-            case RewriteScala3Settings.EndMarker.SpanIs.lines =>
-              getLineDiff(bLoc, eLoc) + 1
-            case RewriteScala3Settings.EndMarker.SpanIs.blankGaps =>
-              getBlankGapsDiff(bLoc, eLoc)
-          }
-          if (span <= bLoc.style.rewrite.scala3.endMarker.removeMaxSpan) {
-            val loc2 = locations(idx + 2)
-            locations(idx + 1) = locations(idx + 1).remove
-            locations(idx + 2) = loc2.remove
-            locations(endIdx) = eLoc.copy(state = loc2.state)
-            removedLines += 1
-          }
-        }
-      } else getOptionalBracesOwner(floc, 3).foreach { owner =>
-        // do not skip comment lines, as the parser doesn't handle comments
-        // at end of optional braces region and treats them as outside
-        val endFt = nextNonCommentSameLine(getLast(owner))
-        val ok = endFt.meta.rightOwner match {
-          case em: Term.EndMarker => em.parent == owner.parent
-          case _ => false
-        }
-        if (ok) {
-          // "<left> end name <right>"
-          val end = endFt.meta.idx
-          val isStandalone = locations(end).hasBreakAfter &&
-            end + 2 < locations.length && locations(end + 2).hasBreakAfter
-          if (isStandalone) {
-            val settings = floc.style.rewrite.scala3
-            val idx = settings.endMarker.spanHas match {
-              case RewriteScala3Settings.EndMarker.SpanHas.lastBlockOnly =>
-                tokens.nextNonCommentSameLine(floc.formatToken).meta.idx + 1
-              case RewriteScala3Settings.EndMarker.SpanHas.all => tokens
-                  .getHead(owner).meta.idx
-            }
-            endMarkers.prepend(end -> idx)
-          }
-        }
-      }
+
+      val ft = floc.formatToken
+      val em = ft.rightOwner
+      if (em.is[Term.EndMarker] && floc.hasBreakAfter && soft.KwEnd(ft.right))
+        process(em.parent match {
+          case Some(p: Tree.Block) =>
+            var found = false
+            var needStats = if (p.is[Term.Block]) 2 else 0 // block can't remain with just one stat
+            var owner: Tree = null
+            val ok = p.stats.exists(x =>
+              if (found) { needStats -= 1; needStats <= 0 }
+              else if (x eq em) { found = true; needStats <= 0 }
+              else { owner = x; needStats -= 1; false }, // captures the last before em
+            )
+            if (ok) Option(owner) else None
+          case _ => None
+        })(idx)
     }
   }
 
@@ -293,33 +296,29 @@ class FormatWriter(formatOps: FormatOps) {
         if (ok) {
           val end = endFt.meta.idx
           val eLoc = locations(end)
-          val bLoc = locations(getHead(ownerTokens, owner).meta.idx)
-          val begIndent = bLoc.state.prev.indentation
-          def appendOwner() = locations(end) = eLoc
-            .copy(optionalBraces = eLoc.optionalBraces + (begIndent -> owner))
-          def removeOwner() = locations(end) = eLoc
-            .copy(optionalBraces = eLoc.optionalBraces - begIndent)
-          def processOwner() = {
-            val settings = floc.style.rewrite.scala3
-            def okSpan(loc: FormatLocation) = {
-              val span = settings.endMarker.spanIs match {
-                case RewriteScala3Settings.EndMarker.SpanIs.lines =>
-                  getLineDiff(loc, eLoc) + 1
-                case RewriteScala3Settings.EndMarker.SpanIs.blankGaps =>
-                  getBlankGapsDiff(loc, eLoc)
-              }
-              span >= settings.endMarker.insertMinSpan
-            }
-            settings.endMarker.spanHas match {
+          def updateOwner(f: OptionalBraces => OptionalBraces): Unit =
+            locations(end) = eLoc.copy(optionalBraces = f(eLoc.optionalBraces))
+          if (eLoc.hasBreakAfter) {
+            val cfg = floc.style.rewrite.scala3.endMarker
+            def okSpan(loc: FormatLocation, needBreak: Boolean = false) =
+              verifySpan(!cfg.preferInsert)(
+                (cfg.insert.minBreaks, getNumBreaks(needBreak)),
+                (cfg.insert.minBlankGaps, getBlankGapsDiff),
+              ) { case (min, f) => min <= f(loc, eLoc) }
+
+            val bLoc = locations(getHead(ownerTokens, owner).idx)
+            val begIndent = bLoc.state.prev.indentation
+            def appendOwner(): Unit = updateOwner(_ + (begIndent -> owner))
+            def removeOwner(): Unit = updateOwner(_ - begIndent)
+
+            cfg.spanHas match {
               case RewriteScala3Settings.EndMarker.SpanHas.lastBlockOnly =>
-                val i = nextNonCommentSameLine(floc.formatToken).meta.idx
-                if (okSpan(locations(i + 1))) appendOwner() else removeOwner()
+                if (okSpan(floc, true)) appendOwner() else removeOwner()
               case RewriteScala3Settings.EndMarker.SpanHas.all =>
                 if (!eLoc.optionalBraces.contains(begIndent) && okSpan(bLoc))
                   appendOwner()
             }
           }
-          if (eLoc.hasBreakAfter) processOwner()
         }
       }
     }
@@ -368,7 +367,7 @@ class FormatWriter(formatOps: FormatOps) {
       implicit val ib = style.rewrite.insertBraces
       val ft = floc.formatToken
       val ok = !ft.meta.formatOff && ib.isEnabled && hasBreakAfter(idx) &&
-        (!style.rewrite.scala3.removeOptionalBraces.enabled &&
+        (!style.rewrite.scala3.optionalBraces.enabled &&
           style.indent.main == style.indent.getSignificant ||
           !OptionalBraces.at(ft)) && floc.missingBracesIndent.isEmpty
       val mb =
@@ -410,7 +409,7 @@ class FormatWriter(formatOps: FormatOps) {
           val addLine = style.newlines.alwaysBeforeElseAfterCurlyIf ||
             (endFt.right match {
               case _: T.KwElse | _: T.KwCatch | _: T.KwFinally =>
-                !owner.parent.contains(endFt.meta.rightOwner)
+                !TreeOps.isCurlyWithNextKeyword(owner, endFt)
               case _ => true
             })
           if (addLine) willAddLines.prepend(end)
@@ -781,8 +780,10 @@ class FormatWriter(formatOps: FormatOps) {
                 private var hasPara: Boolean = true
                 override def hasNext: Boolean = hasPara && lineIter.hasNext && {
                   hasPara = !paraEnds
-                  if (!hasPara)
-                    do lineIter.next() while (lineIter.hasNext && paraEnds)
+                  if (!hasPara) while ({
+                    lineIter.next()
+                    lineIter.hasNext && paraEnds
+                  }) {}
                   hasPara
                 }
                 override def next() = new ParaLineIter()
@@ -1447,9 +1448,10 @@ class FormatWriter(formatOps: FormatOps) {
 
     private def shiftStateColumnIndent(startIdx: Int, offset: Int): Unit = {
       // look for StateColumn; it returns indent=0 for withStateOffset(0)
-      val stateIndentOpt = locations(startIdx).state.modExt.indents
-        .filter(_.hasStateColumn).flatMap(_.withStateOffset(0))
-      stateIndentOpt.headOption.foreach { indent =>
+      val stateIndentIter = locations(startIdx).state.modExt.indents.iterator
+        .flatMap(x => if (x.hasStateColumn) x.withStateOffset(0) else None)
+      if (stateIndentIter.hasNext) {
+        val indent = stateIndentIter.next()
         @tailrec
         def updateLocation(idx: Int): Unit = {
           val floc = locations(idx)
@@ -1464,7 +1466,7 @@ class FormatWriter(formatOps: FormatOps) {
       }
     }
 
-    lazy val extraBlankTokens = {
+    private class ExtraBlankTokens {
       val extraBlankMap = new mutable.HashMap[Int, Int]
       val allowNonTop = initStyle.newlines.allowNonTopStatBlankLines
       def setIdx(idx: Int, cnt: Int) = extraBlankMap.updateWith(idx) {
@@ -1585,62 +1587,67 @@ class FormatWriter(formatOps: FormatOps) {
         if (insideBody(stats, nl, Newlines.after))
           setFt(trailingComment(ft, owner.pos.end))
       }
-      val trav = new Traverser {
-        private def applySeq(t: Tree, notUnindentedPkg: Boolean = true)(
-            seq: Seq[Tree],
-        ): Unit = if (seq.nonEmpty) {
-          setTopStats(t, notUnindentedPkg)(seq)
-          super.apply(seq)
-        }
-        private def applySeqWith[A <: Tree](
-            t: Tree,
-            notUnindentedPkg: Boolean = true,
-        )(seq: Seq[A])(f: Seq[A] => Unit): Unit = if (seq.nonEmpty) {
-          f(seq)
-          setTopStats(t, notUnindentedPkg)(seq)
-          super.apply(seq)
-        }
-        override def apply(tree: Tree): Unit = tree match {
-          case t: Source => applySeq(t)(t.stats)
-          case t: Stat.WithTemplate => apply(t.templ)
-          case t: Template => applySeqWith(t.body)(t.body.stats) { stats =>
-              beforeBody(stats)(_.beforeTemplateBodyIfBreakInParentCtors && {
-                val beg = leadingComment(t).meta.idx
-                val end = templateCurlyOrLastNonTrivial(t).meta.idx
-                locations(beg).leftLineId != locations(end).leftLineId
-              })
-              afterBody(t, stats)
-            }
-          case _: Template.Body => // it was processed above
-          case t: Defn.ExtensionGroup => applySeqWith(t)(t.body match {
-              case b: Term.Block => b.stats
-              case b => List(b)
-            }) { stats =>
-              beforeBody(stats)(_ => false)
-              afterBody(t, stats)
-            }
-          case t: Pkg => apply(t.body)
-          case t: Pkg.Body =>
-            if (indentedPackage(t)) applySeqWith(t)(t.stats) { stats =>
-              beforeBody(stats)(_ => false)
-              afterBody(t, stats)
-            }
-            else applySeqWith(t, notUnindentedPkg = false)(t.stats) { stats =>
-              val ok = stats.head match {
-                case t: Pkg => indentedPackage(t)
-                case _ => true
-              }
-              if (ok) beforeBody(stats)(_.hasTopStatBlankLines)
-            }
-          case _ if !allowNonTop => // everything else is not "top-level"
-          case t: Tree.Block => applySeq(t)(t.stats)
-          case _ => super.apply(tree)
-        }
+
+      private def traverse(tree: Tree): Unit = tree.dfsIf(traverseFunc)
+
+      private def traverseSeq(t: Tree, notUnindentedPkg: Boolean = true)(
+          seq: Seq[Tree],
+      ): Unit = if (seq.nonEmpty) {
+        setTopStats(t, notUnindentedPkg)(seq)
+        seq.foreach(traverse)
       }
 
-      if (locations.length == tokens.length) trav(topSourceTree)
-      extraBlankMap.toMap
+      private def traverseSeqWith[A <: Tree](
+          t: Tree,
+          notUnindentedPkg: Boolean = true,
+      )(seq: Seq[A])(f: Seq[A] => Unit): Unit = if (seq.nonEmpty) {
+        f(seq)
+        traverseSeq(t, notUnindentedPkg)(seq)
+      }
+
+      private val traversePf: PartialFunction[Tree, Unit] = {
+        case t: Source => traverseSeq(t)(t.stats)
+        case t: Stat.WithTemplate => traverse(t.templ)
+        case t: Template => traverseSeqWith(t.body)(t.body.stats) { stats =>
+            beforeBody(stats)(_.beforeTemplateBodyIfBreakInParentCtors && {
+              val beg = leadingComment(t).meta.idx
+              val end = templateCurlyOrLastNonTrivial(t).meta.idx
+              locations(beg).leftLineId != locations(end).leftLineId
+            })
+            afterBody(t, stats)
+          }
+        case _: Template.Body => // it was processed above
+        case t: Defn.ExtensionGroup => traverseSeqWith(t)(t.body match {
+            case b: Term.Block => b.stats
+            case b => List(b)
+          }) { stats =>
+            beforeBody(stats)(_ => false)
+            afterBody(t, stats)
+          }
+        case t: Pkg => traverse(t.body)
+        case t: Pkg.Body =>
+          if (indentedPackage(t)) traverseSeqWith(t)(t.stats) { stats =>
+            beforeBody(stats)(_ => false)
+            afterBody(t, stats)
+          }
+          else traverseSeqWith(t, notUnindentedPkg = false)(t.stats) { stats =>
+            val ok = stats.head match {
+              case t: Pkg => indentedPackage(t)
+              case _ => true
+            }
+            if (ok) beforeBody(stats)(_.hasTopStatBlankLines)
+          }
+        case _ if !allowNonTop => // everything else is not "top-level"
+        case t: Tree.Block => traverseSeq(t)(t.stats)
+      }
+
+      private val traverseFunc: Tree => Boolean = traversePf.lift(_).isEmpty
+
+      if (locations.length == tokens.length) traverse(topSourceTree)
     }
+
+    lazy val extraBlankTokens: Map[Int, Int] =
+      new ExtraBlankTokens().extraBlankMap.toMap
 
     @tailrec
     final def getNest(
@@ -1702,6 +1709,8 @@ object FormatWriter {
 
   private val NoLine = Int.MaxValue
 
+  type OptionalBraces = Map[Int, Tree]
+
   case class FormatLocation(
       formatToken: FT,
       state: State,
@@ -1709,7 +1718,7 @@ object FormatWriter {
       leftLineId: Int, // counts back from the end of the file
       leftBlankGapId: Int, // accumulates number of blank gaps, also from end
       var shift: Int = 0,
-      optionalBraces: Map[Int, Tree] = Map.empty,
+      optionalBraces: OptionalBraces = Map.empty,
       // if indent is empty, indicates open; otherwise, whether to tuck
       missingBracesOpenOrTuck: Boolean = false,
       missingBracesIndent: Set[Int] = Set.empty,
@@ -1991,33 +2000,33 @@ object FormatWriter {
   private def getEndMarkerLabel(tree: Tree): String = tree match {
     // templates
     case _: Term.NewAnonymous => "new"
-    case t: Defn.Class => t.name.toString
-    case t: Defn.Object => t.name.toString
-    case t: Defn.Trait => t.name.toString
-    case t: Defn.Enum => t.name.toString
+    case t: Defn.Class => t.name.text
+    case t: Defn.Object => t.name.text
+    case t: Defn.Trait => t.name.text
+    case t: Defn.Enum => t.name.text
     case t: Defn.Given =>
-      val label = t.name.toString
+      val label = t.name.text
       if (label.isEmpty) "given" else label
-    case t: Pkg.Object => t.name.toString
+    case t: Pkg.Object => t.name.text
     // definitions
-    case t: Defn.Def => t.name.toString
-    case t: Defn.Macro => t.name.toString
+    case t: Defn.Def => t.name.text
+    case t: Defn.Macro => t.name.text
     case t: Defn.GivenAlias =>
-      val label = t.name.toString
+      val label = t.name.text
       if (label.isEmpty) "given" else label
-    case t: Defn.Type => t.name.toString
+    case t: Defn.Type => t.name.text
     case t: Defn.Val => t.pats match {
-        case List(Pat.Var(n)) => n.toString
+        case (p: Pat.Var) :: Nil => p.name.text
         case _ => "val"
       }
     case t: Defn.Var => t.pats match {
-        case List(Pat.Var(n)) => n.toString
+        case (p: Pat.Var) :: Nil => p.name.text
         case _ => "var"
       }
     // other
     case t: Pkg => t.ref match {
-        case x: Term.Name => x.toString
-        case x: Term.Select => x.name.toString
+        case x: Term.Name => x.text
+        case x: Term.Select => x.name.text
         case _ => null
       }
     case _: Ctor.Secondary => "this"
@@ -2030,9 +2039,29 @@ object FormatWriter {
     case _ => null
   }
 
+  private def getEndMarkerBody(tree: Tree): Tree = tree match {
+    case t: Stat.WithTemplate => t.templ.body
+    case t: Tree.WithBody => t.body
+    case t: Pkg => t.body
+    case t: Ctor.Secondary => t.body
+    case t: Tree.WithCasesBlock => t.casesBlock
+    case t: Term.If => if (TreeOps.ifWithoutElse(t)) t.thenp else t.elsep
+    case t: Term.TryClause => t.finallyp.orElse(t.catchClause).getOrElse(t.expr)
+    case _ => null
+  }
+
   @inline
   private def getLineDiff(beg: FormatLocation, end: FormatLocation): Int =
     beg.leftLineId - end.leftLineId
+
+  private def getNumBreaks(
+      needBreak: Boolean,
+  )(beg: FormatLocation, end: FormatLocation)(implicit
+      ftoks: FormatTokens,
+  ): Int = {
+    val hasBreak = needBreak && ftoks.hasBreakBeforeNonComment(beg.formatToken)
+    getLineDiff(beg, end) - (if (hasBreak) 1 else 0)
+  }
 
   @inline
   private def getBlankGapsDiff(beg: FormatLocation, end: FormatLocation): Int =
@@ -2049,6 +2078,15 @@ object FormatWriter {
       extends AnyVal {
     def add(csq: CharSequence, beg: Int, end: Int): StringBuilder = sb
       .append(CharBuffer.wrap(csq, beg, end))
+  }
+
+  private type SpanCheck = (Int, (FormatLocation, FormatLocation) => Int)
+
+  private def verifySpan(
+      all: Boolean,
+  )(checks: SpanCheck*)(p: SpanCheck => Boolean): Boolean = {
+    val it = checks.iterator.filter(_._1 >= 0)
+    if (all) it.hasNext && it.forall(p) else it.exists(p)
   }
 
 }

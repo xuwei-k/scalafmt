@@ -406,10 +406,12 @@ object ScalafmtConfig {
       checkPositive(indent.main, indent.callSite, indent.defnSite, indent.commaSiteRelativeToExtends)
       checkNonNeg(indent.caseSite, indent.extendSite, indent.withSiteRelativeToExtends)
       checkPositiveOpt(indent.significant, indent.ctorSite)
-      if (rewrite.scala3.endMarker.insertMinSpan != 0)
-        addIf(rewrite.scala3.endMarker.removeMaxSpan >= rewrite.scala3.endMarker.insertMinSpan)
-      addIf(rewrite.insertBraces.settings.minBreaks != 0 && rewrite.scala3.endMarker.insertMinSpan != 0)
-      addIf(rewrite.insertBraces.settings.minBreaks != 0 && rewrite.scala3.removeOptionalBraces.oldSyntaxToo)
+      if (rewrite.scala3.endMarker.insert.minBreaks >= 0)
+        addIf(rewrite.scala3.endMarker.remove.maxBreaks >= rewrite.scala3.endMarker.insert.minBreaks)
+      if (rewrite.scala3.endMarker.insert.minBlankGaps >= 0)
+        addIf(rewrite.scala3.endMarker.remove.maxBlankGaps >= rewrite.scala3.endMarker.insert.minBlankGaps)
+      addIf(rewrite.insertBraces.settings.minBreaks != 0 && rewrite.scala3.endMarker.insert.minBreaks >= 0)
+      addIf(rewrite.insertBraces.settings.minBreaks != 0 && rewrite.scala3.optionalBraces.oldSyntaxToo)
       if (RedundantBraces.usedIn(rewrite)) {
         if (rewrite.insertBraces.settings.minBreaks != 0) addIf(rewrite.insertBraces.settings.minBreaks <= rewrite.redundantBraces.maxBreaks)
         if (rewrite.redundantBraces.oneStatApply.bracesMinSpan >= 0)
@@ -417,11 +419,8 @@ object ScalafmtConfig {
       }
       addIf(align.beforeOpenParenDefnSite && !align.closeParenSite)
       addIf(align.beforeOpenParenCallSite && !align.closeParenSite)
-      addIf(rewrite.scala3.removeOptionalBraces.fewerBracesMinSpan <= 0)
-      if (rewrite.scala3.removeOptionalBraces.fewerBracesMaxSpan != 0) {
-        addIf(rewrite.scala3.removeOptionalBraces.fewerBracesMaxSpan < 0)
-        addIf(rewrite.scala3.removeOptionalBraces.fewerBracesMinSpan > rewrite.scala3.removeOptionalBraces.fewerBracesMaxSpan)
-      }
+      if (rewrite.scala3.optionalBraces.fewerBraces.maxSpan > 0)
+        addIf(rewrite.scala3.optionalBraces.fewerBraces.minSpan > rewrite.scala3.optionalBraces.fewerBraces.maxSpan)
       if (rewrite.rules.contains(Imports)) binPack.importSelectors match {
         case Some(ImportSelectors.singleLine) => // if we fold but not bin pack, we might end up with very long lines
           addIfDirect(importSelectorsRewrite eq Newlines.fold, "rewrite.imports.selectors == fold && binPack.importSelectors == singleLine")
@@ -492,15 +491,8 @@ object ScalafmtConfig {
       }
 
       override def convert(conf: Conf): Conf = baseDecoder.convert(conf) match {
-        case c @ Conf.Obj(elems) =>
-          val fileOverrideKey = Conf.nameOf(default.fileOverride).value
-          elems.collectFirst {
-            case (`fileOverrideKey`, Conf.Obj(vv)) if vv.nonEmpty =>
-              val fo = fileOverrideKey -> Conf.Obj(vv.map {
-                case (k, v: Conf.Obj) => k -> baseDecoder.convert(v)
-                case x => x
-              })
-              Conf.Obj(fo :: elems.filter(_._1 != fileOverrideKey))
+        case c: Conf.Obj => c.replaceKeyIfVal(Conf.nameOf(default.fileOverride)) {
+            case vv: Conf.Obj => vv.mapValues(baseDecoder.convert)
           }.getOrElse(c)
         case c => c
       }

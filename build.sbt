@@ -10,15 +10,19 @@ def isCI = System.getenv("CI") != null
 
 def scala212 = "2.12.21"
 def scala213 = "2.13.18"
+def scala3 = "3.3.7"
+val scala2Versions = Seq(scala213, scala212)
+val scalaVersions = scala2Versions :+ scala3
 
 def isScalaVer(ver: String) = Def.setting(scalaBinaryVersion.value == ver)
 def isScala212 = isScalaVer("2.12")
 def isScala213 = isScalaVer("2.13")
+def isScala3 = isScalaVer("3")
 
 inThisBuild {
   List(
-    version := "3.10.7-fork-1",
-    publishTo := (if (isSnapshot.value) None else localStaging.value),
+    version := "3.11.1-fork-1",
+    publishTo := localStaging.value,
     organization := "com.github.xuwei-k",
     homepage := Some(url("https://github.com/scalameta/scalafmt")),
     licenses :=
@@ -30,11 +34,11 @@ inThisBuild {
       url("https://geirsson.com"),
     )),
     scalaVersion := scala213,
-    crossScalaVersions := List(scala213, scala212),
+    crossScalaVersions := scalaVersions,
     resolvers += Resolver.sonatypeCentralSnapshots,
-    testFrameworks += new TestFramework("munit.Framework"),
+    testFrameworks += TestFrameworks.MUnit,
     // causes native image issues
-    dependencyOverrides += "org.jline" % "jline" % "3.30.6",
+    dependencyOverrides += "org.jline" % "jline" % "3.30.13",
   )
 }
 
@@ -63,28 +67,37 @@ addCommandAlias("test-jvm", "tests/test;cli/test")
 addCommandAlias("test-js", "testsJS/test;cliJS/test")
 addCommandAlias("test-native", "testsNative/test;cliNative/test")
 
-lazy val dynamic = crossProject(JVMPlatform) // don't build for NativePlatform
-  .withoutSuffixFor(JVMPlatform).in(file("scalafmt-dynamic")).settings(
-    moduleName := "scalafmt-dynamic",
-    description := "Implementation of scalafmt-interfaces",
-    buildInfoSettings("org.scalafmt.dynamic", "BuildInfo"),
-    libraryDependencies ++= List(
-      "io.get-coursier" %% "coursier" % coursier,
-      "com.typesafe" % "config" % "1.4.5",
-    ),
-    sharedTestSettings,
-    scalacOptions ++= scalacJvmOptions.value,
-    assembly / assemblyMergeStrategy := {
-      case PathList("META-INF", "versions", "9", "module-info.class") =>
-        MergeStrategy.discard
-      case PathList("META-INF", "sisu", "javax.inject.Named") =>
-        MergeStrategy.concat
-      case x =>
-        val oldStrategy = (assembly / assemblyMergeStrategy).value
-        oldStrategy(x)
-    },
-  ).dependsOn(interfaces, sysops).dependsOn(core % "test")
+lazy val dynamicCore = project.in(file("scalafmt-dynamic-core")).settings(
+  moduleName := "scalafmt-dynamic-core",
+  description := "Implementation of scalafmt-interfaces",
+  buildInfoSettings("org.scalafmt.dynamic", "BuildInfo"),
+  libraryDependencies ++= List("com.typesafe" % "config" % "1.4.9"),
+  sharedTestSettings,
+  scalacSettings,
+  assembly / assemblyMergeStrategy := {
+    case PathList("META-INF", "versions", "9", "module-info.class") =>
+      MergeStrategy.discard
+    case PathList("META-INF", "sisu", "javax.inject.Named") =>
+      MergeStrategy.concat
+    case x =>
+      val oldStrategy = (assembly / assemblyMergeStrategy).value
+      oldStrategy(x)
+  },
+).dependsOn(interfaces.jvm, sysops.jvm).dependsOn(core.jvm % "test")
   .enablePlugins(BuildInfoPlugin)
+
+lazy val dynamic = project.in(file("scalafmt-dynamic")).settings(
+  moduleName := "scalafmt-dynamic",
+  description := "Implementation of scalafmt-dynamic using coursier",
+  libraryDependencies += {
+    val pkg = "io.get-coursier" %% "coursier" % coursier
+    if (isScala3.value) (pkg cross CrossVersion.for3Use2_13)
+      .exclude("org.scala-lang.modules", "scala-collection-compat_2.13")
+    else pkg
+  },
+  sharedTestSettings,
+  scalacSettings,
+).dependsOn(dynamicCore).dependsOn(core.jvm % "test")
 
 lazy val interfaces = crossProject(JVMPlatform, NativePlatform, JSPlatform)
   .withoutSuffixFor(JVMPlatform).in(file("scalafmt-interfaces")).settings(
@@ -112,10 +125,11 @@ lazy val sysops = crossProject(JVMPlatform, NativePlatform, JSPlatform)
   .withoutSuffixFor(JVMPlatform).in(file("scalafmt-sysops")).settings(
     moduleName := "scalafmt-sysops",
     description := "Scalafmt systems operations",
-    scalacOptions ++= scalacJvmOptions.value,
+    scalacSettings,
     sharedTestSettings,
   ).jsEnablePlugins(ScalaJSPlugin).jsSettings(
-    libraryDependencies += "org.scalameta" %%% "io" % scalametaV,
+    libraryDependencies +=
+      smorgN %%% "io" % scalametaV cross CrossVersion.for3Use2_13,
     scalaJsSettings,
   )
 
@@ -123,7 +137,7 @@ lazy val config = crossProject(JVMPlatform, NativePlatform, JSPlatform)
   .withoutSuffixFor(JVMPlatform).in(file("scalafmt-config")).settings(
     moduleName := "scalafmt-config",
     description := "Scalafmt config parsing",
-    scalacOptions ++= scalacJvmOptions.value,
+    scalacSettings,
     libraryDependencies += metaconfigCore.value,
   ).jvmSettings(libraryDependencies += metaconfigTypesafe.value)
   .platformsSettings(NativePlatform, JSPlatform)(
@@ -134,8 +148,9 @@ lazy val core = crossProject(JVMPlatform, NativePlatform, JSPlatform)
   .in(file("scalafmt-core")).settings(
     moduleName := "scalafmt-core",
     buildInfoSettings("org.scalafmt", "Versions"),
-    scalacOptions ++= scalacJvmOptions.value,
-    libraryDependencies ++= Seq("org.scalameta" %%% "mdoc-parser" % mdocV),
+    scalacSettings,
+    libraryDependencies += scalameta.value,
+    libraryDependencies ++= Seq(smorgN %%% "mdoc-parser" % mdocV),
     libraryDependencies ++= {
       if (!isScala212.value) Nil
       else Seq(compilerPlugin(
@@ -151,24 +166,41 @@ lazy val coreJVM = core.jvm
 lazy val macros = crossProject(JVMPlatform, NativePlatform, JSPlatform)
   .in(file("scalafmt-macros")).settings(
     moduleName := "scalafmt-macros",
-    scalacOptions ++= scalacJvmOptions.value,
+    scalacSettings,
     libraryDependencies += scalameta.value,
-    libraryDependencies +=
-      "org.scala-lang" % "scala-reflect" % scalaVersion.value,
+    libraryDependencies ++= {
+      if (isScala3.value) Nil
+      else Seq("org.scala-lang" % "scala-reflect" % scalaVersion.value)
+    },
   )
 
 import sbtassembly.AssemblyPlugin.defaultUniversalScript
 
 val scalacJvmOptions = Def.setting {
-  val cross =
-    if (!isScala213.value) Nil
-    else Seq("-Ymacro-annotations", "-deprecation:false")
+  val cross = if (!isScala213.value) Nil else Seq("-Ymacro-annotations")
 
-  val unused = Seq("imports", "privates", "locals", "patvars", "implicits")
-    .map(x => s"-Ywarn-unused:$x")
+  val warningAsError =
+    if (isScala212.value) Seq("-deprecation:false")
+    else Seq()
 
-  cross ++ unused ++ Seq("-target:8", "-release:8")
+  val unused =
+    if (isScala3.value) "-Wunused:all"
+    else if (isScala213.value)
+      "-Wunused:imports,privates,locals,patvars,implicits,explicits,params"
+    else "-Ywarn-unused:imports,privates,locals,patvars,implicits"
+
+  val javaver =
+    if (isScala3.value) Seq("-java-output-version:8")
+    else Seq("-target:8", "-release:8")
+
+  cross ++ warningAsError ++ javaver :+ unused
 }
+
+val scalacSettings = Def.settings(
+  javacOptions ++= Seq("-source", "8", "-target", "8"),
+  Compile / compile / scalacOptions ++= scalacJvmOptions.value,
+  Test / compile / scalacOptions ++= scalacJvmOptions.value,
+)
 
 lazy val cli = crossProject(JVMPlatform, NativePlatform, JSPlatform)
   .withoutSuffixFor(JVMPlatform).in(file("scalafmt-cli")).settings(
@@ -190,10 +222,10 @@ lazy val cli = crossProject(JVMPlatform, NativePlatform, JSPlatform)
         oldStrategy(x)
     },
     libraryDependencies ++= Seq(
-      "org.scalameta" %%% "munit-diff" % munitV,
+      smorgN %%% "munit-diff" % munitV,
       "com.github.scopt" %%% "scopt" % "4.1.0",
     ),
-    scalacOptions ++= scalacJvmOptions.value,
+    scalacSettings,
     Compile / mainClass := Some("org.scalafmt.cli.Cli"),
     sharedTestSettings,
   ).jvmSettings(
@@ -224,7 +256,7 @@ lazy val cli = crossProject(JVMPlatform, NativePlatform, JSPlatform)
   // TODO: enable NPM publishing
   .jsSettings(scalaJsSettings, scalaJSUseMainModuleInitializer := true)
   .jvmEnablePlugins(NativeImagePlugin)
-  .jvmConfigure(_.dependsOn(dynamic.jvm).aggregate(dynamic.jvm))
+  .jvmConfigure(_.dependsOn(dynamic).aggregate(dynamic))
 
 lazy val tests = crossProject(JVMPlatform, NativePlatform, JSPlatform)
   .withoutSuffixFor(JVMPlatform).in(file("scalafmt-tests")).settings(
@@ -232,7 +264,7 @@ lazy val tests = crossProject(JVMPlatform, NativePlatform, JSPlatform)
     sharedTestSettings,
     libraryDependencies += scalametaTestkit.value % Test,
     libraryDependencies += "com.lihaoyi" %%% "scalatags" % "0.13.1" % Test,
-    scalacOptions ++= scalacJvmOptions.value,
+    scalacSettings,
     buildInfoPackage := "org.scalafmt.tests",
     buildInfoKeys := Seq[BuildInfoKey]("resourceDirectory" -> {
       val sharedTests = (baseDirectory.value.getParentFile / "shared").toPath
@@ -305,7 +337,7 @@ lazy val docs = project.in(file("scalafmt-docs")).settings(
   crossScalaVersions := List(scala212),
   publish / skip := true,
   mdoc := (Compile / run).evaluated,
-).dependsOn(cli.jvm, dynamic.jvm).enablePlugins(DocusaurusPlugin)
+).dependsOn(cli.jvm, dynamic).enablePlugins(DocusaurusPlugin)
 
 val V = "\\d+\\.\\d+\\.\\d+"
 val ReleaseCandidate = s"($V-RC\\d+).*".r
@@ -325,6 +357,8 @@ def buildInfoSettings(pkg: String, obj: String): Seq[Def.Setting[_]] = Seq(
       previousStableVersion.value.getOrElse(stableVersion.value),
     "scala" -> scalaVersion.value,
     "scala212" -> scala212,
+    "scala213" -> scala213,
+    "scala3" -> scala3,
     "coursier" -> coursier,
     "commit" -> sys.process.Process("git rev-parse HEAD").lineStream_!.head,
     "timestamp" -> System.currentTimeMillis().toString,
@@ -335,9 +369,9 @@ def buildInfoSettings(pkg: String, obj: String): Seq[Def.Setting[_]] = Seq(
   buildInfoObject := obj,
 )
 
-lazy val communityTestsSettings: Seq[Def.Setting[_]] = Seq(
+lazy val communityTestsSettings: Seq[Def.Setting[_]] = Def.settings(
   publish / skip := true,
-  scalacOptions ++= scalacJvmOptions.value,
+  scalacSettings,
   javaOptions += "-Dfile.encoding=UTF8",
 )
 

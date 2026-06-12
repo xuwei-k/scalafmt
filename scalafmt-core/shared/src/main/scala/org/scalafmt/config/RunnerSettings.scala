@@ -3,8 +3,6 @@ package org.scalafmt.config
 import scala.meta.parsers.{Parsed, ParserOptions}
 import scala.meta.{Dialect, Tree}
 
-import scala.reflect.ClassTag
-
 import metaconfig._
 
 /** A FormatRunner configures how formatting should behave.
@@ -61,8 +59,8 @@ case class RunnerSettings(
   def event(evt: => FormatEvent): Unit =
     if (null != eventCallback) eventCallback(evt)
 
-  private implicit val parserOptions: ParserOptions =
-    new ParserOptions(captureComments = false)
+  private implicit val parserOptions: ParserOptions = ParserOptions.default
+    .withCaptureComments(false)
 
   def parse(input: meta.inputs.Input): Parsed[_ <: Tree] = getParser(input)
 
@@ -93,15 +91,13 @@ object RunnerSettings {
 
   implicit val encoder: ConfEncoder[RunnerSettings] = generic.deriveEncoder
 
-  private[config] def overrideDialect[T: ClassTag](
-      d: Dialect,
-      k: String,
-      v: T,
-  ) = {
+  private lazy val dialectMap = DialectMacro.dialectMap
+
+  private[config] def overrideDialect[T](d: Dialect, k: String, v: T) = {
     val methodName =
       if (k.isEmpty || k.startsWith("with")) k
       else "with" + Character.toUpperCase(k.head) + k.tail
-    DialectMacro.dialectMap(methodName)(d, v)
+    dialectMap(methodName)(d, v)
   }
 
   implicit val decoder: ConfDecoderEx[RunnerSettings] = generic

@@ -1,24 +1,27 @@
-import sbt.Keys._
-import sbt._
+import sbt.*
+import sbt.Keys.*
 
-import org.portablescala.sbtplatformdeps.PlatformDepsPlugin.autoImport._
+import org.portablescala.sbtplatformdeps.PlatformDepsPlugin.autoImport.*
 
 // scalafmt: { maxColumn = 120, align.preset = more, align.allowOverflow = true }
 
 object Dependencies {
-  val metaconfigV = "0.18.2"
-  val scalametaV  = "4.15.2"
+  val metaconfigV = "0.18.6"
+  val scalametaV  = "4.17.0"
   val coursier    = "2.1.24"
-  val munitV      = "1.2.2"
+  val munitV      = "1.3.2"
   val mdocV       = mdoc.BuildInfo.version
 
-  private def smorg(pkg: => String, v: String) = Def.setting("org.scalameta" %%% pkg % v)
+  val smorgN = "org.scalameta"
+  val smpkgN = "scalameta"
+
+  private def smorg(pkg: => String, v: String) = Def.setting(smorgN %%% pkg % v)
 
   val munit     = smorg("munit", munitV)
-  val scalameta = Def.setting(
-    smorg("scalameta", scalametaV).value
-      .excludeAll("com.thesamet.scalapb" % s"scalapb-runtime_${scalaBinaryVersion.value}"),
-  )
+  val scalameta = Def.setting {
+    val sm = smorg(smpkgN, scalametaV).value
+    sm.excludeAll("com.thesamet.scalapb" % s"scalapb-runtime_${scalaBinaryVersion.value}")
+  }
   val scalametaIO      = smorg("io", scalametaV)
   val scalametaTestkit = smorg("testkit", scalametaV)
 

@@ -255,47 +255,54 @@ class FormatOps(
 
   def getBreakBeforeElsePolicy(beforeElse: FT): Policy = Policy
     .onlyFor(beforeElse, prefix = "ELSE")(
-      Decision.onlyNewlinesWithFallback(_, Seq(Split(Newline, 0))),
+      Decision.onlyNewlinesWithFallback(_, Seq(Split(Newline2x(beforeElse), 0))),
     )
 
-  def getBreakBeforeElsePolicy(term: Term.If): Policy = getElseToken(term)
-    .flatMap { case (_, elsOpt) => elsOpt.map(getBreakBeforeElsePolicy) }
+  def getBreakBeforeElsePolicy(term: Term.If)(implicit
+      cfg: ScalafmtConfig,
+  ): Policy = getElseToken(term).flatMap { case (_, elsOpt) =>
+    elsOpt.map(getBreakBeforeElsePolicy)
+  }
 
-  def getBreaksBeforeElseChainPolicy(term: Term.If): Policy =
-    getElseChain(term, Nil).foldLeft(Policy.noPolicy) { case (res, els) =>
+  def getBreaksBeforeElseChainPolicy(
+      term: Term.If,
+  )(implicit cfg: ScalafmtConfig): Policy = getElseChain(term, Nil)
+    .foldLeft(Policy.noPolicy) { case (res, els) =>
       getBreakBeforeElsePolicy(els) ==> res
     }
 
-  private final def getElseToken(term: Term.If): Option[(FT, Option[FT])] =
-    tokenJustBeforeOpt(term.elsep).map { ftElsep =>
-      val elsOpt = prevBeforeNonComment(ftElsep) match {
-        case ft @ FT(_, _: T.KwElse, _) =>
-          val ok = initStyle.newlines.alwaysBeforeElseAfterCurlyIf || ! {
-            ft.leftOwner.is[Term.Block] && ft.left.is[T.RightBrace] &&
-            !prevNonCommentSameLineBefore(ft).left.is[T.LeftBrace] &&
-            matchingOptLeft(ft)
-              .exists(lb => prev(lb).left.start < term.thenp.pos.start)
-          }
-          if (ok) Some(ft) else None
-        case _ => None
-      }
-      (ftElsep, elsOpt)
+  private final def getElseToken(term: Term.If)(implicit
+      cfg: ScalafmtConfig,
+  ): Option[(FT, Option[FT])] = tokenJustBeforeOpt(term.elsep).map { ftElsep =>
+    val elsOpt = prevBeforeNonComment(ftElsep) match {
+      case ft @ FT(_, _: T.KwElse, _) =>
+        val ok = cfg.newlines.alwaysBeforeElseAfterCurlyIf || ! {
+          ft.leftOwner.is[Term.Block] && ft.left.is[T.RightBrace] &&
+          !prevNonCommentSameLineBefore(ft).left.is[T.LeftBrace] &&
+          matchingOptLeft(ft)
+            .exists(lb => prev(lb).left.start < term.thenp.pos.start)
+        }
+        if (ok) Some(ft) else None
+      case _ => None
     }
+    (ftElsep, elsOpt)
+  }
 
   @tailrec
-  private final def getElseChain(term: Term.If, res: List[FT]): List[FT] =
-    getElseToken(term) match {
-      case Some((ftElsep, elsOpt)) =>
-        val newRes = elsOpt.fold(res)(_ :: res)
-        term.elsep match {
-          case t: Term.If => getElseChain(t, newRes)
-          case b @ Term.Block((t: Term.If) :: Nil)
-              if !matchingOptRight(ftElsep).exists(_ eq getLast(b)) =>
-            getElseChain(t, newRes)
-          case _ => newRes
-        }
-      case _ => res
-    }
+  private final def getElseChain(term: Term.If, res: List[FT])(implicit
+      cfg: ScalafmtConfig,
+  ): List[FT] = getElseToken(term) match {
+    case Some((ftElsep, elsOpt)) =>
+      val newRes = elsOpt.fold(res)(_ :: res)
+      term.elsep match {
+        case t: Term.If => getElseChain(t, newRes)
+        case b @ Term.Block((t: Term.If) :: Nil)
+            if !matchingOptRight(ftElsep).exists(_ eq getLast(b)) =>
+          getElseChain(t, newRes)
+        case _ => newRes
+      }
+    case _ => res
+  }
 
   def insideInfixSplit(
       app: Member.Infix,
@@ -342,7 +349,7 @@ class FormatOps(
         case t: Defn.Var => t.body eq fullInfix
         case _ => true
       }
-      if (ok) InfixSplits(app, ft, fullInfix, fullInfixEnclosedIn)
+      if (ok) InfixSplits(app, ft, fullInfix)
         .getBeforeLhsOrRhs(afterInfix, spaceMod = spaceMod)
       else spaceSplits
     }
@@ -366,7 +373,7 @@ class FormatOps(
     def modNL = Newline2x(fullInfixEnclosedInParens && ft.hasBlankLine)
     def nl(cost: Int)(implicit fl: FileLine) = Split(modNL, cost)
     def withIndent(split: Split) =
-      Seq(InfixSplits.withNLIndent(split, app, (fullInfix, fullInfixEnclosedIn)))
+      Seq(InfixSplits.withNLIndent(split, app, fullInfix))
 
     if (isBeforeOp)
       if (ft.noBreak) withIndent(spc) // !sourceIgnored
